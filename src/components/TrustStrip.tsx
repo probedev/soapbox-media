@@ -1,9 +1,10 @@
 interface TrustStripProps {
   numChannels: number;
   numEpisodes: number;
-  /** ISO string */
+  /** ISO string of the most recent data update */
   lastUpdated: string;
-  weekLabel: string;
+  /** Short label for the current period, e.g. "Last 7 days" or "As of May 11, 2026" */
+  asOfLabel: string;
   isPlaceholder?: boolean;
 }
 
@@ -11,7 +12,7 @@ export function TrustStrip({
   numChannels,
   numEpisodes,
   lastUpdated,
-  weekLabel,
+  asOfLabel,
   isPlaceholder = false,
 }: TrustStripProps) {
   const date = new Date(lastUpdated);
@@ -25,7 +26,7 @@ export function TrustStrip({
 
   return (
     <div className="text-xs text-gray-500 flex flex-wrap items-center justify-center gap-x-3 gap-y-1">
-      <span>{weekLabel}</span>
+      <span>{asOfLabel}</span>
       <span aria-hidden>·</span>
       <span>
         <span className="font-semibold text-gray-700 tabular-nums">{numChannels}</span>{" "}
@@ -36,14 +37,16 @@ export function TrustStrip({
         <span className="font-semibold text-gray-700 tabular-nums">
           {numEpisodes.toLocaleString()}
         </span>{" "}
-        episodes this week
+        episodes in window
       </span>
       <span aria-hidden>·</span>
       <span>Last updated {formatted}</span>
       {isPlaceholder && (
         <>
           <span aria-hidden>·</span>
-          <span className="text-amber-600 font-medium">Placeholder data — live pipeline online Friday</span>
+          <span className="text-amber-600 font-medium">
+            Pipeline online — awaiting first sentiment data
+          </span>
         </>
       )}
     </div>

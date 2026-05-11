@@ -74,7 +74,7 @@ export default async function IssuesListPage() {
 
       <footer className="border-t border-gray-200 bg-white">
         <div className="max-w-5xl mx-auto px-6 py-8 text-sm text-gray-500 flex flex-col md:flex-row md:items-center md:justify-between gap-2">
-          <div>Soapbox.media · alt-media discourse, measured weekly</div>
+          <div>Soapbox.media · alt-media discourse, updated daily</div>
           <div className="flex gap-4">
             <a href="/methodology" className="underline hover:text-gray-900">How we measure</a>
           </div>

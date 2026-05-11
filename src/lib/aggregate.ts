@@ -56,23 +56,26 @@ export interface IssueMover {
 }
 
 export interface DashboardData {
-  weekStart: string;
-  /** -10..+10 — the headline Soapbox Index for the most recent week */
+  /** ISO end date of the trailing window (today) */
+  asOfDate: string;
+  /** Days in the trailing window (default 7) */
+  windowDays: number;
+  /** -10..+10 — Soapbox Index over the trailing window */
   index: number;
-  /** index - previous_week_index */
+  /** index - previous_period_index (same-length window immediately prior) */
   delta: number;
-  /** last 12 weeks of Soapbox Index, oldest first */
+  /** Daily-rolling Index values for last N days, oldest first.
+   *  Each value is the Index for a trailing windowDays-long period
+   *  ending on that day. */
   sparkline: number[];
-  /** top issues for the most recent week, sorted by volume desc */
+  /** Top issues within the trailing window, sorted by volume desc */
   issues: IssueAggregate[];
-  /** issues with the biggest week-over-week lean change, sorted by |delta| */
+  /** Issues with biggest period-over-period lean change, sorted by |delta| */
   movers: IssueMover[];
   numChannels: number;
   numEpisodes: number;
   numClassifications: number;
   lastUpdated: string;
-  /** Empty if no sentiment_scores exist yet — the page should render the
-   *  placeholder state in that case. */
   hasData: boolean;
 }
 
@@ -159,13 +162,21 @@ async function fetchScoreRows(): Promise<ScoreRow[]> {
   return all;
 }
 
-export async function getDashboardData(): Promise<DashboardData> {
+/**
+ * Returns dashboard data using a trailing N-day rolling window (default 7).
+ * Updated by the daily cron, so the number is always the most recent week's
+ * worth of content but stable enough not to whipsaw with each new episode.
+ */
+export async function getDashboardData(windowDays = 7): Promise<DashboardData> {
   const rows = await fetchScoreRows();
   const lastUpdated = new Date().toISOString();
+  const now = new Date();
+  const asOfDate = now.toISOString().slice(0, 10);
 
   if (rows.length === 0) {
     return {
-      weekStart: weekStartIso(new Date().toISOString()),
+      asOfDate,
+      windowDays,
       index: 0,
       delta: 0,
       sparkline: [],
@@ -179,38 +190,43 @@ export async function getDashboardData(): Promise<DashboardData> {
     };
   }
 
-  // Bucket all rows by week
-  const byWeek = new Map<string, ScoreRow[]>();
-  for (const r of rows) {
-    const w = weekStartIso(r.episode_published_at);
-    const arr = byWeek.get(w) || [];
-    arr.push(r);
-    byWeek.set(w, arr);
+  // Helper: rows whose episode falls within [windowStart, windowEnd)
+  function rowsInRange(windowStart: Date, windowEnd: Date): ScoreRow[] {
+    return rows.filter((r) => {
+      const d = new Date(r.episode_published_at);
+      return d >= windowStart && d < windowEnd;
+    });
   }
 
-  const sortedWeeks = Array.from(byWeek.keys()).sort();
-  const currentWeek = sortedWeeks[sortedWeeks.length - 1];
-  const prevWeek = sortedWeeks.length >= 2 ? sortedWeeks[sortedWeeks.length - 2] : null;
-  const currentRows = byWeek.get(currentWeek) || [];
+  // Current window: last N days ending now
+  const currentEnd = now;
+  const currentStart = new Date(now);
+  currentStart.setUTCDate(currentStart.getUTCDate() - windowDays);
+  const currentRows = rowsInRange(currentStart, currentEnd);
+  const currentIndex = clamp(weightedLean(currentRows).lean * 2, -10, 10);
 
-  // Soapbox Index for current and previous weeks
-  const currentLean = weightedLean(currentRows).lean;
-  const currentIndex = clamp(currentLean * 2, -10, 10);
-  let delta = 0;
-  if (prevWeek) {
-    const prevLean = weightedLean(byWeek.get(prevWeek) || []).lean;
-    const prevIndex = clamp(prevLean * 2, -10, 10);
-    delta = currentIndex - prevIndex;
+  // Previous window: the N days immediately before the current window
+  const prevEnd = currentStart;
+  const prevStart = new Date(prevEnd);
+  prevStart.setUTCDate(prevStart.getUTCDate() - windowDays);
+  const prevRows = rowsInRange(prevStart, prevEnd);
+  const prevIndex = clamp(weightedLean(prevRows).lean * 2, -10, 10);
+  const delta = prevRows.length > 0 ? currentIndex - prevIndex : 0;
+
+  // Sparkline: rolling N-day Index value for each of the last 30 days
+  const sparklineLen = 30;
+  const sparkline: number[] = [];
+  for (let daysAgo = sparklineLen - 1; daysAgo >= 0; daysAgo--) {
+    const windowEnd = new Date(now);
+    windowEnd.setUTCDate(windowEnd.getUTCDate() - daysAgo);
+    const windowStart = new Date(windowEnd);
+    windowStart.setUTCDate(windowStart.getUTCDate() - windowDays);
+    const wRows = rowsInRange(windowStart, windowEnd);
+    if (wRows.length === 0) continue;
+    sparkline.push(clamp(weightedLean(wRows).lean * 2, -10, 10));
   }
 
-  // 12-week sparkline (oldest first; only weeks with data)
-  const last12 = sortedWeeks.slice(-12);
-  const sparkline = last12.map((w) => {
-    const r = byWeek.get(w) || [];
-    return clamp(weightedLean(r).lean * 2, -10, 10);
-  });
-
-  // Per-issue aggregation for current week
+  // Per-issue aggregation for current window
   const currentByIssue = new Map<string, ScoreRow[]>();
   for (const r of currentRows) {
     const arr = currentByIssue.get(r.issue_slug) || [];
@@ -218,13 +234,22 @@ export async function getDashboardData(): Promise<DashboardData> {
     currentByIssue.set(r.issue_slug, arr);
   }
 
-  // Compute 8-week trend per issue
-  const trendWeeks = sortedWeeks.slice(-8);
+  // 8-point issue trend (one point per N-day window stepped daily)
+  const trendLen = 8;
   function issueTrend(slug: string): number[] {
-    return trendWeeks.map((w) => {
-      const wRows = (byWeek.get(w) || []).filter((r) => r.issue_slug === slug);
-      return clamp(weightedLean(wRows).lean * 2, -10, 10);
-    });
+    const out: number[] = [];
+    for (let daysAgo = trendLen - 1; daysAgo >= 0; daysAgo--) {
+      const windowEnd = new Date(now);
+      windowEnd.setUTCDate(windowEnd.getUTCDate() - daysAgo);
+      const windowStart = new Date(windowEnd);
+      windowStart.setUTCDate(windowStart.getUTCDate() - windowDays);
+      const wRows = rowsInRange(windowStart, windowEnd).filter(
+        (r) => r.issue_slug === slug,
+      );
+      if (wRows.length === 0) continue;
+      out.push(clamp(weightedLean(wRows).lean * 2, -10, 10));
+    }
+    return out;
   }
 
   const issueAggregates: IssueAggregate[] = [];
@@ -241,19 +266,19 @@ export async function getDashboardData(): Promise<DashboardData> {
   }
   issueAggregates.sort((a, b) => b.volume - a.volume);
 
-  // Movers: per-issue current vs previous week
+  // Movers: per-issue current vs previous window
   const movers: IssueMover[] = [];
-  if (prevWeek) {
+  if (prevRows.length > 0) {
     const prevByIssue = new Map<string, ScoreRow[]>();
-    for (const r of byWeek.get(prevWeek) || []) {
+    for (const r of prevRows) {
       const arr = prevByIssue.get(r.issue_slug) || [];
       arr.push(r);
       prevByIssue.set(r.issue_slug, arr);
     }
     for (const issue of issueAggregates) {
-      const prevRs = prevByIssue.get(issue.slug) || [];
-      if (prevRs.length === 0) continue;
-      const fromLean = clamp(weightedLean(prevRs).lean * 2, -10, 10);
+      const prs = prevByIssue.get(issue.slug) || [];
+      if (prs.length === 0) continue;
+      const fromLean = clamp(weightedLean(prs).lean * 2, -10, 10);
       movers.push({
         slug: issue.slug,
         name: issue.name,
@@ -266,7 +291,8 @@ export async function getDashboardData(): Promise<DashboardData> {
   }
 
   return {
-    weekStart: currentWeek,
+    asOfDate,
+    windowDays,
     index: currentIndex,
     delta,
     sparkline,
@@ -278,6 +304,191 @@ export async function getDashboardData(): Promise<DashboardData> {
     lastUpdated,
     hasData: true,
   };
+}
+
+/**
+ * System-wide rollup stats — channel count, episodes processed, hours of
+ * audio analyzed, etc. Used on /channels page and other admin/social-proof
+ * surfaces. Designed to be cheap: just COUNT(*) queries + a small duration
+ * sum, no transcript text fetching.
+ */
+export interface SystemStats {
+  channelsTracked: number;
+  episodesAnalyzed: number;
+  transcriptsAvailable: number;
+  classifications: number;
+  sentimentScores: number;
+  hoursOfAudio: number;
+  /** Estimated from duration × ~150 wpm (natural conversational speech). */
+  wordsTranscribedEstimate: number;
+  /** Latest sentiment_score.created_at, ISO. Null when no scores yet. */
+  lastUpdated: string | null;
+}
+
+export async function getSystemStats(): Promise<SystemStats> {
+  const db = createServiceClient();
+
+  const [channels, episodes, transcripts, classifications, scores] = await Promise.all([
+    db.from("channels").select("*", { count: "exact", head: true }).eq("active", true),
+    db.from("episodes").select("*", { count: "exact", head: true }),
+    db.from("transcripts").select("*", { count: "exact", head: true }),
+    db.from("classifications").select("*", { count: "exact", head: true }),
+    db.from("sentiment_scores").select("*", { count: "exact", head: true }),
+  ]);
+
+  // Fetch duration_sec for all episodes (paginated for safety; ~200 rows so cheap)
+  let totalSeconds = 0;
+  const pageSize = 1000;
+  for (let from = 0; ; from += pageSize) {
+    const { data, error } = await db
+      .from("episodes")
+      .select("duration_sec")
+      .not("duration_sec", "is", null)
+      .range(from, from + pageSize - 1);
+    if (error || !data || data.length === 0) break;
+    for (const e of data) totalSeconds += Number(e.duration_sec) || 0;
+    if (data.length < pageSize) break;
+  }
+  const hoursOfAudio = totalSeconds / 3600;
+  // ~150 wpm = 2.5 words/sec for natural speech
+  const wordsTranscribedEstimate = Math.round(totalSeconds * 2.5);
+
+  // Latest activity timestamp from sentiment_scores
+  const { data: latest } = await db
+    .from("sentiment_scores")
+    .select("created_at")
+    .order("created_at", { ascending: false })
+    .limit(1);
+  const lastUpdated =
+    latest && latest[0]?.created_at ? String(latest[0].created_at) : null;
+
+  return {
+    channelsTracked: channels.count || 0,
+    episodesAnalyzed: episodes.count || 0,
+    transcriptsAvailable: transcripts.count || 0,
+    classifications: classifications.count || 0,
+    sentimentScores: scores.count || 0,
+    hoursOfAudio,
+    wordsTranscribedEstimate,
+    lastUpdated,
+  };
+}
+
+/**
+ * Per-issue breakdown of how each issue is pushing the Soapbox Index in the
+ * current rolling window. Used by the "Why is the Index where it is?"
+ * component on the methodology page (and possibly the homepage).
+ */
+export interface IssueContribution {
+  slug: string;
+  name: string;
+  numClassifications: number;
+  /** Average raw sentiment (-5..+5) across this issue's classifications. */
+  avgSentiment: number;
+  /** Σ (sentiment × intensity × log10(reach)) — the net push this issue
+   *  exerts on the Soapbox Index. Negative = pulls L; positive = pulls R. */
+  contribution: number;
+  direction: "L" | "R" | "neutral";
+}
+
+export interface IndexBreakdown {
+  /** Current Soapbox Index in the window (-10..+10). */
+  index: number;
+  windowDays: number;
+  totalClassifications: number;
+  /** Issues sorted by |contribution| descending — biggest movers first. */
+  issues: IssueContribution[];
+}
+
+/**
+ * Generate a one-or-two-sentence narrative headline from an IndexBreakdown.
+ * Used on the homepage to give the casual visitor "what is driving today's
+ * Index" in plain English without our having to write it manually.
+ */
+export function buildAutoHeadline(breakdown: IndexBreakdown): string {
+  if (breakdown.issues.length === 0) return "";
+
+  const formatList = (items: { name: string }[]): string => {
+    if (items.length === 0) return "";
+    if (items.length === 1) return items[0].name;
+    if (items.length === 2) return `${items[0].name} and ${items[1].name}`;
+    return `${items[0].name}, ${items[1].name}, and ${items[2].name}`;
+  };
+
+  const sortedByVolume = [...breakdown.issues].sort(
+    (a, b) => b.numClassifications - a.numClassifications,
+  );
+  const topVolume = sortedByVolume[0];
+  const lIssues = breakdown.issues.filter((i) => i.direction === "L").slice(0, 3);
+  const rIssues = breakdown.issues.filter((i) => i.direction === "R").slice(0, 3);
+
+  const parts: string[] = [];
+
+  if (topVolume) {
+    parts.push(
+      `${topVolume.name} dominated the conversation with ${topVolume.numClassifications.toLocaleString()} mentions.`,
+    );
+  }
+
+  if (lIssues.length > 0 && rIssues.length > 0) {
+    parts.push(
+      `Coverage of ${formatList(lIssues)} pulled the Index left, offset by ${formatList(rIssues)} on the right.`,
+    );
+  } else if (lIssues.length > 0) {
+    parts.push(`Coverage of ${formatList(lIssues)} pulled the Index left.`);
+  } else if (rIssues.length > 0) {
+    parts.push(`Coverage of ${formatList(rIssues)} pushed the Index right.`);
+  }
+
+  return parts.join(" ");
+}
+
+export async function getIndexBreakdown(windowDays = 30): Promise<IndexBreakdown> {
+  const rows = await fetchScoreRows();
+  const cutoff = new Date();
+  cutoff.setUTCDate(cutoff.getUTCDate() - windowDays);
+  const windowed = rows.filter(
+    (r) => new Date(r.episode_published_at) >= cutoff,
+  );
+
+  if (windowed.length === 0) {
+    return { index: 0, windowDays, totalClassifications: 0, issues: [] };
+  }
+
+  const byIssue = new Map<string, ScoreRow[]>();
+  for (const r of windowed) {
+    const arr = byIssue.get(r.issue_slug) || [];
+    arr.push(r);
+    byIssue.set(r.issue_slug, arr);
+  }
+
+  const issues: IssueContribution[] = [];
+  for (const [slug, rs] of byIssue) {
+    let totalSentiment = 0;
+    let totalContribution = 0;
+    for (const r of rs) {
+      const rf = reachFactor(r.channel_reach);
+      totalContribution += r.sentiment * r.intensity * rf;
+      totalSentiment += r.sentiment;
+    }
+    const avgSentiment = totalSentiment / rs.length;
+    issues.push({
+      slug,
+      name: rs[0].issue_name,
+      numClassifications: rs.length,
+      avgSentiment,
+      contribution: totalContribution,
+      direction:
+        totalContribution > 0.5 ? "R" : totalContribution < -0.5 ? "L" : "neutral",
+    });
+  }
+
+  issues.sort((a, b) => Math.abs(b.contribution) - Math.abs(a.contribution));
+
+  const overallLean = weightedLean(windowed).lean;
+  const index = clamp(overallLean * 2, -10, 10);
+
+  return { index, windowDays, totalClassifications: windowed.length, issues };
 }
 
 /**

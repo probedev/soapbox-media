@@ -1,5 +1,8 @@
 import { getChannelDrillDown } from "@/lib/aggregate";
+import { getChannelExternalUrl } from "@/lib/channelLinks";
+import { createServiceClient } from "@/lib/db";
 import { notFound } from "next/navigation";
+import { ExternalLink } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
@@ -38,6 +41,21 @@ export default async function ChannelPage({
   const data = await getChannelDrillDown(params.id);
   if (!data) notFound();
 
+  // Fetch the channel's platform info for the external link
+  const db = createServiceClient();
+  const { data: channelMeta } = await db
+    .from("channels")
+    .select("platform, platform_id, name")
+    .eq("id", params.id)
+    .single();
+  const ext = channelMeta
+    ? getChannelExternalUrl({
+        platform: channelMeta.platform,
+        platform_id: channelMeta.platform_id,
+        name: channelMeta.name,
+      })
+    : null;
+
   const markerPct = ((data.netLean + 10) / 20) * 100;
   const directionLabel = data.netLean >= 0 ? "R+" : "L+";
 
@@ -58,8 +76,10 @@ export default async function ChannelPage({
       </header>
 
       <section className="px-6 pt-10 pb-8 max-w-4xl mx-auto">
-        <div className="text-xs uppercase tracking-wider text-gray-500 mb-1">
+        <div className="text-xs uppercase tracking-wider text-gray-500 mb-1 flex items-center gap-3">
           <a href="/" className="hover:text-gray-700">← Soapbox Index</a>
+          <span aria-hidden className="text-gray-400">·</span>
+          <a href="/channels" className="hover:text-gray-700">All channels</a>
         </div>
         <div className="flex items-baseline gap-3 flex-wrap">
           <h1 className="text-3xl md:text-4xl font-semibold tracking-tight">{data.channel_name}</h1>
@@ -69,8 +89,19 @@ export default async function ChannelPage({
             {leanLabelWord(data.channel_lean)}
           </span>
         </div>
-        <div className="text-sm text-gray-600 mt-2 tabular-nums">
-          Reach: {data.channel_reach.toLocaleString()}
+        <div className="text-sm text-gray-600 mt-2 tabular-nums flex items-center gap-4 flex-wrap">
+          <span>Reach: {data.channel_reach.toLocaleString()}</span>
+          {ext && ext.url !== "#" && (
+            <a
+              href={ext.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 px-3 py-1 border border-gray-300 rounded-md text-xs font-medium text-gray-700 hover:bg-gray-50 hover:border-gray-400 transition"
+            >
+              {ext.label}
+              <ExternalLink className="w-3 h-3" />
+            </a>
+          )}
         </div>
 
         {/* Net lean */}
@@ -142,7 +173,7 @@ export default async function ChannelPage({
 
       <footer className="border-t border-gray-200 bg-white">
         <div className="max-w-5xl mx-auto px-6 py-8 text-sm text-gray-500 flex flex-col md:flex-row md:items-center md:justify-between gap-2">
-          <div>Soapbox.media · alt-media discourse, measured weekly</div>
+          <div>Soapbox.media · alt-media discourse, updated daily</div>
           <div className="flex gap-4">
             <a href="/methodology" className="underline hover:text-gray-900">How we measure</a>
           </div>

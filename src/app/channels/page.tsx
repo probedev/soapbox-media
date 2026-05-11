@@ -1,4 +1,7 @@
 import { createServiceClient } from "@/lib/db";
+import { SystemStats } from "@/components/SystemStats";
+import { getChannelExternalUrl } from "@/lib/channelLinks";
+import { ExternalLink } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
@@ -69,6 +72,11 @@ export default async function ChannelsListPage() {
           for selection criteria.
         </p>
 
+        {/* System scale — credibility signal: how much audio + how many mentions we've processed */}
+        <div className="mt-8">
+          <SystemStats />
+        </div>
+
         {(["L", "M", "R"] as const).map((bucket) => (
           <section key={bucket} className="mt-10">
             <div className="flex items-baseline justify-between mb-3">
@@ -82,33 +90,51 @@ export default async function ChannelsListPage() {
               </h2>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {byLean[bucket].map((c) => (
-                <a
-                  key={c.id}
-                  href={`/channels/${c.id}`}
-                  className="block border border-gray-200 bg-white rounded-lg p-4 hover:border-gray-400 hover:shadow-sm transition"
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="font-medium text-gray-900 flex items-center gap-2">
-                      <span
-                        className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${leanBadge(c.political_lean)}`}
-                      >
-                        {c.political_lean}
-                      </span>
-                      {c.name}
-                    </div>
-                    <div className="text-xs text-gray-500 whitespace-nowrap">{c.platform}</div>
+              {byLean[bucket].map((c) => {
+                const ext = getChannelExternalUrl({
+                  platform: c.platform,
+                  platform_id: c.platform_id,
+                  name: c.name,
+                });
+                return (
+                  <div
+                    key={c.id}
+                    className="relative border border-gray-200 bg-white rounded-lg hover:border-gray-400 hover:shadow-sm transition group"
+                  >
+                    <a href={`/channels/${c.id}`} className="block p-4 pr-10">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="font-medium text-gray-900 flex items-center gap-2">
+                          <span
+                            className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${leanBadge(c.political_lean)}`}
+                          >
+                            {c.political_lean}
+                          </span>
+                          {c.name}
+                        </div>
+                        <div className="text-xs text-gray-500 whitespace-nowrap">{c.platform}</div>
+                      </div>
+                      <div className="text-xs text-gray-500 mt-1 tabular-nums">
+                        Reach: {Number(c.reach).toLocaleString()}
+                      </div>
+                      {c.classification_rationale && (
+                        <div className="text-xs text-gray-600 mt-2 leading-snug line-clamp-2">
+                          {c.classification_rationale}
+                        </div>
+                      )}
+                    </a>
+                    <a
+                      href={ext.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      aria-label={ext.label}
+                      title={ext.label}
+                      className="absolute top-3 right-3 text-gray-400 hover:text-gray-900 p-1.5 opacity-50 group-hover:opacity-100 transition"
+                    >
+                      <ExternalLink className="w-3.5 h-3.5" />
+                    </a>
                   </div>
-                  <div className="text-xs text-gray-500 mt-1 tabular-nums">
-                    Reach: {Number(c.reach).toLocaleString()}
-                  </div>
-                  {c.classification_rationale && (
-                    <div className="text-xs text-gray-600 mt-2 leading-snug line-clamp-2">
-                      {c.classification_rationale}
-                    </div>
-                  )}
-                </a>
-              ))}
+                );
+              })}
             </div>
           </section>
         ))}
@@ -116,7 +142,7 @@ export default async function ChannelsListPage() {
 
       <footer className="border-t border-gray-200 bg-white">
         <div className="max-w-5xl mx-auto px-6 py-8 text-sm text-gray-500 flex flex-col md:flex-row md:items-center md:justify-between gap-2">
-          <div>Soapbox.media · alt-media discourse, measured weekly</div>
+          <div>Soapbox.media · alt-media discourse, updated daily</div>
           <div className="flex gap-4">
             <a href="/methodology" className="underline hover:text-gray-900">How we measure</a>
           </div>

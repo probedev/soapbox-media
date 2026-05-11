@@ -1,29 +1,47 @@
 interface WeeklyHeadlineProps {
-  /** When the live pipeline is online, pass a fully-assembled headline string. */
+  /** Fully-assembled headline string from buildAutoHeadline(). */
   text?: string;
+  /** Optional href — when present, wraps the headline in a link with a subtle "see more" affordance. */
+  href?: string;
 }
 
 /**
- * The auto-generated weekly summary that sits below the needle.
- * Friday's pipeline will assemble this from the week's data
- * ("X dominated alt-media; Y and Z drove a Δ shift"). Until then we render
- * an honest "what's coming here" placeholder rather than fake attribution.
+ * Auto-generated period summary that sits below the needle. Refreshes daily
+ * via the trailing-7-day window. When `href` is provided (typically pointing
+ * to the methodology page's contribution chart), the headline becomes an
+ * affordance for "see how we got here."
  */
-export function WeeklyHeadline({ text }: WeeklyHeadlineProps) {
+export function WeeklyHeadline({ text, href }: WeeklyHeadlineProps) {
   if (text) {
-    return (
-      <p className="text-lg md:text-xl text-gray-800 leading-relaxed text-center max-w-2xl mx-auto">
-        {text}
-      </p>
+    const content = (
+      <>
+        <p className="text-lg md:text-xl text-gray-800 leading-relaxed">{text}</p>
+        {href && (
+          <div className="text-[11px] uppercase tracking-wider text-gray-500 mt-3 group-hover:text-gray-900 transition">
+            See the per-issue breakdown →
+          </div>
+        )}
+      </>
     );
+    if (href) {
+      return (
+        <a
+          href={href}
+          className="block group max-w-2xl mx-auto text-center cursor-pointer"
+        >
+          {content}
+        </a>
+      );
+    }
+    return <div className="max-w-2xl mx-auto text-center">{content}</div>;
   }
 
   return (
     <p className="text-base md:text-lg text-gray-500 leading-relaxed text-center max-w-2xl mx-auto italic">
-      The weekly auto-headline will appear here once the live pipeline ships
-      — surfacing which issue dominated alt-media this week, which channels
-      drove the Soapbox Index movement, and the single-line read for casual
-      visitors.
+      The auto-generated headline will appear here once the daily pipeline
+      assembles it — surfacing which issue dominated alt-media in the trailing
+      window, which channels drove the Soapbox Index movement, and the
+      single-line read for casual visitors.
     </p>
   );
 }

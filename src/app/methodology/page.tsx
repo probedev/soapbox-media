@@ -1,3 +1,5 @@
+import { IssueContributionsChart } from "@/components/IssueContributionsChart";
+
 export const dynamic = "force-dynamic";
 
 export default function MethodologyPage() {
@@ -24,7 +26,9 @@ export default function MethodologyPage() {
         <p className="text-gray-600 mt-3 leading-relaxed">
           Soapbox measures alt-media political discourse the way you&apos;d want it measured: with
           the math, the channel list, and the limitations all visible. This page is the source of
-          truth for how every number on the site is computed.
+          truth for how every number on the site is computed. The full pipeline runs nightly via
+          scheduled cron, so every figure on the site reflects the most recent 24 hours of ingested
+          content.
         </p>
 
         <h2 className="text-xl font-semibold mt-12">What we measure</h2>
@@ -38,7 +42,9 @@ export default function MethodologyPage() {
         <h2 className="text-xl font-semibold mt-12">The Soapbox Index</h2>
         <p className="text-gray-700 mt-3 leading-relaxed">
           The headline number on the home page. It compresses every issue mention across every
-          channel for the most recent week into one signed value:
+          channel from <strong>the trailing 7-day window ending today</strong> into one signed
+          value. The window slides forward each day as the cron runs, so the Index always reflects
+          the most recent week of content but updates daily as new episodes are ingested.
         </p>
         <div className="mt-4 p-5 bg-gray-50 border border-gray-200 rounded-md font-mono text-sm text-gray-800 leading-relaxed">
           reach_factor = log10(max(channel_reach, 10))
@@ -57,6 +63,14 @@ export default function MethodologyPage() {
           alt-media voices, weighted by audience reach and intensity of expression, are net 1.2
           points right of center on the -10/+10 scale this week.
         </p>
+
+        {/* Live "Why is the Index where it is?" panel */}
+        <div
+          id="why-is-the-index"
+          className="mt-12 -mx-6 px-6 py-10 bg-gray-50 border-y border-gray-200 md:rounded-lg md:mx-0 md:border md:px-8 scroll-mt-20"
+        >
+          <IssueContributionsChart windowDays={30} />
+        </div>
 
         <h2 className="text-xl font-semibold mt-12">Channel selection</h2>
         <p className="text-gray-700 mt-3 leading-relaxed">
@@ -124,6 +138,17 @@ export default function MethodologyPage() {
             them in code.
           </li>
         </ul>
+
+        <h2 className="text-xl font-semibold mt-12">Update cadence</h2>
+        <p className="text-gray-700 mt-3 leading-relaxed">
+          The full pipeline (ingest → transcribe → classify → score) runs as a single scheduled
+          job at 6 AM Eastern, daily. New episodes from the past day are ingested, transcribed,
+          classified, and scored. The Soapbox Index, issue contributions, channel drill-downs,
+          and per-issue trends recompute against the trailing 7-day window from the data
+          available at run time. Headline numbers on the site therefore <em>refresh once per day</em>;
+          the rolling-window methodology keeps each daily reading stable rather than swinging
+          with each new episode.
+        </p>
 
         <h2 className="text-xl font-semibold mt-12">Why this exists</h2>
         <p className="text-gray-700 mt-3 leading-relaxed">
