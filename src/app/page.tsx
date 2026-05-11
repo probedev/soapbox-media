@@ -4,42 +4,30 @@ import { IndexSparkline } from "@/components/IndexSparkline";
 import { WeeklyHeadline } from "@/components/WeeklyHeadline";
 import { BiggestMovers } from "@/components/BiggestMovers";
 import { TrustStrip } from "@/components/TrustStrip";
+import { getDashboardData } from "@/lib/aggregate";
 
-// Placeholder data — every number here is a stand-in. The live pipeline
-// (Day 4-5) will populate these from the Supabase tables seeded with real
-// classifications + sentiment scores. We deliberately do NOT attribute fake
-// quotes to real channels in placeholder mode.
-const PLACEHOLDER_INDEX = 1.2;
-const PLACEHOLDER_DELTA = 0.4;
-const PLACEHOLDER_WEEK = "Week of May 5, 2026";
-const PLACEHOLDER_LAST_UPDATED = "2026-05-09T10:00:00Z";
+// Always recompute on request so the live pipeline is reflected immediately.
+// v1 will move this to cached SQL views / materialized aggregates.
+export const dynamic = "force-dynamic";
 
-const INDEX_HISTORY_12W = [
-  -0.2, 0.1, -0.5, -0.8, 0.3, 0.7, 1.1, 0.6, 0.9, 0.4, 0.8, 1.2,
-];
+function formatWeekLabel(weekStartIso: string): string {
+  const d = new Date(weekStartIso);
+  return `Week of ${d.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    timeZone: "UTC",
+  })}`;
+}
 
-const PLACEHOLDER_ISSUES = [
-  { slug: "immigration", name: "Immigration & border", lean: 3.4, volume: 1240, trend: [2.1, 2.6, 2.4, 2.9, 3.0, 3.1, 3.2, 3.4] },
-  { slug: "israel-gaza", name: "Israel–Gaza", lean: -1.1, volume: 980, trend: [0.4, 0.1, -0.3, -0.7, -1.0, -1.2, -1.0, -1.1] },
-  { slug: "trump-gop", name: "Trump / GOP leadership", lean: 2.7, volume: 940, trend: [2.2, 2.4, 2.5, 2.6, 2.8, 2.6, 2.5, 2.7] },
-  { slug: "inflation", name: "Inflation & affordability", lean: 0.3, volume: 720, trend: [0.7, 0.6, 0.5, 0.4, 0.5, 0.4, 0.2, 0.3] },
-  { slug: "transgender", name: "Transgender / LGBTQ policy", lean: 4.2, volume: 510, trend: [3.6, 3.8, 4.0, 3.9, 4.1, 4.2, 4.0, 4.2] },
-  { slug: "election-integrity", name: "Election integrity", lean: 2.1, volume: 480, trend: [1.7, 1.8, 1.9, 2.0, 2.2, 2.1, 2.0, 2.1] },
-];
+export default async function HomePage() {
+  const data = await getDashboardData();
 
-const PLACEHOLDER_MOVERS = [
-  { slug: "immigration", name: "Immigration & border", delta: 0.8, fromLean: 2.6, toLean: 3.4 },
-  { slug: "transgender", name: "Transgender / LGBTQ policy", delta: 0.6, fromLean: 3.6, toLean: 4.2 },
-  { slug: "israel-gaza", name: "Israel–Gaza", delta: -0.4, fromLean: -0.7, toLean: -1.1 },
-  { slug: "ukraine-russia", name: "Ukraine–Russia", delta: 0.3, fromLean: -1.4, toLean: -1.1 },
-  { slug: "inflation", name: "Inflation & affordability", delta: -0.3, fromLean: 0.6, toLean: 0.3 },
-];
-
-export default function HomePage() {
-  const directionLabel = PLACEHOLDER_INDEX >= 0 ? "R+" : "L+";
-  const directionWord = PLACEHOLDER_INDEX >= 0 ? "right" : "left";
-  const indexColor = PLACEHOLDER_INDEX >= 0 ? "text-red-600" : "text-blue-600";
-  const deltaPositive = PLACEHOLDER_DELTA >= 0;
+  const directionLabel = data.index >= 0 ? "R+" : "L+";
+  const directionWord = data.index >= 0 ? "right" : "left";
+  const indexColor = data.index >= 0 ? "text-red-600" : "text-blue-600";
+  const deltaPositive = data.delta >= 0;
+  const weekLabel = data.hasData ? formatWeekLabel(data.weekStart) : "No data yet";
 
   return (
     <main className="min-h-screen">
@@ -73,37 +61,58 @@ export default function HomePage() {
         </p>
 
         <div className="mt-10 flex justify-center">
-          <SoapboxNeedle value={PLACEHOLDER_INDEX} />
+          <SoapboxNeedle value={data.index} />
         </div>
 
         <div className="mt-2">
           <div className={`text-7xl font-semibold tracking-tight tabular-nums ${indexColor}`}>
             {directionLabel}
-            {Math.abs(PLACEHOLDER_INDEX).toFixed(1)}
+            {Math.abs(data.index).toFixed(1)}
           </div>
           <div className="text-sm text-gray-600 mt-3">
-            Alt-media tilted <span className="font-medium">{directionWord}</span> this week.{" "}
-            <span className={`font-semibold tabular-nums ${deltaPositive ? "text-red-600" : "text-blue-600"}`}>
-              {deltaPositive ? "↑" : "↓"} {Math.abs(PLACEHOLDER_DELTA).toFixed(1)}
-            </span>{" "}
-            from last week
+            {data.hasData ? (
+              <>
+                Alt-media tilted <span className="font-medium">{directionWord}</span> this week.{" "}
+                {data.sparkline.length >= 2 && (
+                  <>
+                    <span
+                      className={`font-semibold tabular-nums ${deltaPositive ? "text-red-600" : "text-blue-600"}`}
+                    >
+                      {deltaPositive ? "↑" : "↓"} {Math.abs(data.delta).toFixed(1)}
+                    </span>{" "}
+                    from last week
+                  </>
+                )}
+                {data.sparkline.length < 2 && (
+                  <span className="text-gray-400">
+                    — week-over-week comparison available once we have a second week of data
+                  </span>
+                )}
+              </>
+            ) : (
+              <span className="text-gray-400">
+                Pipeline online. Waiting for first sentiment scores.
+              </span>
+            )}
           </div>
         </div>
 
-        <div className="mt-6 flex flex-col items-center gap-1">
-          <IndexSparkline values={INDEX_HISTORY_12W} />
-          <div className="text-[10px] uppercase tracking-wider text-gray-400">
-            12-week history
+        {data.sparkline.length >= 2 && (
+          <div className="mt-6 flex flex-col items-center gap-1">
+            <IndexSparkline values={data.sparkline} />
+            <div className="text-[10px] uppercase tracking-wider text-gray-400">
+              {data.sparkline.length}-week history
+            </div>
           </div>
-        </div>
+        )}
 
         <div className="mt-8">
           <TrustStrip
-            numChannels={42}
-            numEpisodes={247}
-            lastUpdated={PLACEHOLDER_LAST_UPDATED}
-            weekLabel={PLACEHOLDER_WEEK}
-            isPlaceholder
+            numChannels={data.numChannels}
+            numEpisodes={data.numEpisodes}
+            lastUpdated={data.lastUpdated}
+            weekLabel={weekLabel}
+            isPlaceholder={!data.hasData}
           />
         </div>
       </section>
@@ -119,26 +128,43 @@ export default function HomePage() {
       </section>
 
       {/* Biggest movers */}
-      <section className="border-t border-gray-200 bg-white">
-        <div className="max-w-3xl mx-auto px-6 py-12">
-          <BiggestMovers movers={PLACEHOLDER_MOVERS} />
-        </div>
-      </section>
+      {data.movers.length > 0 && (
+        <section className="border-t border-gray-200 bg-white">
+          <div className="max-w-3xl mx-auto px-6 py-12">
+            <BiggestMovers movers={data.movers.slice(0, 5)} />
+          </div>
+        </section>
+      )}
 
       {/* Top issues */}
       <section className="border-t border-gray-200 bg-gray-50">
         <div className="max-w-5xl mx-auto px-6 py-12">
           <div className="flex items-baseline justify-between mb-6">
-            <h2 className="text-lg font-semibold">Top issues this week</h2>
+            <h2 className="text-lg font-semibold">
+              {data.hasData ? "Top issues this week" : "Top issues"}
+            </h2>
             <a href="/issues" className="text-sm text-gray-600 hover:text-gray-900">
               All issues →
             </a>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {PLACEHOLDER_ISSUES.map((issue) => (
-              <IssuePreview key={issue.slug} {...issue} />
-            ))}
-          </div>
+          {data.issues.length === 0 ? (
+            <div className="text-sm text-gray-500 italic">
+              No issue classifications yet. Run the classify + score pipeline to populate.
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {data.issues.slice(0, 6).map((issue) => (
+                <IssuePreview
+                  key={issue.slug}
+                  slug={issue.slug}
+                  name={issue.name}
+                  lean={issue.lean}
+                  volume={issue.volume}
+                  trend={issue.trend}
+                />
+              ))}
+            </div>
+          )}
         </div>
       </section>
 
