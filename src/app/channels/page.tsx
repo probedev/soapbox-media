@@ -20,6 +20,7 @@ interface ChannelRow {
   id: string;
   name: string;
   platform: "youtube" | "podcast";
+  platform_id: string;
   political_lean: "L" | "M" | "R";
   reach: number | bigint;
   classification_rationale: string | null;
@@ -29,7 +30,7 @@ export default async function ChannelsListPage() {
   const db = createServiceClient();
   const { data: channels } = await db
     .from("channels")
-    .select("id, name, platform, political_lean, reach, classification_rationale")
+    .select("id, name, platform, platform_id, political_lean, reach, classification_rationale")
     .eq("active", true)
     .order("reach", { ascending: false })
     .range(0, 999);
