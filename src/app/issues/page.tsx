@@ -33,7 +33,7 @@ export default async function IssuesListPage() {
         <h1 className="text-3xl md:text-4xl font-semibold tracking-tight">Issue taxonomy</h1>
         <p className="text-gray-600 mt-3 leading-relaxed max-w-3xl">
           The {rows.length} political issues we classify alt-media discourse against. Each issue
-          has an explicit left-leaning and right-leaning position — every sentiment score on the
+          has an explicit left-leaning and right-leaning position. Every sentiment score on the
           site is measured against these positions, not against US-political stereotypes. Click
           any issue for the channel-level breakdown.
         </p>

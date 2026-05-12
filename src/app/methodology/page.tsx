@@ -21,8 +21,8 @@ export default function MethodologyPage() {
 
         <h2 className="text-xl font-semibold mt-12">What we measure</h2>
         <p className="text-gray-700 mt-3 leading-relaxed">
-          We track a hand-curated set of high-reach alternative-media political channels —
-          podcasts and YouTube shows — and analyze what they&apos;re saying about a defined set of
+          We track a hand-curated set of high-reach alternative-media political channels
+          (podcasts and YouTube shows) and analyze what they&apos;re saying about a defined set of
           political issues. We classify each substantive issue mention, then score it on alignment
           with the left or right position and the intensity of expression.
         </p>
@@ -63,7 +63,7 @@ export default function MethodologyPage() {
         <h2 className="text-xl font-semibold mt-12">Channel selection</h2>
         <p className="text-gray-700 mt-3 leading-relaxed">
           Channels are curated by the founding team and balanced across Left, Middle, and Right
-          political-publishing posture — <em>not</em> by individual host beliefs. The list reflects
+          political-publishing posture, <em>not</em> by individual host beliefs. The list reflects
           share-of-voice in alt-media, which has a structural right-of-center skew in published
           reach. Pretending the split is even would be dishonest measurement; the imbalance is the
           finding, not a bug. Every channel&apos;s classification rationale is available on the
@@ -72,7 +72,7 @@ export default function MethodologyPage() {
 
         <h2 className="text-xl font-semibold mt-12">Issue taxonomy</h2>
         <p className="text-gray-700 mt-3 leading-relaxed">
-          A v0 set of 15 issues — Immigration, Inflation, Israel-Gaza, Ukraine, China policy,
+          A v0 set of 15 issues: Immigration, Inflation, Israel-Gaza, Ukraine, China policy,
           Trump/GOP, Democratic leadership, Transgender/LGBTQ policy, Crime, Election integrity, AI
           policy, Free speech, Education/DEI, Abortion, Climate. For each issue we declare a
           left-leaning and right-leaning position; the sentiment score on every classification is
@@ -86,12 +86,12 @@ export default function MethodologyPage() {
         </p>
         <ul className="list-disc pl-6 mt-3 space-y-2 text-gray-700 leading-relaxed">
           <li>
-            <strong>Classify</strong> (Claude Sonnet 4.6) — read the full transcript, return a list
+            <strong>Classify</strong> (Claude Sonnet 4.6): read the full transcript, return a list
             of <em>substantive</em> issue mentions with a supporting quote each. Passing
             references, ad reads, and unrelated content are excluded.
           </li>
           <li>
-            <strong>Score</strong> (Claude Haiku 4.5) — for each classification, rate the
+            <strong>Score</strong> (Claude Haiku 4.5): for each classification, rate the
             supporting quote on sentiment (-5..+5 relative to the issue&apos;s defined L/R
             positions) and intensity (1..5).
           </li>
@@ -100,28 +100,28 @@ export default function MethodologyPage() {
         <h2 className="text-xl font-semibold mt-12">Known limitations</h2>
         <ul className="list-disc pl-6 mt-3 space-y-2 text-gray-700 leading-relaxed">
           <li>
-            <strong>Transcript coverage</strong> — some channels (notably Bannon&apos;s War Room)
+            <strong>Transcript coverage</strong>: some channels (notably Bannon&apos;s War Room)
             aren&apos;t transcribed by our podcast provider; we have their metadata but can&apos;t
             score them yet. These appear in channel listings but contribute no Soapbox Score.
           </li>
           <li>
-            <strong>Short-form content</strong> — YouTube Shorts (under 3 minutes) are filtered
+            <strong>Short-form content</strong>: YouTube Shorts (under 3 minutes) are filtered
             from ingestion because they don&apos;t contain enough discussion to score reliably.
             That underweights creators (e.g., Adam Mockler, Matt Walsh) whose YouTube presence is
             primarily clips. Their podcast feeds, where available, fill the gap.
           </li>
           <li>
-            <strong>Classifier noise</strong> — individual sentiment scores are accurate around
+            <strong>Classifier noise</strong>: individual sentiment scores are accurate around
             85-90% directionally. At aggregate level (per issue, per week, per channel) this washes
             out. Don&apos;t over-interpret a single quote&apos;s score.
           </li>
           <li>
-            <strong>Latency</strong> — podcast transcripts arrive ~hours to days after publish,
+            <strong>Latency</strong>: podcast transcripts arrive ~hours to days after publish,
             depending on the show. The Soapbox Index reflects what&apos;s been transcribed at
             measurement time, not every word spoken in the past week.
           </li>
           <li>
-            <strong>Editorial choice</strong> — the L/R position assignments are editorial and
+            <strong>Editorial choice</strong>: the L/R position assignments are editorial and
             reviewed quarterly. We choose them deliberately and publish them rather than hiding
             them in code.
           </li>

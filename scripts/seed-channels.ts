@@ -61,57 +61,71 @@ async function seedYouTube(seed: SeedChannel, db: ReturnType<typeof createServic
 }
 
 async function seedPodcast(seed: SeedChannel, db: ReturnType<typeof createServiceClient>): Promise<SeedResult> {
-  if (!seed.podcastSearchName) {
-    return { channel: seed.name, platform: "podcast", status: "skipped", detail: "no search name" };
-  }
-  try {
-    const results = await searchPodcasts(seed.podcastSearchName);
-    if (results.length === 0) {
-      return { channel: seed.name, platform: "podcast", status: "failed", detail: `no PodScan results for "${seed.podcastSearchName}"` };
-    }
-    const top = results[0];
+  let platformId: string | undefined;
+  let podcastTitle = seed.name;
 
-    // PodScan uses different ID/title field names depending on endpoint version.
-    // Try common variants; if none match, surface the keys we did see so we can patch.
-    const platformId =
-      top.id || top.podcast_id || top.uuid || top.slug || top.pscid;
-    const podcastTitle =
-      top.title || top.name || top.podcast_name || seed.name;
+  // Path 1: explicit PodScan ID is provided — skip search entirely.
+  if (seed.podscanPodcastId) {
+    platformId = seed.podscanPodcastId;
+  } else if (seed.podcastSearchName) {
+    // Path 2: fall back to name search and take the top result.
+    try {
+      const results = await searchPodcasts(seed.podcastSearchName);
+      if (results.length === 0) {
+        return {
+          channel: seed.name,
+          platform: "podcast",
+          status: "failed",
+          detail: `no PodScan results for "${seed.podcastSearchName}"`,
+        };
+      }
+      const top = results[0];
+      platformId = top.id || top.podcast_id || top.uuid || top.slug || top.pscid;
+      podcastTitle = top.title || top.name || top.podcast_name || seed.name;
 
-    if (!platformId) {
-      const keys = Object.keys(top).join(", ");
-      return {
-        channel: seed.name,
-        platform: "podcast",
-        status: "failed",
-        detail: `PodScan result has no recognized ID field. Available keys: [${keys}]`,
-      };
+      if (!platformId) {
+        const keys = Object.keys(top).join(", ");
+        return {
+          channel: seed.name,
+          platform: "podcast",
+          status: "failed",
+          detail: `PodScan result has no recognized ID field. Available keys: [${keys}]`,
+        };
+      }
+    } catch (e: any) {
+      return { channel: seed.name, platform: "podcast", status: "failed", detail: e.message };
     }
-
-    const { error } = await db.from("channels").upsert(
-      {
-        name: seed.name,
-        platform: "podcast",
-        platform_id: platformId,
-        political_lean: seed.lean,
-        reach: seed.reachEstimate,
-        active: true,
-        classification_rationale: seed.rationale,
-      },
-      { onConflict: "platform,platform_id" },
-    );
-    if (error) {
-      return { channel: seed.name, platform: "podcast", status: "failed", detail: error.message };
-    }
+  } else {
     return {
       channel: seed.name,
       platform: "podcast",
-      status: "ok",
-      detail: `${platformId} ("${podcastTitle}")`,
+      status: "skipped",
+      detail: "no search name or explicit PodScan ID",
     };
-  } catch (e: any) {
-    return { channel: seed.name, platform: "podcast", status: "failed", detail: e.message };
   }
+
+  const { error } = await db.from("channels").upsert(
+    {
+      name: seed.name,
+      platform: "podcast",
+      platform_id: platformId,
+      political_lean: seed.lean,
+      reach: seed.reachEstimate,
+      active: true,
+      classification_rationale: seed.rationale,
+    },
+    { onConflict: "platform,platform_id" },
+  );
+  if (error) {
+    return { channel: seed.name, platform: "podcast", status: "failed", detail: error.message };
+  }
+  const source = seed.podscanPodcastId ? "pinned" : "searched";
+  return {
+    channel: seed.name,
+    platform: "podcast",
+    status: "ok",
+    detail: `${platformId} (${source}: "${podcastTitle}")`,
+  };
 }
 
 async function main() {

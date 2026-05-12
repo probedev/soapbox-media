@@ -30,6 +30,7 @@ import { getPodcastEpisodes } from "@/lib/podscan";
 import { classifyTranscript, type IssueDef } from "@/modules/classify";
 import { scoreClassification } from "@/modules/score";
 import { MODEL_SCORE } from "@/lib/anthropic";
+import { recordPipelineRun } from "@/lib/usage";
 
 export const maxDuration = 300;
 export const dynamic = "force-dynamic";
@@ -87,6 +88,12 @@ export async function GET(request: NextRequest) {
     totalDurationMs: Date.now() - startTime,
     stages: { ingest, transcribe, classify, score },
   };
+
+  // Persist usage_log row. Best-effort: a logging failure should never
+  // crash the cron response.
+  await recordPipelineRun(summary, "cron").catch((e) => {
+    console.error("recordPipelineRun failed:", e);
+  });
 
   return NextResponse.json(summary);
 }

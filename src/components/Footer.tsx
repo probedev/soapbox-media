@@ -11,9 +11,7 @@ export function Footer() {
         <div className="flex items-baseline gap-3 flex-wrap">
           <span>Soapbox.media · alt-media discourse, updated daily</span>
           <a
-            href="https://github.com/probedev/soapbox-media/blob/main/CHANGELOG.md"
-            target="_blank"
-            rel="noopener noreferrer"
+            href="/changelog"
             className="text-xs font-mono text-gray-400 hover:text-gray-700 transition"
             title="View release notes"
           >

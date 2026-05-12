@@ -55,10 +55,10 @@ export default async function HomePage() {
           Where is alt-media leaning right now?
         </h1>
         <p className="text-gray-600 mt-3 max-w-2xl mx-auto leading-relaxed">
-          The center of American politics moved from cable to podcasts and YouTube. The same
-          algorithms that moved it left every voter in their own bubble. Soapbox uses AI to do
-          what the algorithms broke — measure the whole alt-media landscape, not just the part
-          your feed delivers.
+          The epicenter of US political discourse has moved from cable and talk radio to
+          podcasts and YouTube, shaping opinions, elections, and policy. These independent
+          voices have never been measured at scale. Soapbox listens above your personal
+          algorithms to ask: where are they leading us?
         </p>
 
         <div className="mt-10 flex justify-center">
@@ -86,7 +86,7 @@ export default async function HomePage() {
                 )}
                 {Math.abs(data.delta) === 0 && data.sparkline.length < 2 && (
                   <span className="text-gray-400">
-                    — period-over-period comparison available once we have a second window of data
+                    (period-over-period comparison available once we have a second window of data)
                   </span>
                 )}
               </>

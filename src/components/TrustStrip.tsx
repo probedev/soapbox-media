@@ -45,7 +45,7 @@ export function TrustStrip({
         <>
           <span aria-hidden>·</span>
           <span className="text-amber-600 font-medium">
-            Pipeline online — awaiting first sentiment data
+            Pipeline online, awaiting first sentiment data
           </span>
         </>
       )}

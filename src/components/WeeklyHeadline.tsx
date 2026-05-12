@@ -39,7 +39,7 @@ export function WeeklyHeadline({ text, href }: WeeklyHeadlineProps) {
   return (
     <p className="text-base md:text-lg text-gray-500 leading-relaxed text-center max-w-2xl mx-auto italic">
       The auto-generated headline will appear here once the daily pipeline
-      assembles it — surfacing which issue dominated alt-media in the trailing
+      assembles it, surfacing which issue dominated alt-media in the trailing
       window, which channels drove the Soapbox Index movement, and the
       single-line read for casual visitors.
     </p>

@@ -150,7 +150,7 @@ export async function IssueContributionsChart({
         days. Bar length is proportional to{" "}
         <code className="text-gray-700">Σ (sentiment × intensity × log10(reach))</code> across all
         classifications of that issue. The labeled number is the issue&apos;s{" "}
-        <em>average sentiment</em>, not the contribution magnitude — a smaller-volume issue with
+        <em>average sentiment</em>, not the contribution magnitude. A smaller-volume issue with
         strong sentiment can have a smaller bar than a larger-volume issue with weaker sentiment.
         Click any issue for the channel-level breakdown.
       </p>
