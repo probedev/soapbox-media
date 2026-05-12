@@ -2,7 +2,8 @@ import { VERSION } from "@/lib/version";
 
 /**
  * Shared site footer used on every page. Includes the platform version so
- * the public evolution of soapbox is traceable from the live site.
+ * the public evolution of soapbox is traceable from the live site, plus
+ * /log (Activity) — a secondary transparency surface.
  */
 export function Footer() {
   return (
@@ -21,6 +22,7 @@ export function Footer() {
         <div className="flex gap-4">
           <a href="/issues" className="underline hover:text-gray-900">Issues</a>
           <a href="/channels" className="underline hover:text-gray-900">Channels</a>
+          <a href="/log" className="underline hover:text-gray-900">Activity</a>
           <a href="/methodology" className="underline hover:text-gray-900">Methodology</a>
         </div>
       </div>

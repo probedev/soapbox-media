@@ -7,6 +7,7 @@ export const metadata: Metadata = {
   title: "Soapbox: The FiveThirtyEight of Alternative Political Media",
   description:
     "A daily-updating dashboard that quantifies what top political podcasts and YouTube voices are saying, how loudly, and which way the broader discourse is tilting.",
+  // Favicon is auto-detected from src/app/icon.png (Next.js convention).
 };
 
 export default function RootLayout({

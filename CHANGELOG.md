@@ -7,6 +7,122 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
+## v0.6.1 · 2026-05-12
+
+Same-day branding + transparency-surface polish on top of v0.6.0.
+
+### Added
+
+- **Brand identity** — wooden-crate logo + red/blue `soapbox` wordmark
+  (red `#C8202F` on "soap", blue `#114A8A` on "box") replacing the plain
+  text mark. Logo source-of-truth at `src/assets/logo-crate.png`, served
+  through `next/image` with priority + blur placeholder (~5KB delivered
+  at retina). Favicon auto-detected from `src/app/icon.png` (256×256).
+
+### Changed
+
+- **Activity moved to footer** — the `/log` link lives in the footer
+  alongside Issues / Channels / Methodology rather than the top nav.
+  Activity is a transparency surface, not a primary destination.
+- **Trust strip totals aligned** with `/channels` SystemStats — both now
+  report cumulative channel + episode counts rather than mixing in-window
+  counts with all-time. "Episodes in window" → "Episodes tracked".
+- **`.media` removed from header** — top-of-page brand mark is now the
+  wordmark alone; the `.media` TLD was redundant next to the logo.
+
+## v0.6.0 · 2026-05-12
+
+Post-MVP foundations release. Same-day as v0.5.0; bundled because all of
+this work shipped in a single extended session.
+
+### Added
+
+- **Admin tooling** (Basic Auth gated via middleware against ADMIN_PASSWORD):
+  - `/admin/costs` — Anthropic spend dashboard. Daily/weekly/monthly burn vs
+    $1k budget cap, 30-day daily bar chart, recent-runs table. Backed by a
+    new `usage_log` table written from the cron pipeline.
+  - `/admin/channels-audit` — three views to guide channel curation:
+    publishing cadence per show (last 14 days), L/M/R coverage gaps by issue,
+    and "mentioned but not tracked" report scanning supporting quotes for
+    candidate voices.
+- **PostHog product analytics** — client-side init + manual pageview capture
+  for the App Router. Autocapture / heatmaps / web vitals on; session
+  recordings off.
+- **Public `/changelog` page** — renders `CHANGELOG.md` directly via
+  react-markdown so the file remains the single source of truth. Footer
+  version pill links here.
+- **Public `/log` activity feed** — paginated 50/page; every episode the
+  pipeline has ingested with status badges + link to source. Receipts for
+  transparency.
+- **Per-channel episode list** on channel drill-down pages — last 25
+  episodes for that show with publish date, duration, transcript status,
+  source link.
+- **External-link affordance per channel** — every channel card on
+  `/channels` and the drill-down page links out to YouTube or Apple Podcasts.
+- **Shared `Header` + `Footer` components** — DRYed out the inline JSX
+  across all pages; nav changes are now a one-line edit.
+- **Version surface** — `v0.x.y` pill in every page footer linking to the
+  on-site changelog. `src/lib/version.ts` is the single source of truth.
+
+### Channel curation
+
+- Added 9 channels: Shawn Ryan Show (R), Real America's Voice / RAV (R),
+  The Rubin Report (R), Hodgetwins (R), More Perfect Union (L),
+  Democracy Now! (L), Heather Cox Richardson (L), Aaron Parnas (L, below
+  500k YT threshold but flagged for cross-platform reach),
+  Call Me Back with Dan Senor (M).
+- **Pinned PodScan IDs** for Joe Rogan and Ben Shapiro to fix stale-feed
+  resolution that was returning episodes from 4-10 months ago. New
+  `podscanPodcastId` field on the SeedChannel schema bypasses search-based
+  resolution for high-importance shows.
+- Total channel rows: 60 (40 unique shows after grouping; ratio reflects
+  shows tracked on both YouTube + podcast).
+
+### Changed
+
+- **Daily-cadence framing** site-wide. Replaced "this week" / "weekly"
+  copy with trailing-7-day-window language; Soapbox Index methodology
+  refactored to use a rolling 7-day window updated daily by the cron.
+- **Auto-generated headline** on home page below the needle, driven by
+  the same per-issue contribution data shown on `/methodology`. Headline
+  links to the contribution chart for "see why" drill-down.
+- **Em-dash sweep** across all user-facing text. Replaced with appropriate
+  punctuation (colons before lists, parens for asides, commas in flow).
+  Per Gregg's site-wide style choice.
+- **Channels list grouped by show** — same name across YouTube + podcast
+  collapses to one card with platform indicators, eliminating the visual
+  "duplicate channel" problem.
+- **Status badge clarity** on activity log — "pending" renamed to
+  "awaiting transcript" so casual visitors understand it as expected
+  latency, not a bug.
+- **Hero subtext rewritten** — sharper framing of why soapbox exists
+  (alt-media now shapes US political discourse; not measured at scale;
+  Soapbox listens above your personal algorithms).
+- **Issue contribution chart** added to `/methodology` with auto-generated
+  narrative explaining which issues are pulling left vs right.
+
+### Technical
+
+- Vercel Cron `/api/cron/pipeline` endpoint runs the full pipeline at
+  10:00 UTC daily (6 AM ET). Writes a `usage_log` row at completion.
+- `src/middleware.ts` enforces HTTP Basic Auth on `/admin/*`.
+- Added `react-markdown`, `@tailwindcss/typography`, `posthog-js`.
+- ARCHITECTURE.md — comprehensive live source-of-truth document. Maintained
+  per non-trivial commit.
+
+### Vexes documented for vNext
+
+- **Cross-platform same-content duplicates**: shows that publish identical
+  content to both YouTube and podcast feeds get ingested twice. Future fix:
+  dedup by (show + date + duration).
+- **Stale-feed PodScan resolution**: name-search resolution can pick wrong
+  feed when a show has changed feeds. Workaround in v0.6.0: explicit
+  `podscanPodcastId` field on SeedChannel. Future fix: smart resolver that
+  prefers the feed with most recent episodes.
+- **Reach is a snapshot at ingest time** — need periodic re-fetch.
+- **Issue taxonomy fixed editorial** — emergent-topic detection deferred.
+- **Twitch streamer ingestion** still deferred.
+
 ## v0.5.0 · 2026-05-12
 
 Initial public release after the 5-day MVP sprint.

@@ -37,7 +37,7 @@ export function TrustStrip({
         <span className="font-semibold text-gray-700 tabular-nums">
           {numEpisodes.toLocaleString()}
         </span>{" "}
-        episodes in window
+        episodes tracked
       </span>
       <span aria-hidden>·</span>
       <span>Last updated {formatted}</span>

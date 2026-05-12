@@ -24,7 +24,7 @@ export default async function LogPage({ searchParams }: PageProps) {
 
   return (
     <main className="min-h-screen">
-      <Header activePage="log" />
+      <Header />
 
       <section className="px-6 pt-10 pb-16 max-w-5xl mx-auto">
         <div className="text-xs uppercase tracking-wider text-gray-500 mb-1">

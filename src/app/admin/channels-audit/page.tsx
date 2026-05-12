@@ -35,6 +35,16 @@ function ChannelCadenceTable({ rows }: { rows: ChannelAuditRow[] }) {
   const dormant = rows.filter((r) => r.episodes_14d === 0);
   const active = rows.filter((r) => r.episodes_14d > 0);
 
+  // Count name occurrences so we know when to suffix the platform.
+  // Each (show, platform) is a separate ingest source; same name across rows
+  // shouldn't read as a duplicate — it's "Ben Shapiro Show (Pod)" and
+  // "Ben Shapiro Show (YT)", deliberately separated.
+  const nameCounts = new Map<string, number>();
+  for (const r of rows) nameCounts.set(r.name, (nameCounts.get(r.name) || 0) + 1);
+  const isDup = (name: string) => (nameCounts.get(name) || 0) > 1;
+  const platformAbbrev = (p: string) =>
+    p === "youtube" ? "YT" : p === "podcast" ? "Pod" : p;
+
   return (
     <>
       <div className="border border-gray-200 rounded-lg bg-white">
@@ -59,7 +69,14 @@ function ChannelCadenceTable({ rows }: { rows: ChannelAuditRow[] }) {
               >
                 {c.political_lean}
               </span>
-              <span className="truncate font-medium text-gray-900">{c.name}</span>
+              <span className="truncate font-medium text-gray-900">
+                {c.name}
+                {isDup(c.name) && (
+                  <span className="ml-1 text-[10px] text-gray-400 uppercase tracking-wider">
+                    ({platformAbbrev(c.platform)})
+                  </span>
+                )}
+              </span>
             </div>
             <div className="text-right text-xs text-gray-500 tabular-nums">
               {c.reach >= 1_000_000
@@ -97,7 +114,14 @@ function ChannelCadenceTable({ rows }: { rows: ChannelAuditRow[] }) {
                   >
                     {c.political_lean}
                   </span>
-                  <span className="truncate font-medium">{c.name}</span>
+                  <span className="truncate font-medium">
+                    {c.name}
+                    {isDup(c.name) && (
+                      <span className="ml-1 text-[10px] text-gray-400 uppercase tracking-wider">
+                        ({platformAbbrev(c.platform)})
+                      </span>
+                    )}
+                  </span>
                   <span className="text-xs text-gray-500">({c.platform})</span>
                 </div>
                 <div className="text-xs text-gray-500 tabular-nums">

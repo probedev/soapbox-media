@@ -39,6 +39,25 @@ function statusStyle(s: string): string {
   }
 }
 
+function statusLabel(s: string): string {
+  switch (s) {
+    case "pending":
+      return "awaiting transcript";
+    case "fetched":
+      return "fetched";
+    case "failed":
+      return "failed";
+    case "skipped":
+      return "skipped";
+    default:
+      return s;
+  }
+}
+
+function platformLabel(p: "youtube" | "podcast"): string {
+  return p === "youtube" ? "YT" : "Pod";
+}
+
 function leanStyle(lean: "L" | "M" | "R"): string {
   switch (lean) {
     case "L":
@@ -80,7 +99,8 @@ export function EpisodeList({
                     href={`/channels/${ep.channel.id}`}
                     className="text-xs text-gray-600 hover:text-gray-900 truncate"
                   >
-                    {ep.channel.name}
+                    {ep.channel.name}{" "}
+                    <span className="text-gray-400">({platformLabel(ep.channel.platform)})</span>
                   </a>
                   <span aria-hidden className="text-gray-300">
                     ·
@@ -107,7 +127,7 @@ export function EpisodeList({
           <span
             className={`text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded shrink-0 ${statusStyle(ep.transcript_status)}`}
           >
-            {ep.transcript_status}
+            {statusLabel(ep.transcript_status)}
           </span>
         </div>
       ))}

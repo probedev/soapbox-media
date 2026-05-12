@@ -173,6 +173,20 @@ export async function getDashboardData(windowDays = 7): Promise<DashboardData> {
   const now = new Date();
   const asOfDate = now.toISOString().slice(0, 10);
 
+  // Total tracked shows + total ingested episodes — used by TrustStrip so
+  // its numbers match the SystemStats panel on /channels. Don't conflate
+  // these with the in-window classification volume (those are scoped to
+  // the rolling 7-day window for Index math).
+  const db = createServiceClient();
+  const [channelNamesRes, episodesCountRes] = await Promise.all([
+    db.from("channels").select("name").eq("active", true).limit(2000),
+    db.from("episodes").select("*", { count: "exact", head: true }),
+  ]);
+  const totalShows = new Set(
+    (channelNamesRes.data || []).map((c: { name: string }) => c.name),
+  ).size;
+  const totalEpisodes = episodesCountRes.count || 0;
+
   if (rows.length === 0) {
     return {
       asOfDate,
@@ -182,8 +196,8 @@ export async function getDashboardData(windowDays = 7): Promise<DashboardData> {
       sparkline: [],
       issues: [],
       movers: [],
-      numChannels: 0,
-      numEpisodes: 0,
+      numChannels: totalShows,
+      numEpisodes: totalEpisodes,
       numClassifications: 0,
       lastUpdated,
       hasData: false,
@@ -298,8 +312,12 @@ export async function getDashboardData(windowDays = 7): Promise<DashboardData> {
     sparkline,
     issues: issueAggregates,
     movers,
-    numChannels: new Set(currentRows.map((r) => r.channel_id)).size,
-    numEpisodes: new Set(currentRows.map((r) => r.episode_id)).size,
+    // numChannels / numEpisodes are TOTAL tracked counts (not window-scoped),
+    // to match the SystemStats banner on /channels. The in-window classification
+    // count stays as numClassifications. This keeps numbers consistent across
+    // the homepage hero strip and the SystemStats panel.
+    numChannels: totalShows,
+    numEpisodes: totalEpisodes,
     numClassifications: currentRows.length,
     lastUpdated,
     hasData: true,
@@ -328,8 +346,18 @@ export interface SystemStats {
 export async function getSystemStats(): Promise<SystemStats> {
   const db = createServiceClient();
 
-  const [channels, episodes, transcripts, classifications, scores] = await Promise.all([
-    db.from("channels").select("*", { count: "exact", head: true }).eq("active", true),
+  // Channels: count unique SHOW NAMES (same show on YT + Podcast = 1 show
+  // to the user). Fetch names + dedupe in code rather than a COUNT(*).
+  const { data: channelNameRows } = await db
+    .from("channels")
+    .select("name")
+    .eq("active", true)
+    .limit(2000);
+  const uniqueShowCount = new Set(
+    (channelNameRows || []).map((c: { name: string }) => c.name),
+  ).size;
+
+  const [episodes, transcripts, classifications, scores] = await Promise.all([
     db.from("episodes").select("*", { count: "exact", head: true }),
     db.from("transcripts").select("*", { count: "exact", head: true }),
     db.from("classifications").select("*", { count: "exact", head: true }),
@@ -363,7 +391,7 @@ export async function getSystemStats(): Promise<SystemStats> {
     latest && latest[0]?.created_at ? String(latest[0].created_at) : null;
 
   return {
-    channelsTracked: channels.count || 0,
+    channelsTracked: uniqueShowCount,
     episodesAnalyzed: episodes.count || 0,
     transcriptsAvailable: transcripts.count || 0,
     classifications: classifications.count || 0,
