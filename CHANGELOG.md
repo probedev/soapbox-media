@@ -7,6 +7,20 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
+## v0.6.2 · 2026-05-12
+
+Operational tuning: cron batch limits raised so we actually keep up with
+the daily ingest backlog.
+
+### Changed
+
+- **Cron batch limits raised** — `CLASSIFY_LIMIT` 2 → 15, `SCORE_LIMIT`
+  30 → 80. Original limits would have taken ~75 days to burn down a
+  single day's 150-episode ingest backlog. New limits target a 1-week
+  catch-up rate while staying ~45s clear of the 300s function timeout.
+  Stage timing observations documented inline in
+  `src/app/api/cron/pipeline/route.ts`.
+
 ## v0.6.1 · 2026-05-12
 
 Same-day branding + transparency-surface polish on top of v0.6.0.

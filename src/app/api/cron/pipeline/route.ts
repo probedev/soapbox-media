@@ -35,12 +35,21 @@ import { recordPipelineRun } from "@/lib/usage";
 export const maxDuration = 300;
 export const dynamic = "force-dynamic";
 
-// Conservative batch limits per cron invocation
+// Per-stage batch limits per cron invocation. Tuned to fit comfortably
+// inside the 300s Vercel Pro function timeout. Rough stage timing from
+// May 2026 production runs:
+//   ingest 150 ep + transcribe 0:   ~30-60s
+//   classify (Sonnet 4.6):          ~5s per episode
+//   score   (Haiku 4.5):            ~1.5s per mention
+// Worst-case wall time at current limits: ~255s, leaving ~45s headroom.
+// Bumped from 2/30 to 15/80 on 2026-05-12 after observing that 2/run
+// would take ~75 days to burn down a 150-episode backlog. Bump again
+// conservatively after watching a week of green cron runs.
 const MIN_DURATION_SEC = 180;
 const INGEST_PER_CHANNEL = 3;
 const TRANSCRIBE_LIMIT = 10;
-const CLASSIFY_LIMIT = 2;
-const SCORE_LIMIT = 30;
+const CLASSIFY_LIMIT = 15;
+const SCORE_LIMIT = 80;
 
 interface StageResult {
   ok: boolean;
