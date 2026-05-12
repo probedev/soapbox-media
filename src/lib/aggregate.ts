@@ -637,6 +637,19 @@ export async function getChannelDrillDown(channelId: string): Promise<ChannelDri
       r.channel_id === channelId && new Date(r.episode_published_at) >= cutoff,
   );
 
+  // TEMP DIAGNOSTIC — remove after triage
+  const matchById = rows.filter((r) => r.channel_id === channelId);
+  const distinctChannelIds = Array.from(new Set(rows.map((r) => r.channel_id)));
+  console.log("[drill-down debug]", JSON.stringify({
+    channelId,
+    totalRowsFromFetch: rows.length,
+    matchedById: matchById.length,
+    matchedByIdAndDate: channelRows.length,
+    distinctChannelIdCount: distinctChannelIds.length,
+    firstFiveChannelIds: distinctChannelIds.slice(0, 5),
+    targetIdPresentInRows: distinctChannelIds.includes(channelId),
+  }));
+
   const byIssue = new Map<string, ScoreRow[]>();
   for (const r of channelRows) {
     const arr = byIssue.get(r.issue_slug) || [];
