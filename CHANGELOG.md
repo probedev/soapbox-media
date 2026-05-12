@@ -7,6 +7,27 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
+## v0.6.3 · 2026-05-12
+
+Critical data-correctness fix: `fetchScoreRows()` pagination was silently
+dropping ~46% of sentiment_score rows in production, causing channel
+drill-down pages to show 0 mentions when the underlying data was present.
+
+### Fixed
+
+- **`fetchScoreRows()` pagination bug**. The terminator condition
+  `if (data.length < pageSize) break` interpreted any short Supabase page
+  as end-of-data. Vercel's edge→Supabase route was returning short pages
+  (response-size cap hitting before the row cap, due to the deep nested
+  join), causing premature termination. On the live site this manifested
+  as the prod Soapbox Index reading from 1,314 of 2,444 scores while
+  local dev saw the full set. Channel drill-downs for recently-classified
+  channels showed empty.
+  Fix: terminate only on empty responses (not short ones); add explicit
+  `order("id")` so pagination is deterministic; cut pageSize from 1000
+  to 500 to keep individual responses comfortably under any size cap;
+  add a 50-page safety bound to prevent runaway loops.
+
 ## v0.6.2 · 2026-05-12
 
 Operational tuning: cron batch limits raised so we actually keep up with

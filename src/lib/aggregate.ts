@@ -115,14 +115,22 @@ function weekStartIso(iso: string): string {
 async function fetchScoreRows(): Promise<ScoreRow[]> {
   const db = createServiceClient();
   const all: ScoreRow[] = [];
-  const pageSize = 1000;
+  // Smaller pageSize to keep the deep-join response under Supabase's response
+  // size limit. The previous 1000 worked locally but Vercel's edge→Supabase
+  // route was returning partial pages, and the old `length < pageSize`
+  // terminator interpreted that as end-of-data, silently dropping ~46% of
+  // rows in production. See v0.6.3 fix.
+  const pageSize = 500;
+  // Safety bound so a malformed loop can't hang the request.
+  const maxPages = 50;
 
-  for (let from = 0; ; from += pageSize) {
+  for (let page = 0; page < maxPages; page++) {
+    const from = page * pageSize;
     const { data, error } = await db
       .from("sentiment_scores")
       .select(
         `
-        sentiment, intensity,
+        id, sentiment, intensity,
         classification:classifications!sentiment_scores_classification_id_fkey (
           issue_slug, episode_id,
           issue:issues!classifications_issue_slug_fkey ( name ),
@@ -135,6 +143,7 @@ async function fetchScoreRows(): Promise<ScoreRow[]> {
         )
       `,
       )
+      .order("id", { ascending: true })
       .range(from, from + pageSize - 1);
     if (error) throw new Error(`fetchScoreRows: ${error.message}`);
     if (!data || data.length === 0) break;
@@ -157,7 +166,10 @@ async function fetchScoreRows(): Promise<ScoreRow[]> {
         channel_reach: Number(ch.reach),
       });
     }
-    if (data.length < pageSize) break;
+    // Only terminate when we get a genuinely empty page. A short page
+    // (length < pageSize but > 0) does NOT mean we're done — it can just
+    // mean Supabase's response-size cap hit before the row cap. Continue
+    // paginating until we get an empty result.
   }
   return all;
 }
@@ -636,19 +648,6 @@ export async function getChannelDrillDown(channelId: string): Promise<ChannelDri
     (r) =>
       r.channel_id === channelId && new Date(r.episode_published_at) >= cutoff,
   );
-
-  // TEMP DIAGNOSTIC — remove after triage
-  const matchById = rows.filter((r) => r.channel_id === channelId);
-  const distinctChannelIds = Array.from(new Set(rows.map((r) => r.channel_id)));
-  console.log("[drill-down debug]", JSON.stringify({
-    channelId,
-    totalRowsFromFetch: rows.length,
-    matchedById: matchById.length,
-    matchedByIdAndDate: channelRows.length,
-    distinctChannelIdCount: distinctChannelIds.length,
-    firstFiveChannelIds: distinctChannelIds.slice(0, 5),
-    targetIdPresentInRows: distinctChannelIds.includes(channelId),
-  }));
 
   const byIssue = new Map<string, ScoreRow[]>();
   for (const r of channelRows) {
