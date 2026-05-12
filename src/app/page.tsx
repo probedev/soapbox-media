@@ -4,6 +4,8 @@ import { IndexSparkline } from "@/components/IndexSparkline";
 import { WeeklyHeadline } from "@/components/WeeklyHeadline";
 import { BiggestMovers } from "@/components/BiggestMovers";
 import { TrustStrip } from "@/components/TrustStrip";
+import { Header } from "@/components/Header";
+import { Footer } from "@/components/Footer";
 import { getDashboardData, getIndexBreakdown, buildAutoHeadline } from "@/lib/aggregate";
 
 // Always recompute on request so the daily-cron pipeline is reflected immediately.
@@ -42,20 +44,7 @@ export default async function HomePage() {
 
   return (
     <main className="min-h-screen">
-      {/* Header */}
-      <header className="border-b border-gray-200 bg-white">
-        <div className="max-w-5xl mx-auto px-6 py-4 flex items-center justify-between">
-          <a href="/" className="flex items-baseline gap-1">
-            <span className="font-bold text-xl tracking-tight">soapbox</span>
-            <span className="text-xs text-gray-500 hidden sm:inline">.media</span>
-          </a>
-          <nav className="text-sm text-gray-600 flex gap-6">
-            <a href="/issues" className="hover:text-gray-900">Issues</a>
-            <a href="/channels" className="hover:text-gray-900">Channels</a>
-            <a href="/methodology" className="hover:text-gray-900">Methodology</a>
-          </nav>
-        </div>
-      </header>
+      <Header />
 
       {/* Hero — needle + headline number + sparkline + trust strip */}
       <section className="px-6 pt-12 pb-10 max-w-5xl mx-auto text-center">
@@ -65,10 +54,11 @@ export default async function HomePage() {
         <h1 className="text-3xl md:text-4xl font-semibold tracking-tight">
           Where is alt-media leaning right now?
         </h1>
-        <p className="text-gray-600 mt-3 max-w-2xl mx-auto">
-          We listen to the top political podcasts and YouTube voices, classify what
-          they&apos;re saying, and surface a single read on where the discourse is moving —
-          so you can see past your own algorithmic bubble.
+        <p className="text-gray-600 mt-3 max-w-2xl mx-auto leading-relaxed">
+          The center of American politics moved from cable to podcasts and YouTube. The same
+          algorithms that moved it left every voter in their own bubble. Soapbox uses AI to do
+          what the algorithms broke — measure the whole alt-media landscape, not just the part
+          your feed delivers.
         </p>
 
         <div className="mt-10 flex justify-center">
@@ -182,20 +172,7 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="border-t border-gray-200 bg-white">
-        <div className="max-w-5xl mx-auto px-6 py-8 text-sm text-gray-500 flex flex-col md:flex-row md:items-center md:justify-between gap-2">
-          <div>Soapbox.media · alt-media discourse, updated daily</div>
-          <div className="flex gap-4">
-            <a href="/methodology" className="underline hover:text-gray-900">
-              How we measure
-            </a>
-            <a href="/channels" className="underline hover:text-gray-900">
-              Channels we track
-            </a>
-          </div>
-        </div>
-      </footer>
+      <Footer />
     </main>
   );
 }

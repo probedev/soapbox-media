@@ -1,6 +1,10 @@
 import { getChannelDrillDown } from "@/lib/aggregate";
 import { getChannelExternalUrl } from "@/lib/channelLinks";
 import { createServiceClient } from "@/lib/db";
+import { Footer } from "@/components/Footer";
+import { Header } from "@/components/Header";
+import { EpisodeList } from "@/components/EpisodeList";
+import { getEpisodesForChannel } from "@/lib/episodes";
 import { notFound } from "next/navigation";
 import { ExternalLink } from "lucide-react";
 
@@ -56,24 +60,17 @@ export default async function ChannelPage({
       })
     : null;
 
+  // Episodes (last 25 by publish date — supports the receipts/transparency view)
+  const { episodes, total: totalEpisodes } = await getEpisodesForChannel(params.id, {
+    limit: 25,
+  });
+
   const markerPct = ((data.netLean + 10) / 20) * 100;
   const directionLabel = data.netLean >= 0 ? "R+" : "L+";
 
   return (
     <main className="min-h-screen">
-      <header className="border-b border-gray-200 bg-white">
-        <div className="max-w-5xl mx-auto px-6 py-4 flex items-center justify-between">
-          <a href="/" className="flex items-baseline gap-1">
-            <span className="font-bold text-xl tracking-tight">soapbox</span>
-            <span className="text-xs text-gray-500 hidden sm:inline">.media</span>
-          </a>
-          <nav className="text-sm text-gray-600 flex gap-6">
-            <a href="/issues" className="hover:text-gray-900">Issues</a>
-            <a href="/channels" className="hover:text-gray-900">Channels</a>
-            <a href="/methodology" className="hover:text-gray-900">Methodology</a>
-          </nav>
-        </div>
-      </header>
+      <Header />
 
       <section className="px-6 pt-10 pb-8 max-w-4xl mx-auto">
         <div className="text-xs uppercase tracking-wider text-gray-500 mb-1 flex items-center gap-3">
@@ -171,14 +168,23 @@ export default async function ChannelPage({
         </div>
       </section>
 
-      <footer className="border-t border-gray-200 bg-white">
-        <div className="max-w-5xl mx-auto px-6 py-8 text-sm text-gray-500 flex flex-col md:flex-row md:items-center md:justify-between gap-2">
-          <div>Soapbox.media · alt-media discourse, updated daily</div>
-          <div className="flex gap-4">
-            <a href="/methodology" className="underline hover:text-gray-900">How we measure</a>
+      {/* Recent episodes — transparency surface, links out to original sources */}
+      <section className="border-t border-gray-200 bg-white">
+        <div className="max-w-4xl mx-auto px-6 py-10">
+          <div className="flex items-baseline justify-between mb-4">
+            <h2 className="text-lg font-semibold">Recent episodes</h2>
+            <span className="text-xs text-gray-500 tabular-nums">
+              {episodes.length} of {totalEpisodes.toLocaleString()}
+            </span>
           </div>
+          <EpisodeList
+            episodes={episodes}
+            emptyMessage="No episodes ingested yet for this channel."
+          />
         </div>
-      </footer>
+      </section>
+
+      <Footer />
     </main>
   );
 }

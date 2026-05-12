@@ -1,25 +1,13 @@
 import { IssueContributionsChart } from "@/components/IssueContributionsChart";
+import { Footer } from "@/components/Footer";
+import { Header } from "@/components/Header";
 
 export const dynamic = "force-dynamic";
 
 export default function MethodologyPage() {
   return (
     <main className="min-h-screen">
-      <header className="border-b border-gray-200 bg-white">
-        <div className="max-w-5xl mx-auto px-6 py-4 flex items-center justify-between">
-          <a href="/" className="flex items-baseline gap-1">
-            <span className="font-bold text-xl tracking-tight">soapbox</span>
-            <span className="text-xs text-gray-500 hidden sm:inline">.media</span>
-          </a>
-          <nav className="text-sm text-gray-600 flex gap-6">
-            <a href="/issues" className="hover:text-gray-900">Issues</a>
-            <a href="/channels" className="hover:text-gray-900">Channels</a>
-            <a href="/methodology" className="hover:text-gray-900 font-semibold text-gray-900">
-              Methodology
-            </a>
-          </nav>
-        </div>
-      </header>
+      <Header activePage="methodology" />
 
       <section className="px-6 pt-10 pb-16 max-w-3xl mx-auto">
         <h1 className="text-3xl md:text-4xl font-semibold tracking-tight">Methodology</h1>
@@ -158,14 +146,7 @@ export default function MethodologyPage() {
         </p>
       </section>
 
-      <footer className="border-t border-gray-200 bg-white">
-        <div className="max-w-5xl mx-auto px-6 py-8 text-sm text-gray-500 flex flex-col md:flex-row md:items-center md:justify-between gap-2">
-          <div>Soapbox.media · alt-media discourse, measured weekly</div>
-          <div className="flex gap-4">
-            <a href="/" className="underline hover:text-gray-900">Back to dashboard</a>
-          </div>
-        </div>
-      </footer>
+      <Footer />
     </main>
   );
 }

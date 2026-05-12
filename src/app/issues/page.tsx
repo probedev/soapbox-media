@@ -1,4 +1,6 @@
 import { createServiceClient } from "@/lib/db";
+import { Header } from "@/components/Header";
+import { Footer } from "@/components/Footer";
 
 export const dynamic = "force-dynamic";
 
@@ -22,19 +24,7 @@ export default async function IssuesListPage() {
 
   return (
     <main className="min-h-screen">
-      <header className="border-b border-gray-200 bg-white">
-        <div className="max-w-5xl mx-auto px-6 py-4 flex items-center justify-between">
-          <a href="/" className="flex items-baseline gap-1">
-            <span className="font-bold text-xl tracking-tight">soapbox</span>
-            <span className="text-xs text-gray-500 hidden sm:inline">.media</span>
-          </a>
-          <nav className="text-sm text-gray-600 flex gap-6">
-            <a href="/issues" className="hover:text-gray-900 font-semibold text-gray-900">Issues</a>
-            <a href="/channels" className="hover:text-gray-900">Channels</a>
-            <a href="/methodology" className="hover:text-gray-900">Methodology</a>
-          </nav>
-        </div>
-      </header>
+      <Header activePage="issues" />
 
       <section className="px-6 pt-10 pb-16 max-w-4xl mx-auto">
         <div className="text-xs uppercase tracking-wider text-gray-500 mb-1">
@@ -72,14 +62,7 @@ export default async function IssuesListPage() {
         </div>
       </section>
 
-      <footer className="border-t border-gray-200 bg-white">
-        <div className="max-w-5xl mx-auto px-6 py-8 text-sm text-gray-500 flex flex-col md:flex-row md:items-center md:justify-between gap-2">
-          <div>Soapbox.media · alt-media discourse, updated daily</div>
-          <div className="flex gap-4">
-            <a href="/methodology" className="underline hover:text-gray-900">How we measure</a>
-          </div>
-        </div>
-      </footer>
+      <Footer />
     </main>
   );
 }
