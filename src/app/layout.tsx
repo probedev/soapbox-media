@@ -4,10 +4,25 @@ import { PostHogProvider } from "@/components/PostHogProvider";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Soapbox: The FiveThirtyEight of Alternative Political Media",
+  title: "Soapbox · Alternative media discourse, quantified",
   description:
-    "A daily-updating dashboard that quantifies what top political podcasts and YouTube voices are saying, how loudly, and which way the broader discourse is tilting.",
+    "Soapbox is a data platform that uses language models to quantify what major alternative media is saying about US policy issues. We ingest and process new episodes daily.",
+  openGraph: {
+    title: "Soapbox · Alternative media discourse, quantified",
+    description:
+      "Soapbox is a data platform that uses language models to quantify what major alternative media is saying about US policy issues. We ingest and process new episodes daily.",
+    url: "https://soapbox.media",
+    siteName: "Soapbox",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Soapbox · Alternative media discourse, quantified",
+    description:
+      "What major alternative media is saying about US policy issues. Updated daily.",
+  },
   // Favicon is auto-detected from src/app/icon.png (Next.js convention).
+  // OG/Twitter image is auto-detected from src/app/opengraph-image.tsx.
 };
 
 export default function RootLayout({

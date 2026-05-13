@@ -7,6 +7,35 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
+## v0.6.6 · 2026-05-13
+
+Social-share polish and brand attribution.
+
+### Changed
+
+- **Page title rewritten.** Was *"Soapbox: The FiveThirtyEight of
+  Alternative Political Media"* — that framing was useful internally
+  as a north star but is the wrong thing to put on a tab, invites
+  premature comparison, and the product should stand on its own.
+  Now: *"Soapbox · Alternative media discourse, quantified"*.
+- **Meta description aligned with home page hero.** Identical wording
+  so the social-share blurb matches what visitors see on landing.
+- **Footer tagline updated** to match: "alternative media discourse,
+  quantified" replacing the older "alt-media discourse, updated daily."
+- **Built by Breakfastball LLC · © 2026** attribution added as a
+  second footer row, gray and small, so it doesn't crowd the nav.
+
+### Added
+
+- **Dynamic Open Graph image** at `src/app/opengraph-image.tsx`. When
+  the site URL is shared (iMessage, Twitter/X, Slack, LinkedIn, etc.)
+  the preview card now shows the **live Soapbox Index value**, a
+  needle bar, channel + episode counts, and the as-of date — generated
+  at request time via `next/og`'s `ImageResponse` and cached for an
+  hour per URL. Every share becomes a data preview of the current
+  state of alt-media discourse. Twitter card configured to use the
+  same image via `summary_large_image`.
+
 ## v0.6.5 · 2026-05-13
 
 Home page UX polish and scoring-evaluation tooling.
