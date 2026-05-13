@@ -171,11 +171,14 @@ export default async function OpengraphImage() {
             The Soapbox Index · last 7 days
           </div>
 
-          {/* Curved gauge SVG — identical geometry to <SoapboxNeedle> */}
+          {/* Curved gauge SVG — same geometry as <SoapboxNeedle>. Text
+              labels are rendered as HTML below the SVG because Satori
+              (the renderer behind next/og's ImageResponse) does not
+              support <text> nodes. */}
           <svg
             width={420}
-            height={273}
-            viewBox="0 0 400 260"
+            height={235}
+            viewBox="0 0 400 220"
             xmlns="http://www.w3.org/2000/svg"
           >
             <defs>
@@ -206,36 +209,6 @@ export default async function OpengraphImage() {
               />
             ))}
 
-            <text
-              x={cx - r}
-              y={cy + 28}
-              textAnchor="middle"
-              fill="#2563eb"
-              fontSize={14}
-              fontWeight={600}
-            >
-              L 10
-            </text>
-            <text
-              x={cx}
-              y={cy - r - 14}
-              textAnchor="middle"
-              fill="#6b7280"
-              fontSize={13}
-            >
-              0
-            </text>
-            <text
-              x={cx + r}
-              y={cy + 28}
-              textAnchor="middle"
-              fill="#dc2626"
-              fontSize={14}
-              fontWeight={600}
-            >
-              R 10
-            </text>
-
             <line
               x1={cx}
               y1={cy}
@@ -248,6 +221,22 @@ export default async function OpengraphImage() {
             <circle cx={cx} cy={cy} r={9} fill="#111827" />
             <circle cx={cx} cy={cy} r={3.5} fill="#ffffff" />
           </svg>
+
+          {/* HTML labels positioned beneath the gauge endpoints */}
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              width: 420,
+              marginTop: -8,
+              fontSize: 16,
+              fontWeight: 600,
+            }}
+          >
+            <span style={{ color: "#2563eb" }}>L 10</span>
+            <span style={{ color: "#6b7280", fontWeight: 400 }}>0</span>
+            <span style={{ color: "#dc2626" }}>R 10</span>
+          </div>
 
           {/* Index number below the gauge */}
           <div

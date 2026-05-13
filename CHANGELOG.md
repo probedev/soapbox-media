@@ -7,6 +7,14 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
+## v0.6.8 · 2026-05-13
+
+Hotfix for v0.6.7: the OG image build failed on Vercel because Satori
+(the renderer behind `next/og`) does not support `<text>` SVG elements.
+The three gauge endpoint labels (L 10, 0, R 10) have been moved out of
+the SVG and rendered as regular HTML below the gauge using flex
+positioning. v0.6.7 tagged but did not successfully deploy.
+
 ## v0.6.7 · 2026-05-13
 
 OG image visual alignment with the live site.
