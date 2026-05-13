@@ -7,6 +7,36 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
+## v0.6.5 · 2026-05-13
+
+Home page UX polish and scoring-evaluation tooling.
+
+### Changed
+
+- **Home page hero copy tightened.** "alt-media" → "alternative media"
+  throughout. Subtext replaced with a sharper one-line explainer:
+  "Soapbox is a data platform that uses language models to quantify what
+  major alternative media is saying about US policy issues. We ingest
+  and process new episodes daily."
+- **Logo trimmed.** Crate dropped 36px → 32px with a tighter gap to the
+  wordmark; the previous size felt heavy against the wordmark weight.
+- **"Why is the Index where it is?" moved to the home page.** The
+  per-issue contribution chart now lives directly under the hero
+  needle/number so the explanation stays adjacent to the headline it
+  explains. Methodology page links back to it. Window aligned to the
+  same 7-day rolling period as the Index number above it.
+
+### Added (tooling, not user-facing)
+
+- **Independent scoring validation package.** New `eval/` directory
+  with `LABELING_INSTRUCTIONS.md` (a 4-page methodology brief for an
+  outside labeler) and `scripts/extract-gold-set.ts` (stratified
+  sampler that emits two CSVs — a clean labeler version with channel
+  names blinded to lean, and an internal answer key with model scores).
+  Run with `npm run eval:extract-gold-set`. Designed to validate the
+  Haiku scorer against independent human judgment; output feeds the
+  v0.7 prompt audit.
+
 ## v0.6.4 · 2026-05-13
 
 Transcribe reliability fix. Cron's transcribe stage was burning its

@@ -1,6 +1,6 @@
 {
   "name": "soapbox",
-  "version": "0.6.4",
+  "version": "0.6.5",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -12,7 +12,8 @@
     "ingest": "tsx scripts/ingest.ts",
     "transcribe": "tsx scripts/transcribe.ts",
     "classify": "tsx scripts/classify.ts",
-    "score": "tsx scripts/score.ts"
+    "score": "tsx scripts/score.ts",
+    "eval:extract-gold-set": "tsx scripts/extract-gold-set.ts"
   },
   "dependencies": {
     "next": "^14.2.5",

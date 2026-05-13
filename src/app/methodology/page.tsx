@@ -1,4 +1,3 @@
-import { IssueContributionsChart } from "@/components/IssueContributionsChart";
 import { Footer } from "@/components/Footer";
 import { Header } from "@/components/Header";
 
@@ -52,13 +51,11 @@ export default function MethodologyPage() {
           points right of center on the -10/+10 scale this week.
         </p>
 
-        {/* Live "Why is the Index where it is?" panel */}
-        <div
-          id="why-is-the-index"
-          className="mt-12 -mx-6 px-6 py-10 bg-gray-50 border-y border-gray-200 md:rounded-lg md:mx-0 md:border md:px-8 scroll-mt-20"
-        >
-          <IssueContributionsChart windowDays={30} />
-        </div>
+        <p className="text-gray-700 mt-4 leading-relaxed">
+          The per-issue breakdown that explains today&apos;s Index lives on the{" "}
+          <a href="/" className="underline hover:text-gray-900">home page</a>, where it
+          stays aligned with the headline number.
+        </p>
 
         <h2 className="text-xl font-semibold mt-12">Channel selection</h2>
         <p className="text-gray-700 mt-3 leading-relaxed">

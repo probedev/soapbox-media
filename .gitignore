@@ -38,3 +38,6 @@ next-env.d.ts
 # editor
 .vscode
 .idea
+
+# eval — generated CSVs (one-off per run), keep instructions only
+/eval/gold-set-*.csv

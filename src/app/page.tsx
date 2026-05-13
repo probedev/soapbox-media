@@ -1,12 +1,12 @@
 import { SoapboxNeedle } from "@/components/SoapboxNeedle";
 import { IssuePreview } from "@/components/IssuePreview";
 import { IndexSparkline } from "@/components/IndexSparkline";
-import { WeeklyHeadline } from "@/components/WeeklyHeadline";
+import { IssueContributionsChart } from "@/components/IssueContributionsChart";
 import { BiggestMovers } from "@/components/BiggestMovers";
 import { TrustStrip } from "@/components/TrustStrip";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
-import { getDashboardData, getIndexBreakdown, buildAutoHeadline } from "@/lib/aggregate";
+import { getDashboardData } from "@/lib/aggregate";
 
 // Always recompute on request so the daily-cron pipeline is reflected immediately.
 // v1 will move this to cached SQL views / materialized aggregates.
@@ -24,15 +24,11 @@ function formatAsOfLabel(asOfDateIso: string, windowDays: number): string {
 }
 
 export default async function HomePage() {
-  // Pull dashboard data (7-day rolling window) and the contribution breakdown
-  // in parallel. The breakdown drives the auto-generated narrative headline,
-  // so we compute it over the same 7-day window as the headline number.
+  // Pull dashboard data for the 7-day rolling window. The IssueContributionsChart
+  // below fetches its own breakdown over the same window, so the "Why is the
+  // Index where it is?" narrative aligns with the headline number above.
   const HOMEPAGE_WINDOW_DAYS = 7;
-  const [data, breakdown] = await Promise.all([
-    getDashboardData(HOMEPAGE_WINDOW_DAYS),
-    getIndexBreakdown(HOMEPAGE_WINDOW_DAYS),
-  ]);
-  const autoHeadline = buildAutoHeadline(breakdown);
+  const data = await getDashboardData(HOMEPAGE_WINDOW_DAYS);
 
   const directionLabel = data.index >= 0 ? "R+" : "L+";
   const directionWord = data.index >= 0 ? "right" : "left";
@@ -52,13 +48,12 @@ export default async function HomePage() {
           The Soapbox Index · updated daily
         </div>
         <h1 className="text-3xl md:text-4xl font-semibold tracking-tight">
-          Where is alt-media leaning right now?
+          Where is alternative media leaning right now?
         </h1>
         <p className="text-gray-600 mt-3 max-w-2xl mx-auto leading-relaxed">
-          The epicenter of US political discourse has moved from cable and talk radio to
-          podcasts and YouTube, shaping opinions, elections, and policy. These independent
-          voices have never been measured at scale. Soapbox listens above your personal
-          algorithms to ask: where are they leading us?
+          Soapbox is a data platform that uses language models to quantify what major
+          alternative media is saying about US policy issues. We ingest and process new
+          episodes daily.
         </p>
 
         <div className="mt-10 flex justify-center">
@@ -73,7 +68,7 @@ export default async function HomePage() {
           <div className="text-sm text-gray-600 mt-3">
             {data.hasData ? (
               <>
-                Alt-media is leaning <span className="font-medium">{directionWord}</span> over the last {data.windowDays} days.{" "}
+                Alternative media is leaning <span className="font-medium">{directionWord}</span> over the last {data.windowDays} days.{" "}
                 {Math.abs(data.delta) > 0 && (
                   <>
                     <span
@@ -118,16 +113,10 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* Period summary */}
+      {/* Why is the Index where it is? — per-issue contribution breakdown */}
       <section className="border-t border-gray-200 bg-gray-50">
-        <div className="max-w-5xl mx-auto px-6 py-10">
-          <div className="uppercase text-xs font-semibold tracking-wider text-gray-500 mb-3 text-center">
-            What&apos;s driving today&apos;s Index
-          </div>
-          <WeeklyHeadline
-            text={autoHeadline || undefined}
-            href="/methodology#why-is-the-index"
-          />
+        <div className="max-w-3xl mx-auto px-6 py-12">
+          <IssueContributionsChart windowDays={HOMEPAGE_WINDOW_DAYS} />
         </div>
       </section>
 

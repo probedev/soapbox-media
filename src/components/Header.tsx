@@ -23,15 +23,15 @@ export function Header({ activePage = null }: HeaderProps) {
   return (
     <header className="border-b border-gray-200 bg-white">
       <div className="max-w-5xl mx-auto px-6 py-4 flex items-center justify-between">
-        <a href="/" className="flex items-center gap-2.5" aria-label="Soapbox home">
+        <a href="/" className="flex items-center gap-2" aria-label="Soapbox home">
           <Image
             src={logoCrate}
             alt=""
-            width={36}
-            height={36}
+            width={32}
+            height={32}
             priority
             placeholder="blur"
-            className="w-9 h-9 object-contain select-none"
+            className="w-7 h-7 object-contain select-none"
             draggable={false}
           />
           <span className="font-black text-2xl tracking-tight leading-none">
