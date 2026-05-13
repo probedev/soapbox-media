@@ -7,6 +7,33 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
+## v0.6.4 · 2026-05-13
+
+Transcribe reliability fix. Cron's transcribe stage was burning its
+TRANSCRIBE_LIMIT on the freshest YouTube uploads of the day, which
+typically don't have auto-captions generated yet. Those failed and got
+marked permanently failed (no retry logic). Older pending episodes —
+which actually do have captions ready — were starved.
+
+### Fixed
+
+- **Transcribe order flipped to oldest-pending-first.** Both
+  `src/app/api/cron/pipeline/route.ts` and `scripts/transcribe.ts` were
+  ordering by `published_at DESC` (newest first), exactly the worst order
+  given YouTube's caption-generation latency. Flipped to ASC. Trade-off:
+  ~24h latency between an episode being published and being transcribed,
+  which is fine for a trailing 7-day Index aggregate.
+- **YT transcript errors now logged.** `getVideoTranscript` was using
+  bare `catch { return null }` which made every failure invisible. Now
+  logs error class + message so Vercel logs tell us *why* a fetch fails.
+
+### Known followup (v0.7)
+
+Failed transcripts are still permanently failed — no retry. When
+`transcript_attempts` + `transcript_last_attempted_at` columns are added,
+"failed" becomes retryable until N attempts spread over M hours. Tracked
+in memory under v0.7 queue.
+
 ## v0.6.3 · 2026-05-12
 
 Critical data-correctness fix: `fetchScoreRows()` pagination was silently

@@ -107,7 +107,9 @@ async function main() {
     `,
     )
     .eq("transcript_status", "pending")
-    .order("published_at", { ascending: false })
+    // Oldest pending first — see comment in route.ts. Fresh uploads often
+    // don't have captions ready; older pending episodes succeed.
+    .order("published_at", { ascending: true })
     .limit(limit);
 
   if (error) {

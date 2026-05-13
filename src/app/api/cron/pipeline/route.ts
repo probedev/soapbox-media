@@ -270,7 +270,14 @@ async function runTranscribe(): Promise<Record<string, unknown>> {
        channel:channels!episodes_channel_id_fkey ( platform )`,
     )
     .eq("transcript_status", "pending")
-    .order("published_at", { ascending: false })
+    // Oldest-pending-first: YouTube auto-captions take hours-to-a-day to
+    // generate for fresh uploads. If we attack newest-first we burn through
+    // TRANSCRIBE_LIMIT on episodes whose captions don't exist yet, mark
+    // them failed, and never retry. Oldest-first lets captions catch up
+    // and dramatically improves success rate. Cost: ~24h latency between
+    // an episode being published and being scored, which is fine for a
+    // trailing 7-day Index.
+    .order("published_at", { ascending: true })
     .limit(TRANSCRIBE_LIMIT);
 
   let ok = 0;

@@ -140,14 +140,22 @@ export async function getRecentUploads(
 
 /**
  * Pull the auto-generated transcript for a YouTube video.
- * Returns null if no captions exist or the fetch fails.
+ * Returns null if no captions exist or the fetch fails. Logs the actual
+ * error message + class to console so failures are diagnosable from
+ * Vercel logs — too much was being swallowed silently in earlier versions.
  */
 export async function getVideoTranscript(videoId: string): Promise<string | null> {
   try {
     const items = await YoutubeTranscript.fetchTranscript(videoId);
-    if (!items || items.length === 0) return null;
+    if (!items || items.length === 0) {
+      console.warn(`[YT transcript] empty result for ${videoId}`);
+      return null;
+    }
     return items.map((i) => i.text).join(" ");
-  } catch {
+  } catch (e: any) {
+    const errClass = e?.constructor?.name || "Error";
+    const errMsg = e?.message || String(e);
+    console.error(`[YT transcript] ${errClass} for ${videoId}: ${errMsg}`);
     return null;
   }
 }
