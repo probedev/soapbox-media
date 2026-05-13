@@ -7,6 +7,22 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
+## v0.6.7 · 2026-05-13
+
+OG image visual alignment with the live site.
+
+### Changed
+
+- **OG image now matches the actual home page identity.** Previous
+  v0.6.6 render used a flat horizontal gradient bar for the needle and
+  omitted the crate logo. Replaced with the same half-circle gauge SVG
+  the home page renders (identical geometry, gradient stops, tick marks,
+  and needle), and added the wooden-crate logo to the top-left brand
+  row. Visiting the live site after seeing a share now feels continuous
+  rather than disjoint. The crate is inlined as base64 from the
+  256×256 favicon asset (~56KB payload, much smaller than the 1024×1024
+  source).
+
 ## v0.6.6 · 2026-05-13
 
 Social-share polish and brand attribution.

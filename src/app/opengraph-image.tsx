@@ -1,20 +1,22 @@
 /**
  * Dynamic Open Graph image for the home page.
  *
- * Renders a 1200×630 PNG showing the live Soapbox Index value, a needle
- * bar, the tagline, and basic system stats. Every time the URL is shared
- * the preview reflects the current state of the dataset — that's the
- * whole point of doing this dynamically rather than as a static asset.
+ * Mirrors the actual home page visual identity: the wooden-crate logo,
+ * the red/blue soapbox wordmark, the half-circle gauge needle (same SVG
+ * geometry as `<SoapboxNeedle>`), and the live Index value. When the URL
+ * is shared (iMessage, Twitter/X, Slack, LinkedIn) the preview reflects
+ * the current state of the dataset rather than a static asset.
  *
  * Auto-detected by Next.js App Router. The metadata in `layout.tsx`
  * references the same image for Twitter cards via `summary_large_image`.
  *
- * Runtime: nodejs (not edge). The Index calculation reads all sentiment
- * scores via `getDashboardData`, which can pull several thousand rows
- * with deep joins. Edge runtime's memory ceiling is tight and Vercel
- * caches OG images per-URL anyway, so cold-start cost is amortized.
+ * Runtime: nodejs (not edge) — we need fs.readFileSync to inline the
+ * crate PNG, and `getDashboardData` can pull thousands of rows with deep
+ * joins. Vercel caches OG images by URL so cold-start cost is amortized.
  */
 import { ImageResponse } from "next/og";
+import fs from "fs";
+import path from "path";
 import { getDashboardData } from "@/lib/aggregate";
 
 export const runtime = "nodejs";
@@ -34,14 +36,24 @@ function formatAsOf(iso: string): string {
   });
 }
 
+// Inline the crate logo as a base64 data URI. We use the 256x256 favicon
+// version rather than the 1024x1024 source asset — same visual, ~20x
+// smaller payload (~56KB vs ~1.2MB).
+function loadCrateDataUri(): string | null {
+  try {
+    const p = path.join(process.cwd(), "src/app/icon.png");
+    const buf = fs.readFileSync(p);
+    return `data:image/png;base64,${buf.toString("base64")}`;
+  } catch {
+    return null;
+  }
+}
+
 export default async function OpengraphImage() {
-  // Best-effort fetch — if it fails (e.g. cold DB), we still render a
-  // sensible fallback rather than 500ing the OG endpoint.
   let data: Awaited<ReturnType<typeof getDashboardData>>;
   try {
     data = await getDashboardData(7);
   } catch {
-    // Fallback shape
     data = {
       asOfDate: new Date().toISOString().slice(0, 10),
       windowDays: 7,
@@ -58,17 +70,43 @@ export default async function OpengraphImage() {
     };
   }
 
+  const crateDataUri = loadCrateDataUri();
+
   const indexAbs = Math.abs(data.index);
   const indexColor =
     data.index > 0.05 ? "#C8202F" : data.index < -0.05 ? "#114A8A" : "#374151";
   const directionLabel =
     data.index > 0.05 ? "R+" : data.index < -0.05 ? "L+" : "";
-  const formattedNumber = directionLabel + indexAbs.toFixed(1);
-
-  // Needle position: map index from [-10, +10] to [0%, 100%]
-  const needlePct = Math.max(0, Math.min(100, (data.index + 10) * 5));
-
+  const indexText = directionLabel + indexAbs.toFixed(1);
   const asOfFormatted = formatAsOf(data.asOfDate);
+
+  // --- Needle gauge geometry — identical math to <SoapboxNeedle> ---
+  const clamped = Math.max(-10, Math.min(10, data.index));
+  const t = (clamped + 10) / 20;
+  const angleDeg = (1 - t) * 180;
+  const angleRad = (angleDeg * Math.PI) / 180;
+  const cx = 200;
+  const cy = 200;
+  const r = 150;
+  const needleLen = 130;
+  const needleX = cx + needleLen * Math.cos(angleRad);
+  const needleY = cy - needleLen * Math.sin(angleRad);
+  const arcPath = `M ${cx - r} ${cy} A ${r} ${r} 0 0 1 ${cx + r} ${cy}`;
+
+  const ticks = [-10, -5, 0, 5, 10].map((tickVal) => {
+    const tt = (tickVal + 10) / 20;
+    const tickAngleDeg = (1 - tt) * 180;
+    const tickAngleRad = (tickAngleDeg * Math.PI) / 180;
+    const inner = r - 18;
+    const outer = r + 4;
+    return {
+      key: tickVal,
+      x1: cx + inner * Math.cos(tickAngleRad),
+      y1: cy - inner * Math.sin(tickAngleRad),
+      x2: cx + outer * Math.cos(tickAngleRad),
+      y2: cy - outer * Math.sin(tickAngleRad),
+    };
+  });
 
   return new ImageResponse(
     (
@@ -79,12 +117,22 @@ export default async function OpengraphImage() {
           display: "flex",
           flexDirection: "column",
           background: "#ffffff",
-          padding: "70px 90px",
+          padding: "60px 80px",
           fontFamily: "Inter, system-ui, sans-serif",
         }}
       >
-        {/* Top: wordmark */}
+        {/* Top: crate + wordmark, matching the site header */}
         <div style={{ display: "flex", alignItems: "center" }}>
+          {crateDataUri && (
+            /* eslint-disable-next-line @next/next/no-img-element */
+            <img
+              src={crateDataUri}
+              width={64}
+              height={64}
+              style={{ marginRight: 14, objectFit: "contain" }}
+              alt=""
+            />
+          )}
           <span
             style={{
               fontSize: 56,
@@ -99,7 +147,7 @@ export default async function OpengraphImage() {
           </span>
         </div>
 
-        {/* Hero: Index value */}
+        {/* Hero: gauge + index number */}
         <div
           style={{
             display: "flex",
@@ -107,95 +155,125 @@ export default async function OpengraphImage() {
             alignItems: "center",
             flex: 1,
             justifyContent: "center",
-            marginTop: 20,
           }}
         >
           <div
             style={{
-              fontSize: 20,
+              fontSize: 18,
               color: "#6b7280",
               textTransform: "uppercase",
               letterSpacing: "0.18em",
-              marginBottom: 16,
+              marginBottom: 6,
               fontWeight: 600,
               display: "flex",
             }}
           >
             The Soapbox Index · last 7 days
           </div>
+
+          {/* Curved gauge SVG — identical geometry to <SoapboxNeedle> */}
+          <svg
+            width={420}
+            height={273}
+            viewBox="0 0 400 260"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <defs>
+              <linearGradient id="gauge-gradient" x1="0" y1="0" x2="1" y2="0">
+                <stop offset="0%" stopColor="#3b82f6" />
+                <stop offset="50%" stopColor="#e5e7eb" />
+                <stop offset="100%" stopColor="#ef4444" />
+              </linearGradient>
+            </defs>
+
+            <path
+              d={arcPath}
+              stroke="url(#gauge-gradient)"
+              strokeWidth={28}
+              fill="none"
+              strokeLinecap="round"
+            />
+
+            {ticks.map((tk) => (
+              <line
+                key={tk.key}
+                x1={tk.x1}
+                y1={tk.y1}
+                x2={tk.x2}
+                y2={tk.y2}
+                stroke="#9ca3af"
+                strokeWidth={2}
+              />
+            ))}
+
+            <text
+              x={cx - r}
+              y={cy + 28}
+              textAnchor="middle"
+              fill="#2563eb"
+              fontSize={14}
+              fontWeight={600}
+            >
+              L 10
+            </text>
+            <text
+              x={cx}
+              y={cy - r - 14}
+              textAnchor="middle"
+              fill="#6b7280"
+              fontSize={13}
+            >
+              0
+            </text>
+            <text
+              x={cx + r}
+              y={cy + 28}
+              textAnchor="middle"
+              fill="#dc2626"
+              fontSize={14}
+              fontWeight={600}
+            >
+              R 10
+            </text>
+
+            <line
+              x1={cx}
+              y1={cy}
+              x2={needleX}
+              y2={needleY}
+              stroke="#111827"
+              strokeWidth={4}
+              strokeLinecap="round"
+            />
+            <circle cx={cx} cy={cy} r={9} fill="#111827" />
+            <circle cx={cx} cy={cy} r={3.5} fill="#ffffff" />
+          </svg>
+
+          {/* Index number below the gauge */}
           <div
             style={{
-              fontSize: 220,
+              fontSize: 110,
               fontWeight: 700,
               letterSpacing: "-0.04em",
               color: indexColor,
               lineHeight: 1,
+              marginTop: -10,
               display: "flex",
               fontVariantNumeric: "tabular-nums",
             }}
           >
-            {data.hasData ? formattedNumber : "—"}
+            {data.hasData ? indexText : "—"}
           </div>
-
-          {/* Needle bar */}
-          {data.hasData && (
-            <div
-              style={{
-                position: "relative",
-                width: 760,
-                height: 14,
-                marginTop: 40,
-                borderRadius: 7,
-                background:
-                  "linear-gradient(to right, #3b82f6 0%, #e5e7eb 50%, #ef4444 100%)",
-                display: "flex",
-              }}
-            >
-              <div
-                style={{
-                  position: "absolute",
-                  left: `${needlePct}%`,
-                  top: -10,
-                  width: 4,
-                  height: 34,
-                  background: "#111827",
-                  borderRadius: 2,
-                  transform: "translateX(-2px)",
-                  display: "flex",
-                }}
-              />
-            </div>
-          )}
-
-          {data.hasData && (
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                width: 760,
-                marginTop: 12,
-                fontSize: 14,
-                color: "#9ca3af",
-                letterSpacing: "0.1em",
-                textTransform: "uppercase",
-                fontWeight: 600,
-              }}
-            >
-              <span>Left</span>
-              <span>0</span>
-              <span>Right</span>
-            </div>
-          )}
         </div>
 
         {/* Bottom: tagline + stats */}
         <div style={{ display: "flex", flexDirection: "column" }}>
           <div
             style={{
-              fontSize: 30,
+              fontSize: 28,
               color: "#1f2937",
               fontWeight: 500,
-              marginBottom: 14,
+              marginBottom: 10,
               display: "flex",
             }}
           >
@@ -203,7 +281,7 @@ export default async function OpengraphImage() {
           </div>
           <div
             style={{
-              fontSize: 20,
+              fontSize: 18,
               color: "#6b7280",
               display: "flex",
               gap: 12,
