@@ -489,9 +489,18 @@ async function runScore(): Promise<Record<string, unknown>> {
         model: MODEL_SCORE,
         model_version: "v0",
       });
-      if (insErr) failed++;
-      else ok++;
-    } catch {
+      if (insErr) {
+        console.error(
+          `[score] insert failed for classification ${c.id}: ${insErr.message}`,
+        );
+        failed++;
+      } else {
+        ok++;
+      }
+    } catch (e: any) {
+      const errClass = e?.constructor?.name || "Error";
+      const errMsg = e?.message || String(e);
+      console.error(`[score] ${errClass} for classification ${c.id}: ${errMsg}`);
       failed++;
     }
   }

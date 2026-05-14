@@ -7,6 +7,22 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
+## v0.6.9 · 2026-05-14
+
+Score-stage error logging. Mirrors the transcribe-stage logging added in
+v0.6.4. Diagnostic for the 81% score failure rate observed in the May
+13 and May 14 cron runs.
+
+### Fixed
+
+- **Score errors now surface in logs.** `runScore` was using bare
+  `catch {}` and ignoring failed `sentiment_scores` inserts silently.
+  Now logs `[score] <ErrorClass> for classification <id>: <message>`
+  on any thrown error from `scoreClassification` (Anthropic API errors,
+  JSON parse failures, rate limits), and a similar line for Supabase
+  insert errors. Next cron run will tell us *why* score has been
+  failing 13/16 attempts.
+
 ## v0.6.8 · 2026-05-13
 
 Hotfix for v0.6.7: the OG image build failed on Vercel because Satori
