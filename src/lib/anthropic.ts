@@ -22,6 +22,20 @@ export const MODEL_SCORE = "claude-haiku-4-5-20251001";
  * Extract a JSON array or object from a Claude text response.
  * Handles markdown code fences and surrounding prose, returns null if nothing parses.
  */
+/**
+ * Strip non-standard tokens that LLMs frequently emit which `JSON.parse`
+ * rejects. Currently:
+ *   - Leading `+` on positive numbers (e.g. `+4.2` → `4.2`). Haiku in
+ *     particular has been observed adding these to score values; the
+ *     JSON spec only allows a leading `-`, so `JSON.parse` throws.
+ * Targets only `+` immediately after `:` `,` or `[` (with optional
+ *     whitespace) and immediately before a digit — i.e. JSON value
+ *     positions. Won't touch `+` inside string literals.
+ */
+function normalizeLlmJson(raw: string): string {
+  return raw.replace(/([:,\[]\s*)\+(\d)/g, "$1$2");
+}
+
 export function extractJson<T>(text: string): T | null {
   // Try fenced JSON first
   const fenced = text.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
@@ -35,7 +49,7 @@ export function extractJson<T>(text: string): T | null {
 
   for (const c of candidates) {
     try {
-      return JSON.parse(c) as T;
+      return JSON.parse(normalizeLlmJson(c)) as T;
     } catch {
       // try next
     }

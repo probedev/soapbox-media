@@ -58,9 +58,14 @@ IMPORTANT:
 - A left-leaning channel can have a centrist or right-leaning quote, and vice versa.
 - Use the LEFT/RIGHT positions defined above as your reference, not US-political-stereotypes.
 
-Return ONLY a JSON object with two numeric fields. No prose, no code fences.
+Return ONLY a JSON object with two numeric fields. No prose, no code fences,
+no leading "+" on positive numbers (write 4.2 not +4.2 — JSON does not allow
+a leading "+").
 
-Example: {"sentiment": -3.2, "intensity": 4}`;
+Examples:
+{"sentiment": -3.2, "intensity": 4}
+{"sentiment": 2.7, "intensity": 5}
+{"sentiment": 0, "intensity": 1}`;
 }
 
 export async function scoreClassification(input: ScoreInput): Promise<ScoreResult> {

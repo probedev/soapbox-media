@@ -7,6 +7,32 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
+## v0.6.11 · 2026-05-14
+
+Root-cause fix for the 81% score-stage failure rate observed on May 13
+and May 14 crons. Diagnosed via the logging added in v0.6.9.
+
+### Fixed
+
+- **Haiku's positive-number "+" prefix is now tolerated.** Score output
+  was arriving as `{"sentiment": +4.2, "intensity": 3}` — Haiku
+  "helpfully" prefixing positive numbers with a plus sign. JSON spec
+  doesn't allow a leading `+`, so `JSON.parse` rejected the entire
+  response. Added `normalizeLlmJson` helper that strips leading `+` in
+  JSON value positions (after `:` `,` or `[`, before a digit). Doesn't
+  touch `+` inside string literals.
+- **Score prompt updated** to explicitly instruct "no leading + on
+  positive numbers" plus three worked examples (negative, positive,
+  zero). Prevents the issue at the source; the parser fix is the
+  defensive belt to the prompt's suspenders.
+
+### Impact
+
+This was the silent failure path that produced ~13 of 16 failed score
+attempts on each of the last two cron runs (~80% loss rate). With
+v0.6.11 deployed, the next cron should score at the ~98% success rate
+we saw in yesterday's local catch-up run.
+
 ## v0.6.10 · 2026-05-14
 
 Sparkline expansion. Adds context to the home page trend line without
