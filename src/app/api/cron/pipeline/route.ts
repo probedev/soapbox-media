@@ -92,7 +92,19 @@ export async function GET(request: NextRequest) {
   const startedAt = new Date().toISOString();
 
   const ingest = await runStage("ingest", runIngest);
-  const transcribe = await runStage("transcribe", runTranscribe);
+  // Transcribe stage is intentionally NOT run from Vercel — YouTube's
+  // anti-scraping degrades responses from Vercel's egress IPs, so the
+  // youtube-transcript library returns "Transcript is disabled" for
+  // every video, then marks them `failed` and poisons the queue for
+  // any other transcriber. Transcribe is now handled by a GitHub
+  // Actions cron at 10:30 UTC daily — see .github/workflows/transcribe.yml.
+  // We log a zero-attempt stage record so the usage_log row shape is
+  // stable.
+  const transcribe: StageResult = {
+    ok: true,
+    detail: { processed: 0, succeeded: 0, failed: 0, skipped: "moved to GH Actions" },
+    durationMs: 0,
+  };
   const classify = await runStage("classify", runClassify);
   const score = await runStage("score", runScore);
 

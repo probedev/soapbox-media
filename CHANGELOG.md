@@ -7,6 +7,61 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
+## v0.6.13 · 2026-05-14
+
+Architectural fix for the YouTube-on-Vercel transcript problem:
+**transcribe stage moves off Vercel onto GitHub Actions.**
+
+### Diagnosed
+
+The `youtube-transcript` library was reporting "Transcript is disabled
+on this video" for videos that actually have captions available on
+YouTube. Manual spot-check of three failed-from-Vercel videos showed
+two with auto-generated captions, one with owner-uploaded captions —
+all present and visible on the YT site. Gregg's home network
+successfully transcribed the same videos.
+
+Root cause: YouTube's anti-scraping behavior silently degrades the
+watch-page response for IPs it flags as suspicious. The page loads,
+but the `captionTracks` field in the embedded JSON is stripped out.
+The library can't distinguish "captions were never there" from
+"captions were hidden from this IP" and reports both as "disabled."
+Vercel's egress IP pool is flagged; home networks and CI runners
+generally aren't.
+
+### Changed
+
+- **Transcribe disabled on Vercel cron.** Without this, Vercel's
+  10:00 UTC run would mark today's pending YT episodes as `failed`,
+  poisoning the queue before GH Actions runs at 10:30 UTC. The cron
+  now skips the transcribe stage entirely and writes a no-op stage
+  record to keep `usage_log` shape stable.
+- **New `.github/workflows/transcribe.yml`** runs daily at 10:30 UTC,
+  invoking `npm run transcribe -- 100` from GitHub's runner IP pool.
+  Also exposes a `workflow_dispatch` trigger so it can be run manually
+  from the Actions tab. Requires two repo secrets: `NEXT_PUBLIC_SUPABASE_URL`
+  and `SUPABASE_SERVICE_ROLE_KEY`.
+
+### Pipeline architecture, post-v0.6.13
+
+  10:00 UTC (Vercel)        ingest → classify → score
+  10:30 UTC (GitHub Actions) transcribe
+
+End-to-end latency from publish → scored:
+  - Podcast (PodScan inline transcript): ~24h
+  - YouTube (GH transcribe → next-day Vercel classify): ~25h
+
+### Setup steps to activate
+
+1. Push v0.6.13.
+2. In the GitHub repo: Settings → Secrets and variables → Actions →
+   New repository secret. Add:
+     - `NEXT_PUBLIC_SUPABASE_URL`
+     - `SUPABASE_SERVICE_ROLE_KEY`
+3. Manually trigger once via Actions tab → "Daily transcribe" → Run
+   workflow, to validate the runner IPs work for the YouTube scraper.
+4. Confirm success rate is high (>80%) before relying on the schedule.
+
 ## v0.6.12 · 2026-05-14
 
 Transcribe throughput bump: TRANSCRIBE_LIMIT 10 → 40 per cron run.
