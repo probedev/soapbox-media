@@ -38,16 +38,22 @@ export const dynamic = "force-dynamic";
 // Per-stage batch limits per cron invocation. Tuned to fit comfortably
 // inside the 300s Vercel Pro function timeout. Rough stage timing from
 // May 2026 production runs:
-//   ingest 150 ep + transcribe 0:   ~30-60s
+//   ingest ~150 ep:                 ~30-60s
+//   transcribe (YT auto-caption):   ~1s per attempt (succeed or fail fast)
 //   classify (Sonnet 4.6):          ~5s per episode
-//   score   (Haiku 4.5):            ~1.5s per mention
-// Worst-case wall time at current limits: ~255s, leaving ~45s headroom.
-// Bumped from 2/30 to 15/80 on 2026-05-12 after observing that 2/run
-// would take ~75 days to burn down a 150-episode backlog. Bump again
-// conservatively after watching a week of green cron runs.
+//   score   (Haiku 4.5):            ~2s per mention on cron
+// Worst-case wall time at current limits: ~270s, leaving ~30s headroom.
+//
+// Bump history:
+//   2026-05-11: 2 / 10 / 30 (initial conservative)
+//   2026-05-12: 15 / 10 / 80 (classify + score raised)
+//   2026-05-14: 15 / 40 / 80 (transcribe raised — ingest of ~100 YT/day
+//     was outrunning the 10/run transcribe rate; pending pool growing
+//     by ~90/day. 40/run is still loss-making vs daily inflow but much
+//     better. Real fix is the v0.7 retry mechanism + ordering revisit.)
 const MIN_DURATION_SEC = 180;
 const INGEST_PER_CHANNEL = 3;
-const TRANSCRIBE_LIMIT = 10;
+const TRANSCRIBE_LIMIT = 40;
 const CLASSIFY_LIMIT = 15;
 const SCORE_LIMIT = 80;
 

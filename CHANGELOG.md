@@ -7,6 +7,29 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
+## v0.6.12 · 2026-05-14
+
+Transcribe throughput bump: TRANSCRIBE_LIMIT 10 → 40 per cron run.
+
+### Changed
+
+- **`TRANSCRIBE_LIMIT` raised from 10 to 40.** Diagnostic SQL showed
+  ~49 YouTube episodes ingested per 24h vs only 10 transcribe attempts
+  per cron — the pending pool was growing by ~90/day with the rest of
+  the pipeline starved for fresh content. 40 attempts at ~1s each adds
+  ~30s to cron wall time, still well inside the 300s function budget.
+  Won't fully close the gap with daily YT ingest, but cuts the daily
+  growth rate substantially while the v0.7 retry mechanism is built.
+
+### Known limitation
+
+At ~30-40% transcribe success rate (legitimate disabled-captions
+long-tail) and 40 attempts/day, throughput is still loss-making
+relative to ~100 YT ingests/day. The real fix is v0.7: retry-after-
+N-hours so fresh same-day caption failures get a second chance, and
+possibly a hybrid newest+oldest ordering strategy so today's discourse
+isn't permanently stuck behind a slow-burning backlog.
+
 ## v0.6.11 · 2026-05-14
 
 Root-cause fix for the 81% score-stage failure rate observed on May 13
