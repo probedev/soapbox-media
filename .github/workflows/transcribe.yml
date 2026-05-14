@@ -50,7 +50,12 @@ jobs:
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          # Node 22+ is required because @supabase/realtime-js relies on
+          # the global WebSocket constructor, which Node only ships
+          # natively from 22 onward. Older Node fails with "Node.js 20
+          # detected without native WebSocket support". Bump in lockstep
+          # with the version pinned in your local toolchain.
+          node-version: "22"
           cache: "npm"
 
       - name: Install dependencies
