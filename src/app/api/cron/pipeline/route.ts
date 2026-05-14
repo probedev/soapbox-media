@@ -273,7 +273,7 @@ async function runIngest(): Promise<Record<string, unknown>> {
 
 async function runTranscribe(): Promise<Record<string, unknown>> {
   const db = createServiceClient();
-  const { data: pending } = await db
+  const { data: pending, error: pendingErr } = await db
     .from("episodes")
     .select(
       `id, source_url,
@@ -289,6 +289,22 @@ async function runTranscribe(): Promise<Record<string, unknown>> {
     // trailing 7-day Index.
     .order("published_at", { ascending: true })
     .limit(TRANSCRIBE_LIMIT);
+
+  // TEMP DIAGNOSTIC v0.6.15 — Vercel cron reports processed:0 while DB shows
+  // pending rows. Need to see what this function actually receives. Remove
+  // once root-caused.
+  console.log(
+    "[transcribe debug v0.6.15]",
+    JSON.stringify({
+      pendingErr: pendingErr ? pendingErr.message : null,
+      pendingLength: pending?.length ?? null,
+      firstThreeRows: (pending || []).slice(0, 3).map((r: any) => ({
+        id: r.id,
+        url: r.source_url?.slice(0, 60),
+        channelPlatform: r.channel?.platform ?? null,
+      })),
+    }),
+  );
 
   let ok = 0;
   let failed = 0;
