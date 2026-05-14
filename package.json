@@ -1,6 +1,6 @@
 {
   "name": "soapbox",
-  "version": "0.6.13",
+  "version": "0.6.14",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -26,7 +26,6 @@
     "@supabase/supabase-js": "^2.45.4",
     "@anthropic-ai/sdk": "^0.27.3",
     "rss-parser": "^3.13.0",
-    "youtube-transcript": "^1.2.1",
     "dotenv": "^16.4.5",
     "react-markdown": "^9.0.1",
     "posthog-js": "^1.190.0"

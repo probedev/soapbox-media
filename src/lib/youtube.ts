@@ -1,16 +1,25 @@
 /**
- * YouTube Data API v3 helpers.
+ * YouTube Data API v3 helpers + Supadata transcript fetcher.
  *
- * We use raw fetch() against the REST API rather than the heavier `googleapis`
- * SDK — we only need a small subset of endpoints and avoiding the SDK keeps
- * deps lean.
+ * We use raw fetch() against YouTube's REST API rather than the heavier
+ * `googleapis` SDK — we only need a small subset of endpoints and avoiding
+ * the SDK keeps deps lean.
+ *
+ * Transcripts are fetched via Supadata's managed API (v0.6.14) rather
+ * than the previous `youtube-transcript` library, which had two
+ * compounding failure modes:
+ *   1. Library bug — returned "Transcript is disabled" for videos that
+ *      actually had captions on YouTube. Documented issue, mid-2024+.
+ *   2. Cloud IP blocking — even when the library worked, YouTube
+ *      throttled requests from Vercel/GH Actions egress pools.
+ * Supadata is just an HTTPS call from anywhere — no scraping, no IP
+ * issues, no library maintenance. ~$17/mo at our volume on the Pro plan.
  *
  * Quota notes: each `channels.list` call costs 1 unit, `playlistItems.list`
  * costs 1 unit. Default daily quota is 10,000 units. Our 23 YT channels
  * polled hourly = ~552 units/day. Well under quota.
  */
 import { env } from "./env";
-import { YoutubeTranscript } from "youtube-transcript";
 
 const YT_API = "https://www.googleapis.com/youtube/v3";
 
@@ -139,19 +148,59 @@ export async function getRecentUploads(
 }
 
 /**
- * Pull the auto-generated transcript for a YouTube video.
- * Returns null if no captions exist or the fetch fails. Logs the actual
- * error message + class to console so failures are diagnosable from
- * Vercel logs — too much was being swallowed silently in earlier versions.
+ * Pull the existing transcript for a YouTube video via Supadata's API.
+ *
+ * Uses `mode=native` — fetch the existing caption track if any, do NOT
+ * trigger AI generation. AI generation costs 2 credits/min vs 1 credit
+ * for a native fetch (success or unavailable), and at our volume we'd
+ * rather just skip videos without captions than pay to generate
+ * potentially-inaccurate ones.
+ *
+ * Returns null if no captions exist, the video is private, or the API
+ * call fails. Logs the failure mode so we can distinguish "no captions
+ * available" from genuine errors.
+ *
+ * Pricing: 1 credit per request regardless of result (success, 206
+ * unavailable, or 404 video-not-found). At 100 episodes/day this is
+ * ~3000 credits/month — fits the $17/mo Pro plan.
  */
 export async function getVideoTranscript(videoId: string): Promise<string | null> {
+  const videoUrl = `https://www.youtube.com/watch?v=${videoId}`;
+  const apiUrl =
+    `https://api.supadata.ai/v1/transcript?` +
+    `url=${encodeURIComponent(videoUrl)}&text=true&mode=native`;
+
   try {
-    const items = await YoutubeTranscript.fetchTranscript(videoId);
-    if (!items || items.length === 0) {
-      console.warn(`[YT transcript] empty result for ${videoId}`);
+    const res = await fetch(apiUrl, {
+      headers: { "x-api-key": env.supadataApiKey },
+    });
+
+    // 206 = transcript unavailable for this video (still costs 1 credit
+    // and is a legitimate "no captions" answer, not an error)
+    if (res.status === 206) {
+      console.warn(`[YT transcript] no captions available for ${videoId}`);
       return null;
     }
-    return items.map((i) => i.text).join(" ");
+
+    if (!res.ok) {
+      const text = await res.text().catch(() => "");
+      console.error(
+        `[YT transcript] supadata ${res.status} for ${videoId}: ${text.slice(0, 200)}`,
+      );
+      return null;
+    }
+
+    const data = (await res.json()) as {
+      content?: string;
+      lang?: string;
+    };
+
+    if (!data.content || data.content.trim().length === 0) {
+      console.warn(`[YT transcript] supadata empty content for ${videoId}`);
+      return null;
+    }
+
+    return data.content;
   } catch (e: any) {
     const errClass = e?.constructor?.name || "Error";
     const errMsg = e?.message || String(e);

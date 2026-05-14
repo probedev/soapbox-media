@@ -7,6 +7,59 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
+## v0.6.14 · 2026-05-14
+
+The actual fix for YouTube transcripts: **swap the unmaintained
+scraping library for a managed transcript API.**
+
+### Background
+
+The `youtube-transcript` npm library had two compounding problems:
+
+1. **Library bug.** Returned `"Transcript is disabled on this video"`
+   for videos that demonstrably have captions on YouTube. Documented
+   issue since mid-2024 — the library does HTML scraping and breaks
+   whenever YouTube changes the embedded `ytInitialPlayerResponse`
+   shape.
+2. **Cloud-IP blocking.** Even when the library worked, YouTube
+   throttled responses from Vercel and GitHub Actions egress pools.
+   Strip the `captionTracks` field silently, library reports
+   "disabled," scraper-aware infrastructure has a bad day.
+
+A half-day of misdiagnosis (v0.6.4 through v0.6.13) chased these two
+intertwined issues separately. v0.6.4 flipped ordering to oldest-first
+hoping caption-timing would resolve. v0.6.13 moved transcribe to GH
+Actions hoping IP rotation would. Neither fixed it because they were
+both treating symptoms of two problems as if they were one.
+
+### Changed
+
+- **Transcripts now fetched via Supadata** (https://supadata.ai), a
+  managed YouTube transcript API. We hit `GET /v1/transcript` with the
+  YouTube watch URL; they handle scraping, proxy rotation, library
+  maintenance — everything we were doing badly. ~$17/mo on the Pro
+  plan for our ~3000-transcript/month volume. Uses `mode=native` so we
+  only fetch existing captions, never pay for AI generation.
+- **`youtube-transcript` package removed** from dependencies. Was the
+  source of the cascading failures.
+- **Transcribe stage re-enabled on Vercel cron.** The reason we moved
+  it to GH Actions in v0.6.13 (cloud-IP blocking) doesn't apply when
+  we're calling Supadata's API rather than scraping YouTube directly.
+  Vercel cron now handles the full pipeline again: ingest → transcribe
+  → classify → score in a single 10:00 UTC run.
+- **GH Actions transcribe workflow demoted to manual-only.** Kept
+  around as an escape-hatch trigger for ad-hoc catch-up runs, but no
+  longer scheduled. Now requires `SUPADATA_API_KEY` repo secret.
+
+### Setup steps
+
+1. Add `SUPADATA_API_KEY` to Vercel environment variables
+   (Settings → Environment Variables → New).
+2. Add `SUPADATA_API_KEY` to GitHub repo secrets (only needed if
+   you'll use the manual workflow).
+3. Push v0.6.14. Tomorrow's 10:00 UTC Vercel cron will use the new
+   path.
+
 ## v0.6.13 · 2026-05-14
 
 Architectural fix for the YouTube-on-Vercel transcript problem:

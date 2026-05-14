@@ -1,32 +1,20 @@
 #
-# Daily transcribe job. Runs on GitHub Actions runners rather than Vercel
-# because YouTube throttles Vercel's egress IPs (the `youtube-transcript`
-# library reports "Transcript is disabled" for videos that actually have
-# captions, but only when fetched from Vercel — Gregg's home network and
-# GitHub's runner pool both succeed). See CHANGELOG.md around v0.6.4
-# through v0.6.12 for the long diagnostic story.
-#
-# Architecture:
-#   Vercel cron @ 10:00 UTC  → ingest + classify + score (Anthropic-side,
-#                              not affected by YT throttling)
-#   GH Actions @ 10:30 UTC   → transcribe only (this workflow)
-#
-# Tomorrow's Vercel cron then picks up the transcripts produced here and
-# classifies/scores them. End-to-end latency: ~24h from publish → scored.
+# MANUAL-ONLY transcribe job. As of v0.6.14, Vercel cron handles
+# transcribe natively via Supadata's managed API — no scraping, no
+# cloud-IP issues. This workflow is kept around as a manual escape
+# hatch for ad-hoc catch-up runs (e.g. if Supadata has an outage and we
+# want to retry from a different egress). Not scheduled.
 #
 # Required repo secrets (Settings → Secrets and variables → Actions):
 #   NEXT_PUBLIC_SUPABASE_URL
 #   SUPABASE_SERVICE_ROLE_KEY
+#   SUPADATA_API_KEY
 #
-# Manual trigger: Actions tab → "Daily transcribe" → Run workflow.
+# Manual trigger: Actions tab → "Manual transcribe" → Run workflow.
 #
-name: Daily transcribe
+name: Manual transcribe
 
 on:
-  schedule:
-    # 10:30 UTC daily — 30 minutes after Vercel cron's ingest stage, so
-    # we're transcribing episodes that were ingested in the same window.
-    - cron: "30 10 * * *"
   workflow_dispatch:
     inputs:
       limit:
@@ -65,4 +53,5 @@ jobs:
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          SUPADATA_API_KEY: ${{ secrets.SUPADATA_API_KEY }}
         run: npm run transcribe -- ${{ github.event.inputs.limit || '100' }}

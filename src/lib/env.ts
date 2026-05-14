@@ -36,4 +36,7 @@ export const env = {
   get youtubeApiKey() {
     return required("YOUTUBE_API_KEY");
   },
+  get supadataApiKey() {
+    return required("SUPADATA_API_KEY");
+  },
 };
