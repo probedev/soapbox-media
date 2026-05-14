@@ -94,11 +94,12 @@ export default async function HomePage() {
         </div>
 
         {data.sparkline.length >= 2 && (
-          <div className="mt-6 flex flex-col items-center gap-1">
-            <IndexSparkline values={data.sparkline} />
-            <div className="text-[10px] uppercase tracking-wider text-gray-400">
-              {data.sparkline.length}-day history · rolling {data.windowDays}-day Index
-            </div>
+          <div className="mt-6 flex flex-col items-center">
+            <IndexSparkline
+              values={data.sparkline}
+              dates={data.sparklineDates}
+              windowLabel={`${data.windowDays}-day`}
+            />
           </div>
         )}
 

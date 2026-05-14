@@ -66,8 +66,11 @@ export interface DashboardData {
   delta: number;
   /** Daily-rolling Index values for last N days, oldest first.
    *  Each value is the Index for a trailing windowDays-long period
-   *  ending on that day. */
+   *  ending on that day. Days with no data are skipped. */
   sparkline: number[];
+  /** ISO date (YYYY-MM-DD) for each sparkline point — same length and
+   *  order as `sparkline`. Used by the chart to label the time range. */
+  sparklineDates: string[];
   /** Top issues within the trailing window, sorted by volume desc */
   issues: IssueAggregate[];
   /** Issues with biggest period-over-period lean change, sorted by |delta| */
@@ -206,6 +209,7 @@ export async function getDashboardData(windowDays = 7): Promise<DashboardData> {
       index: 0,
       delta: 0,
       sparkline: [],
+      sparklineDates: [],
       issues: [],
       movers: [],
       numChannels: totalShows,
@@ -239,9 +243,12 @@ export async function getDashboardData(windowDays = 7): Promise<DashboardData> {
   const prevIndex = clamp(weightedLean(prevRows).lean * 2, -10, 10);
   const delta = prevRows.length > 0 ? currentIndex - prevIndex : 0;
 
-  // Sparkline: rolling N-day Index value for each of the last 30 days
+  // Sparkline: rolling N-day Index value for each of the last 30 days.
+  // We track the ISO date of each point in parallel so the chart can
+  // label its actual time range (days with no data are skipped).
   const sparklineLen = 30;
   const sparkline: number[] = [];
+  const sparklineDates: string[] = [];
   for (let daysAgo = sparklineLen - 1; daysAgo >= 0; daysAgo--) {
     const windowEnd = new Date(now);
     windowEnd.setUTCDate(windowEnd.getUTCDate() - daysAgo);
@@ -250,6 +257,7 @@ export async function getDashboardData(windowDays = 7): Promise<DashboardData> {
     const wRows = rowsInRange(windowStart, windowEnd);
     if (wRows.length === 0) continue;
     sparkline.push(clamp(weightedLean(wRows).lean * 2, -10, 10));
+    sparklineDates.push(windowEnd.toISOString().slice(0, 10));
   }
 
   // Per-issue aggregation for current window
@@ -322,6 +330,7 @@ export async function getDashboardData(windowDays = 7): Promise<DashboardData> {
     index: currentIndex,
     delta,
     sparkline,
+    sparklineDates,
     issues: issueAggregates,
     movers,
     // numChannels / numEpisodes are TOTAL tracked counts (not window-scoped),

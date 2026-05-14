@@ -7,6 +7,33 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
+## v0.6.10 · 2026-05-14
+
+Sparkline expansion. Adds context to the home page trend line without
+changing its visual character.
+
+### Changed
+
+- **Reference lines at ±5** in addition to the existing dashed-zero
+  line. Gives the eye a magnitude anchor at a glance — previously
+  every value just floated relative to whatever the data range happened
+  to be.
+- **Endpoint date labels** under the chart. "Apr 20 ───── May 14" so
+  the time range is readable without crossing back into the surrounding
+  copy. Drives off a new `sparklineDates` field on `DashboardData`,
+  populated in parallel with the values themselves.
+- **Range summary** beneath the dates: *Range L+0.3 to L+1.4 · rolling
+  7-day index*. Replaces the previous "24-day history · rolling 7-day
+  Index" label, which only said how many days of data existed without
+  saying what was in it. Sorted most-L to most-R for natural reading
+  across crossings of zero.
+
+### Technical
+
+- `aggregate.ts` now returns `sparklineDates: string[]` alongside
+  `sparkline: number[]` — same length, same order. Days with no data
+  are skipped in both arrays so they stay in sync.
+
 ## v0.6.9 · 2026-05-14
 
 Score-stage error logging. Mirrors the transcribe-stage logging added in

@@ -60,6 +60,7 @@ export default async function OpengraphImage() {
       index: 0,
       delta: 0,
       sparkline: [],
+      sparklineDates: [],
       issues: [],
       movers: [],
       numChannels: 0,
