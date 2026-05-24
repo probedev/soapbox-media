@@ -1,4 +1,5 @@
 import { getUsageSummary, type UsageLogRow } from "@/lib/usage";
+import { AdminNav } from "@/components/AdminNav";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 
@@ -157,14 +158,8 @@ export default async function AdminCostsPage() {
     <main className="min-h-screen">
       <Header />
 
-      <section className="px-6 pt-10 pb-16 max-w-5xl mx-auto">
-        <div className="text-xs uppercase tracking-wider text-gray-500 mb-1">
-          <a href="/" className="hover:text-gray-700">
-            ← Soapbox Index
-          </a>{" "}
-          ·{" "}
-          <span className="text-amber-600">Admin</span>
-        </div>
+      <section className="px-6 pt-8 pb-16 max-w-5xl mx-auto">
+        <AdminNav active="costs" />
         <h1 className="text-3xl md:text-4xl font-semibold tracking-tight">
           Costs
         </h1>

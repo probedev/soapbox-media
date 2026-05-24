@@ -6,6 +6,7 @@ import {
   type IssueGapRow,
   type CandidateVoice,
 } from "@/lib/audit";
+import { AdminNav } from "@/components/AdminNav";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 
@@ -257,14 +258,8 @@ export default async function ChannelsAuditPage() {
     <main className="min-h-screen">
       <Header />
 
-      <section className="px-6 pt-10 pb-16 max-w-6xl mx-auto">
-        <div className="text-xs uppercase tracking-wider text-gray-500 mb-1">
-          <a href="/" className="hover:text-gray-700">
-            ← Soapbox Index
-          </a>{" "}
-          ·{" "}
-          <span className="text-amber-600">Admin</span>
-        </div>
+      <section className="px-6 pt-8 pb-16 max-w-6xl mx-auto">
+        <AdminNav active="channels" />
         <h1 className="text-3xl md:text-4xl font-semibold tracking-tight">
           Channels audit
         </h1>

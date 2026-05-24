@@ -7,6 +7,32 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
+## v0.6.21 · 2026-05-24
+
+/log cleanup: admin split, shadcn/ui, real data table.
+
+### Added
+
+- **shadcn/ui** adopted as the component system (the codebase already used
+  `cn`, `clsx`, `tailwind-merge` and shadcn-style markup). Added theme tokens
+  to `globals.css` + `tailwind.config.ts` (additive — existing literal-gray
+  pages unaffected), `components.json`, and `src/components/ui/`:
+  button, input, table, badge, dropdown-menu.
+- **Episode receipts → a real data table** (`EpisodeDataTable`, TanStack
+  Table + shadcn). Columns: category (L/M/R), date, channel, video, type,
+  length, and Transcribed / Classified / Scored status — all sortable, with
+  search and pagination and a column-visibility menu.
+- **`episode_pipeline_summary` view** (migration `20260524000001`) computes
+  per-episode classify/score counts in Postgres, so /log loads one light
+  result set instead of thousands of join rows.
+- **Admin nav** (`AdminNav`) across the gated `/admin/*` tools.
+
+### Changed
+
+- **Pipeline health moved to `/admin/pipeline`** — it's operational detail
+  for internal consumption, not public. The public `/log` is now scale +
+  searchable episode receipts only.
+
 ## v0.6.20 · 2026-05-24
 
 Data integrity: one score per classification, enforced.
