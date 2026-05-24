@@ -1,5 +1,8 @@
 import { getRecentEpisodes } from "@/lib/episodes";
+import { getRecentUsage } from "@/lib/usage";
 import { EpisodeList } from "@/components/EpisodeList";
+import { SystemStats } from "@/components/SystemStats";
+import { PipelineHealth } from "@/components/PipelineHealth";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 
@@ -14,10 +17,12 @@ interface PageProps {
 export default async function LogPage({ searchParams }: PageProps) {
   const page = Math.max(1, parseInt(searchParams.page || "1", 10) || 1);
   const offset = (page - 1) * PAGE_SIZE;
-  const { episodes, total } = await getRecentEpisodes({
-    limit: PAGE_SIZE,
-    offset,
-  });
+
+  const [{ episodes, total }, runs] = await Promise.all([
+    getRecentEpisodes({ limit: PAGE_SIZE, offset }),
+    getRecentUsage(30),
+  ]);
+
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const start = total === 0 ? 0 : offset + 1;
   const end = Math.min(offset + PAGE_SIZE, total);
@@ -33,55 +38,79 @@ export default async function LogPage({ searchParams }: PageProps) {
           </a>
         </div>
         <h1 className="text-3xl md:text-4xl font-semibold tracking-tight">
-          Activity log
+          Pipeline &amp; activity log
         </h1>
         <p className="text-gray-600 mt-3 leading-relaxed max-w-3xl">
-          Receipts. Every episode the soapbox pipeline has ingested, ordered by
-          publish date. Status badges show whether the transcript has been
-          fetched, is still pending, or failed. Click any episode to open the
-          source on YouTube or the podcast host.
+          Receipts, in the open. The scale of what we&apos;ve analyzed, the
+          health of the daily pipeline that runs it, and every episode the
+          system has ingested. If a stage breaks, you&apos;ll see it here before
+          it quietly distorts the Index.
         </p>
 
-        <div className="text-xs text-gray-500 mt-6 tabular-nums">
-          Showing episodes {start.toLocaleString()}–{end.toLocaleString()} of{" "}
-          {total.toLocaleString()}
+        {/* System scale (credibility) */}
+        <div className="mt-8">
+          <SystemStats />
         </div>
 
-        <div className="mt-3">
-          <EpisodeList episodes={episodes} showChannel emptyMessage="No episodes ingested yet." />
+        {/* Pipeline health (operations + transparency) */}
+        <div className="mt-6">
+          <PipelineHealth runs={runs} />
         </div>
 
-        {totalPages > 1 && (
-          <div className="mt-6 flex items-center justify-between gap-3 text-sm">
-            {page > 1 ? (
-              <a
-                href={`/log?page=${page - 1}`}
-                className="px-3 py-1.5 border border-gray-300 rounded-md hover:bg-gray-50 transition"
-              >
-                ← Previous
-              </a>
-            ) : (
-              <span className="px-3 py-1.5 border border-gray-200 rounded-md text-gray-400">
-                ← Previous
-              </span>
-            )}
-            <span className="text-gray-500 tabular-nums">
-              Page {page} of {totalPages}
+        {/* Episode receipts */}
+        <div className="mt-10">
+          <div className="flex items-baseline justify-between mb-3">
+            <h2 className="text-sm font-semibold uppercase tracking-wider text-gray-600">
+              Episode receipts
+            </h2>
+            <span className="text-xs text-gray-500 tabular-nums">
+              {start.toLocaleString()}–{end.toLocaleString()} of{" "}
+              {total.toLocaleString()}
             </span>
-            {page < totalPages ? (
-              <a
-                href={`/log?page=${page + 1}`}
-                className="px-3 py-1.5 border border-gray-300 rounded-md hover:bg-gray-50 transition"
-              >
-                Next →
-              </a>
-            ) : (
-              <span className="px-3 py-1.5 border border-gray-200 rounded-md text-gray-400">
-                Next →
-              </span>
-            )}
           </div>
-        )}
+          <p className="text-xs text-gray-500 mb-3 max-w-3xl">
+            Every episode ingested, newest first. Status badges show whether the
+            transcript was fetched, is still pending, or failed. Click any
+            episode to open the source.
+          </p>
+          <EpisodeList
+            episodes={episodes}
+            showChannel
+            emptyMessage="No episodes ingested yet."
+          />
+
+          {totalPages > 1 && (
+            <div className="mt-6 flex items-center justify-between gap-3 text-sm">
+              {page > 1 ? (
+                <a
+                  href={`/log?page=${page - 1}`}
+                  className="px-3 py-1.5 border border-gray-300 rounded-md hover:bg-gray-50 transition"
+                >
+                  ← Previous
+                </a>
+              ) : (
+                <span className="px-3 py-1.5 border border-gray-200 rounded-md text-gray-400">
+                  ← Previous
+                </span>
+              )}
+              <span className="text-gray-500 tabular-nums">
+                Page {page} of {totalPages}
+              </span>
+              {page < totalPages ? (
+                <a
+                  href={`/log?page=${page + 1}`}
+                  className="px-3 py-1.5 border border-gray-300 rounded-md hover:bg-gray-50 transition"
+                >
+                  Next →
+                </a>
+              ) : (
+                <span className="px-3 py-1.5 border border-gray-200 rounded-md text-gray-400">
+                  Next →
+                </span>
+              )}
+            </div>
+          )}
+        </div>
       </section>
 
       <Footer />

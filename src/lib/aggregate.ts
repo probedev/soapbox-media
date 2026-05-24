@@ -352,31 +352,41 @@ export async function getDashboardData(windowDays = 7): Promise<DashboardData> {
  * sum, no transcript text fetching.
  */
 export interface SystemStats {
+  /** Unique shows (same show on YT + Podcast counts once). */
   channelsTracked: number;
+  /** Unique-show counts split by editorial lean. */
+  channelsByLean: { L: number; M: number; R: number };
+  /** Total episodes ever ingested (any transcript status). */
+  episodesIngested: number;
+  /** Episodes with a transcript on file — the ones actually analyzable. */
   episodesAnalyzed: number;
-  transcriptsAvailable: number;
   classifications: number;
   sentimentScores: number;
   hoursOfAudio: number;
-  /** Estimated from duration × ~150 wpm (natural conversational speech). */
-  wordsTranscribedEstimate: number;
-  /** Latest sentiment_score.created_at, ISO. Null when no scores yet. */
+  /** Earliest episode ingest timestamp (when continuous tracking began), ISO. */
+  coverageSinceISO: string | null;
+  /** Latest sentiment_score.created_at, ISO — the newest data point. */
   lastUpdated: string | null;
 }
 
 export async function getSystemStats(): Promise<SystemStats> {
   const db = createServiceClient();
 
-  // Channels: count unique SHOW NAMES (same show on YT + Podcast = 1 show
-  // to the user). Fetch names + dedupe in code rather than a COUNT(*).
-  const { data: channelNameRows } = await db
+  // Channels: collapse same-name rows (YT + Podcast of one show = one show)
+  // and count unique shows overall and per lean. A show's lean is consistent
+  // across its platform rows, so first-seen lean per name is canonical.
+  const { data: channelRows } = await db
     .from("channels")
-    .select("name")
+    .select("name, political_lean")
     .eq("active", true)
     .limit(2000);
-  const uniqueShowCount = new Set(
-    (channelNameRows || []).map((c: { name: string }) => c.name),
-  ).size;
+  const leanByShow = new Map<string, "L" | "M" | "R">();
+  for (const c of (channelRows || []) as { name: string; political_lean: "L" | "M" | "R" }[]) {
+    if (!leanByShow.has(c.name)) leanByShow.set(c.name, c.political_lean);
+  }
+  const channelsByLean = { L: 0, M: 0, R: 0 };
+  for (const lean of leanByShow.values()) channelsByLean[lean] += 1;
+  const uniqueShowCount = leanByShow.size;
 
   const [episodes, transcripts, classifications, scores] = await Promise.all([
     db.from("episodes").select("*", { count: "exact", head: true }),
@@ -385,24 +395,33 @@ export async function getSystemStats(): Promise<SystemStats> {
     db.from("sentiment_scores").select("*", { count: "exact", head: true }),
   ]);
 
-  // Fetch duration_sec for all episodes (paginated for safety; ~200 rows so cheap)
+  // Sum episode durations, paginated. Terminate only on an empty page and
+  // advance by the actual rows returned — robust regardless of the project's
+  // Max Rows cap (a fixed `data.length < pageSize` break can stop early).
   let totalSeconds = 0;
   const pageSize = 1000;
-  for (let from = 0; ; from += pageSize) {
+  for (let from = 0, pages = 0; pages < 500; pages++, from += pageSize) {
     const { data, error } = await db
       .from("episodes")
       .select("duration_sec")
       .not("duration_sec", "is", null)
+      .order("id", { ascending: true })
       .range(from, from + pageSize - 1);
     if (error || !data || data.length === 0) break;
     for (const e of data) totalSeconds += Number(e.duration_sec) || 0;
-    if (data.length < pageSize) break;
   }
   const hoursOfAudio = totalSeconds / 3600;
-  // ~150 wpm = 2.5 words/sec for natural speech
-  const wordsTranscribedEstimate = Math.round(totalSeconds * 2.5);
 
-  // Latest activity timestamp from sentiment_scores
+  // Earliest ingest timestamp = when continuous tracking began.
+  const { data: earliest } = await db
+    .from("episodes")
+    .select("created_at")
+    .order("created_at", { ascending: true })
+    .limit(1);
+  const coverageSinceISO =
+    earliest && earliest[0]?.created_at ? String(earliest[0].created_at) : null;
+
+  // Newest data point from sentiment_scores.
   const { data: latest } = await db
     .from("sentiment_scores")
     .select("created_at")
@@ -413,12 +432,13 @@ export async function getSystemStats(): Promise<SystemStats> {
 
   return {
     channelsTracked: uniqueShowCount,
-    episodesAnalyzed: episodes.count || 0,
-    transcriptsAvailable: transcripts.count || 0,
+    channelsByLean,
+    episodesIngested: episodes.count || 0,
+    episodesAnalyzed: transcripts.count || 0,
     classifications: classifications.count || 0,
     sentimentScores: scores.count || 0,
     hoursOfAudio,
-    wordsTranscribedEstimate,
+    coverageSinceISO,
     lastUpdated,
   };
 }

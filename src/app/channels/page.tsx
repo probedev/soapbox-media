@@ -1,5 +1,4 @@
 import { createServiceClient } from "@/lib/db";
-import { SystemStats } from "@/components/SystemStats";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { getChannelExternalUrl } from "@/lib/channelLinks";
@@ -125,13 +124,12 @@ export default async function ChannelsListPage() {
           <a href="/methodology" className="underline hover:text-gray-900">
             methodology page
           </a>{" "}
-          for selection criteria.
+          for selection criteria, or the{" "}
+          <a href="/log" className="underline hover:text-gray-900">
+            pipeline log
+          </a>{" "}
+          for system scale and daily health.
         </p>
-
-        {/* System scale — credibility signal: hours of audio + classifications */}
-        <div className="mt-8">
-          <SystemStats />
-        </div>
 
         {(["L", "M", "R"] as const).map((bucket) => (
           <section key={bucket} className="mt-10">

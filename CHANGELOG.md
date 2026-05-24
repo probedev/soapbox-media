@@ -7,6 +7,32 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
+## v0.6.19 · 2026-05-24
+
+/log reworked into the public pipeline + scale transparency page.
+
+### Added
+
+- **Pipeline health on /log.** New `PipelineHealth` component surfaces the
+  `usage_log` data that previously only lived on /admin/costs: a stage × run
+  grid (ingest/transcribe/classify/score, green/amber/red/idle per run) for
+  at-a-glance issue spotting, plus a detailed recent-runs table with per-stage
+  counts and any error message. Operators can catch a broken stage daily;
+  users get real transparency into the machine. Deliberately shows **no
+  cost/token data** — that stays on the operator-only /admin/costs.
+
+### Changed
+
+- **System scale moved from /channels to /log and redesigned.** New lineup:
+  shows tracked (with L/M/R split), episodes analyzed (of total ingested),
+  hours of audio, issue mentions, sentiment scores, and coverage-since date.
+  Dropped "words transcribed" (redundant with hours). Header now shows data
+  freshness. Counts are live, so they reflect the post-dedup classification
+  total correctly.
+- Fixed a latent early-break in the hours-of-audio pagination (same class of
+  bug as the classify/aggregate pagination issues): now advances by rows
+  returned and stops only on an empty page.
+
 ## v0.6.18 · 2026-05-24
 
 Cron is end-to-end. Cleanup + the real root cause.
