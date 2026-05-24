@@ -52,38 +52,67 @@ async function main() {
   const issuesTyped = issues as IssueDef[];
   console.log(`Loaded ${issuesTyped.length} issues from taxonomy.\n`);
 
-  // Find transcripts whose episode has no classifications
-  // Supabase lacks a native NOT EXISTS join in select(), so we fetch all
-  // transcripts then filter against the classifications set in memory.
-  // Supabase defaults to 1000-row limit on .select() — bump explicitly so the
-  // pending-transcript diff and existing-classifications diff are complete.
-  const { data: allTranscripts, error: txErr } = await db
-    .from("transcripts")
-    .select(
-      `
-      episode_id, text,
-      episode:episodes!transcripts_episode_id_fkey (
-        title, published_at,
-        channel:channels!episodes_channel_id_fkey (
-          name, political_lean
-        )
-      )
-    `,
-    )
-    .limit(50000);
-  if (txErr) {
-    console.error("Failed to load transcripts:", txErr.message);
-    process.exit(1);
-  }
-  const { data: existingClassifications } = await db
-    .from("classifications")
-    .select("episode_id")
-    .limit(50000);
-  const classifiedEpisodeIds = new Set(
-    (existingClassifications || []).map((c: { episode_id: string }) => c.episode_id),
-  );
+  // Find transcripts whose episode has no classifications.
+  // Supabase lacks a native NOT EXISTS join in select(), so we fetch every
+  // transcript and every existing classification, then diff in memory.
+  //
+  // CRITICAL: must paginate via .range(). Supabase/PostgREST enforces a
+  // project-level "Max Rows" cap (default 1000) that silently truncates
+  // .limit() — a large .limit(50000) still returns at most 1000 rows. The
+  // earlier version relied on .limit(50000) here; once the classifications
+  // table grew past 1000 rows the "already classified" set was incomplete,
+  // so episodes beyond the first page were re-classified on every run. Run
+  // it in a loop and you get the 2026-05-24 runaway: 234 episodes
+  // reclassified ~95× into 24k duplicate rows. Only .range() pagination walks
+  // the full set regardless of the Max Rows cap.
+  const PAGE = 1000;
+  const MAX_PAGES = 500; // safety bound (~500k rows) — never expected to hit
 
-  const pending = (allTranscripts as unknown as PendingTranscript[]).filter(
+  const allTranscripts: PendingTranscript[] = [];
+  for (let from = 0, pages = 0; pages < MAX_PAGES; pages++, from += PAGE) {
+    const { data, error } = await db
+      .from("transcripts")
+      .select(
+        `
+        episode_id, text,
+        episode:episodes!transcripts_episode_id_fkey (
+          title, published_at,
+          channel:channels!episodes_channel_id_fkey (
+            name, political_lean
+          )
+        )
+      `,
+      )
+      // Stable order is required for correct .range() pagination — without it
+      // Postgres may return rows in an inconsistent order across pages.
+      .order("episode_id", { ascending: true })
+      .range(from, from + PAGE - 1);
+    if (error) {
+      console.error("Failed to load transcripts:", error.message);
+      process.exit(1);
+    }
+    if (!data || data.length === 0) break; // terminate only on an empty page
+    allTranscripts.push(...(data as unknown as PendingTranscript[]));
+  }
+
+  const classifiedEpisodeIds = new Set<string>();
+  for (let from = 0, pages = 0; pages < MAX_PAGES; pages++, from += PAGE) {
+    const { data, error } = await db
+      .from("classifications")
+      .select("episode_id")
+      .order("episode_id", { ascending: true })
+      .range(from, from + PAGE - 1);
+    if (error) {
+      console.error("Failed to load existing classifications:", error.message);
+      process.exit(1);
+    }
+    if (!data || data.length === 0) break;
+    for (const c of data as { episode_id: string }[]) {
+      classifiedEpisodeIds.add(c.episode_id);
+    }
+  }
+
+  const pending = allTranscripts.filter(
     (t) => !classifiedEpisodeIds.has(t.episode_id),
   );
 

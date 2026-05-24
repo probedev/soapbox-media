@@ -7,6 +7,50 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
+## v0.6.16 · 2026-05-24
+
+Pipeline reliability release. Three compounding bugs kept the production
+cron from doing useful work while the CLI worked fine; all are fixed here.
+
+### Fixed
+
+- **Stale cached reads (the big one).** Supabase-js issues reads as `fetch`
+  GETs, and the Next.js App Router caches `fetch` by default — so every
+  server-side read (the cron *and* server components) was frozen at the
+  first snapshot taken after each deploy. The cron reported identical
+  results across separate runs (`pendingFound: 1504` twice while the live
+  table was at 552) and never saw its own writes or the CLI's. `db.ts` now
+  forces `cache: "no-store"` on every Supabase request so reads always hit
+  the live database. `force-dynamic` on the route did not reliably cover the
+  client's fetches; forcing it at the client is the durable fix.
+- **classify dedup pagination.** `scripts/classify.ts` built its
+  "already classified" set with `.limit(50000)`, which Supabase silently
+  caps at the project Max Rows (1000). Once the classifications table grew
+  past ~1000 rows the dedup set was incomplete, so episodes were
+  re-classified on every pass — catastrophic under a loop (a catch-up run
+  reclassified 234 episodes ~95× into 24k duplicate rows before being
+  caught). Now paginates via `.range()` and terminates only on an empty
+  page. The runaway duplicates were cleaned up out-of-band.
+
+### Added
+
+- **`scripts/catchup.sh`** — full-pipeline drain that runs ingest, then
+  loops transcribe/classify/score until each queue empties, with hard
+  per-stage iteration caps so a logic bug can't run away unattended.
+
+### Operational (no code)
+
+- Corrected Vercel's `SUPABASE_SERVICE_ROLE_KEY`: it held a legacy **anon**
+  JWT, not a service-role key. With RLS enabled on all tables and zero
+  policies, an anon key reads/writes nothing — which is why the cron saw an
+  empty database while the CLI (real service key) worked. Swapped to the new
+  `sb_secret_…` key. (RLS-with-no-policies is a latent landmine to address
+  separately.) `CRON_SECRET` rotated.
+
+### Removed
+
+- Temporary transcribe diagnostic logging from the cron route.
+
 ## v0.6.14 · 2026-05-14
 
 The actual fix for YouTube transcripts: **swap the unmaintained
