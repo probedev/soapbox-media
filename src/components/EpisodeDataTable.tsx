@@ -127,11 +127,11 @@ function SortHeader({
     <Button
       variant="ghost"
       size="sm"
-      className="-ml-2 h-8 px-2 text-muted-foreground hover:text-foreground"
+      className="-ml-1 h-8 px-1 text-[11px] uppercase tracking-wider font-medium text-muted-foreground hover:text-foreground"
       onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
     >
       {label}
-      <ArrowUpDown className="ml-1 h-3 w-3" />
+      <ArrowUpDown className="ml-1 h-3 w-3 shrink-0" />
     </Button>
   );
 }
@@ -151,6 +151,21 @@ const COLUMN_LABELS: Record<string, string> = {
   transcribed: "Transcribed",
   classified: "Classified",
   scored: "Scored",
+};
+
+// Relative column widths. With `table-fixed` + `w-full`, the browser scales
+// these to fill the container exactly — so the table always fits with no
+// horizontal scroll, and the Video column truncates instead of overflowing.
+const COL_WIDTH: Record<string, number> = {
+  political_lean: 58,
+  published_at: 96,
+  channel_name: 150,
+  title: 300,
+  platform: 84,
+  duration_sec: 64,
+  transcribed: 104,
+  classified: 100,
+  scored: 84,
 };
 
 const columns: ColumnDef<EpisodeTableRow>[] = [
@@ -192,7 +207,8 @@ const columns: ColumnDef<EpisodeTableRow>[] = [
     cell: ({ row }) => (
       <a
         href={`/channels/${row.original.channel_id}`}
-        className="whitespace-nowrap text-gray-700 hover:text-gray-900 hover:underline"
+        title={row.getValue("channel_name") as string}
+        className="block truncate text-gray-700 hover:text-gray-900 hover:underline"
       >
         {row.getValue("channel_name")}
       </a>
@@ -206,7 +222,8 @@ const columns: ColumnDef<EpisodeTableRow>[] = [
         href={row.original.source_url}
         target="_blank"
         rel="noopener noreferrer"
-        className="inline-flex items-center gap-1 font-medium text-gray-900 hover:underline max-w-md"
+        title={row.getValue("title") as string}
+        className="flex items-center gap-1 min-w-0 font-medium text-gray-900 hover:underline"
       >
         <span className="truncate">{row.getValue("title")}</span>
         <ExternalLink className="h-3 w-3 shrink-0 text-gray-400" />
@@ -350,12 +367,16 @@ export function EpisodeDataTable({
 
       {/* Table */}
       <div className="rounded-lg border border-gray-200 bg-white">
-        <Table>
+        <Table className="table-fixed">
           <TableHeader>
             {table.getHeaderGroups().map((hg) => (
               <TableRow key={hg.id}>
                 {hg.headers.map((h) => (
-                  <TableHead key={h.id} className="text-[11px] uppercase tracking-wider">
+                  <TableHead
+                    key={h.id}
+                    className="text-[11px] uppercase tracking-wider"
+                    style={{ width: COL_WIDTH[h.column.id] }}
+                  >
                     {h.isPlaceholder
                       ? null
                       : flexRender(h.column.columnDef.header, h.getContext())}
