@@ -1,4 +1,4 @@
-import type { EpisodeListItem } from "@/lib/episodes";
+import type { EpisodeListItem, EpisodePipeline } from "@/lib/episodes";
 import { ExternalLink } from "lucide-react";
 
 interface EpisodeListProps {
@@ -24,36 +24,6 @@ function formatDate(iso: string): string {
   });
 }
 
-function statusStyle(s: string): string {
-  switch (s) {
-    case "fetched":
-      return "bg-green-100 text-green-800";
-    case "pending":
-      return "bg-amber-100 text-amber-800";
-    case "failed":
-      return "bg-red-100 text-red-800";
-    case "skipped":
-      return "bg-gray-100 text-gray-700";
-    default:
-      return "bg-gray-100 text-gray-700";
-  }
-}
-
-function statusLabel(s: string): string {
-  switch (s) {
-    case "pending":
-      return "awaiting transcript";
-    case "fetched":
-      return "fetched";
-    case "failed":
-      return "failed";
-    case "skipped":
-      return "skipped";
-    default:
-      return s;
-  }
-}
-
 function platformLabel(p: "youtube" | "podcast"): string {
   return p === "youtube" ? "YT" : "Pod";
 }
@@ -67,6 +37,68 @@ function leanStyle(lean: "L" | "M" | "R"): string {
     default:
       return "bg-gray-100 text-gray-700";
   }
+}
+
+// ── Per-episode pipeline tracker ──────────────────────────────────────────
+
+type StepState = "done" | "failed" | "partial" | "pending" | "na";
+
+const STEP_DOT: Record<StepState, string> = {
+  done: "bg-emerald-500",
+  failed: "bg-red-500",
+  partial: "bg-amber-400",
+  pending: "bg-gray-300",
+  na: "bg-gray-200",
+};
+
+const STEP_TEXT: Record<StepState, string> = {
+  done: "text-emerald-700",
+  failed: "text-red-700",
+  partial: "text-amber-700",
+  pending: "text-gray-400",
+  na: "text-gray-300",
+};
+
+function Step({
+  label,
+  state,
+  title,
+}: {
+  label: string;
+  state: StepState;
+  title?: string;
+}) {
+  return (
+    <span
+      className={`inline-flex items-center gap-1 text-[10px] ${STEP_TEXT[state]}`}
+      title={title || `${label}: ${state}`}
+    >
+      <span className={`w-2 h-2 rounded-full shrink-0 ${STEP_DOT[state]}`} />
+      {label}
+    </span>
+  );
+}
+
+function PipelineTracker({ p }: { p: EpisodePipeline }) {
+  const scoredTitle =
+    p.scored === "na"
+      ? "Scored: no issues to score"
+      : `Scored: ${p.scoredCount}/${p.classificationCount}`;
+  const classifiedTitle =
+    p.classified === "na"
+      ? "Classify: skipped (no transcript)"
+      : p.classified === "done"
+        ? `Classified: ${p.classificationCount} mentions`
+        : "Classify: pending";
+
+  return (
+    <div className="flex items-center gap-2.5 flex-wrap justify-end shrink-0">
+      <Step label="Ingested" state="done" title="Ingested" />
+      <Step label="Transcribed" state={p.transcribed} title={`Transcribe: ${p.transcribed}`} />
+      <Step label="Classified" state={p.classified} title={classifiedTitle} />
+      <Step label="Scored" state={p.scored} title={scoredTitle} />
+    </div>
+  );
 }
 
 export function EpisodeList({
@@ -85,7 +117,7 @@ export function EpisodeList({
   return (
     <div className="border border-gray-200 rounded-lg bg-white divide-y divide-gray-200">
       {episodes.map((ep) => (
-        <div key={ep.id} className="px-4 py-3 flex items-start gap-3">
+        <div key={ep.id} className="px-4 py-3 flex items-start justify-between gap-4">
           <div className="flex-1 min-w-0">
             <div className="flex items-baseline gap-2 flex-wrap">
               {showChannel && ep.channel && (
@@ -124,11 +156,7 @@ export function EpisodeList({
               )}
             </div>
           </div>
-          <span
-            className={`text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded shrink-0 ${statusStyle(ep.transcript_status)}`}
-          >
-            {statusLabel(ep.transcript_status)}
-          </span>
+          {ep.pipeline && <PipelineTracker p={ep.pipeline} />}
         </div>
       ))}
     </div>

@@ -14,12 +14,18 @@ pre-launch build leading into the November 2026 US midterms.
 ### Added
 
 - **Pipeline health on /log.** New `PipelineHealth` component surfaces the
-  `usage_log` data that previously only lived on /admin/costs: a stage × run
-  grid (ingest/transcribe/classify/score, green/amber/red/idle per run) for
-  at-a-glance issue spotting, plus a detailed recent-runs table with per-stage
-  counts and any error message. Operators can catch a broken stage daily;
-  users get real transparency into the machine. Deliberately shows **no
-  cost/token data** — that stays on the operator-only /admin/costs.
+  `usage_log` data that previously only lived on /admin/costs: four per-stage
+  status cards (ingest/transcribe/classify/score) showing each stage's current
+  health in plain English plus a small last-7-run trend strip, and a detailed
+  recent-runs table with per-stage counts and any error message. Operators can
+  see at a glance which stage is broken; users get real transparency. Shows
+  **no cost/token data** — that stays on the operator-only /admin/costs.
+- **Per-episode pipeline progress in the receipts list.** `EpisodeList` now
+  shows each episode's progress through all four stages (Ingested →
+  Transcribed → Classified → Scored) with done/failed/pending/partial state,
+  instead of a single transcript-status badge. Makes the failed-YouTube
+  backlog and where each episode stalled visible at a glance. Applies on both
+  /log and the channel drill-down.
 
 ### Changed
 

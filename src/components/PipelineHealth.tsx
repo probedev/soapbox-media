@@ -141,8 +141,7 @@ export function PipelineHealth({ runs }: { runs: UsageLogRow[] }) {
     );
   }
 
-  // runs come most-recent-first. Grid reads oldest → newest, left → right.
-  const gridRuns = [...runs].slice(0, 30).reverse();
+  // runs come most-recent-first.
   const latest = runs[0];
   const latestStatus = runStatus(latest);
   const tableRuns = runs.slice(0, 20);
@@ -163,49 +162,43 @@ export function PipelineHealth({ runs }: { runs: UsageLogRow[] }) {
         </span>
       </div>
 
-      {/* Stage × run health grid */}
-      <div className="overflow-x-auto">
-        <div className="inline-block min-w-full">
-          {STAGES.map(({ key, label }) => (
-            <div key={key} className="flex items-center gap-2 mb-1.5">
-              <div className="w-20 shrink-0 text-[11px] text-gray-500 text-right pr-1">
+      {/* Per-stage status cards — current health of each stage, in words,
+          with a small last-7-run trend strip. */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        {STAGES.map(({ key, label }) => {
+          const cur = stageStatus(latest, key);
+          const recent = runs.slice(0, 7); // most-recent-first
+          const okCount = recent.filter((r) => stageStatus(r, key) === "ok").length;
+          const trend = [...recent].reverse(); // oldest → newest, left → right
+          return (
+            <div key={key} className="border border-gray-200 rounded-md p-3">
+              <div className="text-[10px] uppercase tracking-wider text-gray-500">
                 {label}
               </div>
-              <div className="flex gap-1">
-                {gridRuns.map((row) => {
-                  const s = stageStatus(row, key);
+              <div className="flex items-center gap-1.5 mt-1">
+                <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${CELL_CLASS[cur]}`} />
+                <span className="text-sm font-semibold capitalize text-gray-900">
+                  {STATUS_WORD[cur]}
+                </span>
+              </div>
+              <div className="flex gap-1 mt-2.5">
+                {trend.map((r) => {
+                  const s = stageStatus(r, key);
                   return (
-                    <div
-                      key={row.id}
-                      className={`w-3.5 h-3.5 rounded-sm ${CELL_CLASS[s]}`}
-                      title={`${shortDate(row.ran_at)} ${shortTime(row.ran_at)} — ${label}: ${STATUS_WORD[s]}`}
+                    <span
+                      key={r.id}
+                      className={`w-2.5 h-2.5 rounded-sm ${CELL_CLASS[s]}`}
+                      title={`${shortDate(r.ran_at)} ${shortTime(r.ran_at)} — ${STATUS_WORD[s]}`}
                     />
                   );
                 })}
               </div>
+              <div className="text-[10px] text-gray-400 mt-2">
+                {okCount} of last {recent.length} runs healthy
+              </div>
             </div>
-          ))}
-          {/* axis labels */}
-          <div className="flex items-center gap-2 mt-1">
-            <div className="w-20 shrink-0" />
-            <div className="flex justify-between w-full text-[10px] text-gray-400">
-              <span>{gridRuns.length ? shortDate(gridRuns[0].ran_at) : ""}</span>
-              <span>
-                {gridRuns.length ? shortDate(gridRuns[gridRuns.length - 1].ran_at) : ""}
-              </span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Legend */}
-      <div className="flex items-center gap-4 mt-4 text-[10px] text-gray-500">
-        {(["ok", "warn", "fail", "idle"] as StageStatus[]).map((s) => (
-          <span key={s} className="flex items-center gap-1.5">
-            <span className={`w-2.5 h-2.5 rounded-sm ${CELL_CLASS[s]}`} />
-            {STATUS_WORD[s]}
-          </span>
-        ))}
+          );
+        })}
       </div>
 
       {/* Detailed recent-runs table */}

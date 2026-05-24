@@ -6,6 +6,19 @@ import { createServiceClient } from "./db";
 
 export type TranscriptStatus = "pending" | "fetched" | "failed" | "skipped";
 
+/**
+ * Per-episode progress through the four pipeline stages. "na" = not
+ * applicable because an upstream stage didn't complete (e.g. can't classify
+ * an episode whose transcript failed).
+ */
+export interface EpisodePipeline {
+  transcribed: "done" | "failed" | "pending";
+  classified: "done" | "pending" | "na";
+  scored: "done" | "partial" | "pending" | "na";
+  classificationCount: number;
+  scoredCount: number;
+}
+
 export interface EpisodeListItem {
   id: string;
   title: string;
@@ -20,6 +33,76 @@ export interface EpisodeListItem {
     political_lean: "L" | "M" | "R";
     platform: "youtube" | "podcast";
   };
+  /** Per-episode pipeline progress; attached by attachPipeline(). */
+  pipeline?: EpisodePipeline;
+}
+
+/**
+ * Enrich a page of episodes with their classify/score progress. Two small
+ * lookups scoped to just the episodes on screen — cheap for a 20–50 row page.
+ */
+async function attachPipeline(
+  db: ReturnType<typeof createServiceClient>,
+  episodes: EpisodeListItem[],
+): Promise<void> {
+  if (episodes.length === 0) return;
+  const ids = episodes.map((e) => e.id);
+
+  // Classifications for these episodes: classification id -> episode id.
+  const { data: clsRows } = await db
+    .from("classifications")
+    .select("id, episode_id")
+    .in("episode_id", ids);
+  const clsByEpisode = new Map<string, string[]>();
+  for (const c of (clsRows || []) as { id: string; episode_id: string }[]) {
+    const arr = clsByEpisode.get(c.episode_id) || [];
+    arr.push(c.id);
+    clsByEpisode.set(c.episode_id, arr);
+  }
+
+  // Which of those classifications have a sentiment score.
+  const allClsIds = (clsRows || []).map((c: any) => c.id);
+  const scoredSet = new Set<string>();
+  if (allClsIds.length > 0) {
+    const { data: scoreRows } = await db
+      .from("sentiment_scores")
+      .select("classification_id")
+      .in("classification_id", allClsIds);
+    for (const s of (scoreRows || []) as { classification_id: string }[]) {
+      scoredSet.add(s.classification_id);
+    }
+  }
+
+  for (const ep of episodes) {
+    const transcribed: EpisodePipeline["transcribed"] =
+      ep.transcript_status === "fetched"
+        ? "done"
+        : ep.transcript_status === "failed"
+          ? "failed"
+          : "pending";
+
+    const clsIds = clsByEpisode.get(ep.id) || [];
+    const classificationCount = clsIds.length;
+    const scoredCount = clsIds.filter((id) => scoredSet.has(id)).length;
+
+    const classified: EpisodePipeline["classified"] =
+      transcribed === "failed"
+        ? "na"
+        : classificationCount > 0
+          ? "done"
+          : "pending";
+
+    const scored: EpisodePipeline["scored"] =
+      classificationCount === 0
+        ? "na"
+        : scoredCount >= classificationCount
+          ? "done"
+          : scoredCount > 0
+            ? "partial"
+            : "pending";
+
+    ep.pipeline = { transcribed, classified, scored, classificationCount, scoredCount };
+  }
 }
 
 interface ListOptions {
@@ -58,8 +141,11 @@ export async function getEpisodesForChannel(
     return { episodes: [], total: 0 };
   }
 
+  const episodes = (data || []) as EpisodeListItem[];
+  await attachPipeline(db, episodes);
+
   return {
-    episodes: (data || []) as EpisodeListItem[],
+    episodes,
     total: count || 0,
   };
 }
@@ -110,6 +196,8 @@ export async function getRecentEpisodes(
         }
       : undefined,
   })) as EpisodeListItem[];
+
+  await attachPipeline(db, episodes);
 
   return { episodes, total: count || 0 };
 }
