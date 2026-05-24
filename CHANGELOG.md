@@ -7,6 +7,37 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
+## v0.6.20 · 2026-05-24
+
+Data integrity: one score per classification, enforced.
+
+### Fixed
+
+- **Duplicate sentiment scores.** Overlapping score runs (CLI + the cron's
+  score stage + the daily cron) raced: each read a classification as unscored
+  and inserted, with no unique constraint to stop them. Result was 257
+  duplicate score rows across 172 classifications, double-counting in the
+  Index and per-issue/channel aggregations. Deduped (kept earliest per
+  classification; scores 8,031 → 7,774, now exactly 1:1 with classifications).
+
+### Added
+
+- **`UNIQUE (classification_id)` on `sentiment_scores`** (migration
+  `20260524000000`) — duplicate scores are now structurally impossible.
+
+### Changed
+
+- Score insert → **upsert with `onConflict: classification_id`,
+  `ignoreDuplicates`** in both `scripts/score.ts` and the cron `runScore`, so
+  overlapping runs no-op cleanly instead of erroring against the new
+  constraint.
+
+### Note
+
+- Also closed out the failed-YouTube recovery: 369 of 370 episodes that the
+  broken cron had marked failed were re-transcribed via Supadata and flowed
+  through classify + score. Only 1 was genuinely caption-less.
+
 ## v0.6.19 · 2026-05-24
 
 /log reworked into the public pipeline + scale transparency page.

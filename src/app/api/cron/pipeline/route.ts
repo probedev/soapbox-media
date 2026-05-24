@@ -508,14 +508,19 @@ async function runScore(): Promise<Record<string, unknown>> {
       });
       inputTokens += result.inputTokens || 0;
       outputTokens += result.outputTokens || 0;
-      const { error: insErr } = await db.from("sentiment_scores").insert({
-        classification_id: c.id,
-        sentiment: result.sentiment,
-        intensity: result.intensity,
-        supporting_quote: c.supporting_quote,
-        model: MODEL_SCORE,
-        model_version: "v0",
-      });
+      const { error: insErr } = await db.from("sentiment_scores").upsert(
+        {
+          classification_id: c.id,
+          sentiment: result.sentiment,
+          intensity: result.intensity,
+          supporting_quote: c.supporting_quote,
+          model: MODEL_SCORE,
+          model_version: "v0",
+        },
+        // Idempotent under UNIQUE(classification_id): overlapping score runs
+        // (cron + CLI) no-op instead of creating duplicate scores.
+        { onConflict: "classification_id", ignoreDuplicates: true },
+      );
       if (insErr) {
         console.error(
           `[score] insert failed for classification ${c.id}: ${insErr.message}`,

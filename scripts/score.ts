@@ -127,14 +127,20 @@ async function main() {
       totalInputTokens += result.inputTokens || 0;
       totalOutputTokens += result.outputTokens || 0;
 
-      const { error: insErr } = await db.from("sentiment_scores").insert({
-        classification_id: c.id,
-        sentiment: result.sentiment,
-        intensity: result.intensity,
-        supporting_quote: c.supporting_quote,
-        model: MODEL_SCORE,
-        model_version: "v0",
-      });
+      const { error: insErr } = await db.from("sentiment_scores").upsert(
+        {
+          classification_id: c.id,
+          sentiment: result.sentiment,
+          intensity: result.intensity,
+          supporting_quote: c.supporting_quote,
+          model: MODEL_SCORE,
+          model_version: "v0",
+        },
+        // Idempotent: a UNIQUE(classification_id) constraint backs this, so
+        // overlapping score runs (CLI + cron) no-op instead of inserting a
+        // duplicate score. See 2026-05-24 dedup incident.
+        { onConflict: "classification_id", ignoreDuplicates: true },
+      );
       if (insErr) {
         console.log(`[${i + 1}/${slice.length}] ✗ insert: ${insErr.message}`);
         failed += 1;
