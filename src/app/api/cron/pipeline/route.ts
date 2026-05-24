@@ -275,10 +275,7 @@ async function runTranscribe(): Promise<Record<string, unknown>> {
   const db = createServiceClient();
   const { data: pending, error: pendingErr } = await db
     .from("episodes")
-    .select(
-      `id, source_url,
-       channel:channels!episodes_channel_id_fkey ( platform )`,
-    )
+    .select("id, source_url, channel_id")
     .eq("transcript_status", "pending")
     // Oldest-pending-first: YouTube auto-captions take hours-to-a-day to
     // generate for fresh uploads. If we attack newest-first we burn through
@@ -292,11 +289,25 @@ async function runTranscribe(): Promise<Record<string, unknown>> {
 
   if (pendingErr) throw new Error(`load pending episodes: ${pendingErr.message}`);
 
+  // Resolve channel platform via a direct id->platform map rather than a
+  // PostgREST embed. The embedded `channel:channels!fk(platform)` did not
+  // expose `.platform` reliably in the Vercel runtime, so every YouTube
+  // episode fell through the `!== "youtube"` guard and was marked failed
+  // without ever calling Supadata (2026-05-24 incident). A plain map is
+  // unambiguous and embed-shape-proof.
+  const { data: channels, error: chErr } = await db
+    .from("channels")
+    .select("id, platform");
+  if (chErr) throw new Error(`load channels: ${chErr.message}`);
+  const platformById = new Map<string, string>(
+    (channels || []).map((c: any) => [c.id, c.platform]),
+  );
+
   let ok = 0;
   let failed = 0;
 
   for (const row of (pending || []) as any[]) {
-    const platform = row.channel?.platform;
+    const platform = platformById.get(row.channel_id);
     if (platform !== "youtube") {
       // Podcast still pending after ingest means PodScan didn't have the
       // transcript yet — mark failed; it'll be retried on subsequent ingest

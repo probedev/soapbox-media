@@ -7,6 +7,22 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
+## v0.6.17 · 2026-05-24
+
+The last link in the cron chain.
+
+### Fixed
+
+- **Cron transcribe failed every YouTube episode without calling Supadata.**
+  Once v0.6.16 fixed the key and the cache, the cron could finally *see*
+  pending episodes — but it still marked them all `failed` in ~50ms, never
+  reaching Supadata. Root cause: the `channel:channels!fk(platform)` embed
+  didn't expose `.platform` reliably at runtime, so `row.channel?.platform`
+  was undefined and every episode flunked the `=== "youtube"` guard. Replaced
+  the embed with a direct `channel_id → platform` map in `runTranscribe`,
+  which is embed-shape-proof. (The classify/score stages still use channel
+  embeds; auditing those is a separate follow-up.)
+
 ## v0.6.16 · 2026-05-24
 
 Pipeline reliability release. Three compounding bugs kept the production
