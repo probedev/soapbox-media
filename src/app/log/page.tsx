@@ -69,9 +69,11 @@ export default async function LogPage({ searchParams }: PageProps) {
             </span>
           </div>
           <p className="text-xs text-gray-500 mb-3 max-w-3xl">
-            Every episode ingested, newest first. Status badges show whether the
-            transcript was fetched, is still pending, or failed. Click any
-            episode to open the source.
+            Every episode the pipeline has ingested, newest first. The dots
+            track how far each one has moved through the four stages —
+            ingested, transcribed, classified, scored. Green is done, red
+            failed, amber partial, grey not yet reached. Click any title to
+            open the source.
           </p>
           <EpisodeList
             episodes={episodes}

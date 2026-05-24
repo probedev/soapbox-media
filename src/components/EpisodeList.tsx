@@ -39,7 +39,7 @@ function leanStyle(lean: "L" | "M" | "R"): string {
   }
 }
 
-// ── Per-episode pipeline tracker ──────────────────────────────────────────
+// ── Per-episode pipeline stage dots ───────────────────────────────────────
 
 type StepState = "done" | "failed" | "partial" | "pending" | "na";
 
@@ -51,53 +51,36 @@ const STEP_DOT: Record<StepState, string> = {
   na: "bg-gray-200",
 };
 
-const STEP_TEXT: Record<StepState, string> = {
-  done: "text-emerald-700",
-  failed: "text-red-700",
-  partial: "text-amber-700",
-  pending: "text-gray-400",
-  na: "text-gray-300",
-};
+const STAGE_COLS = ["Ingested", "Transcribed", "Classified", "Scored"] as const;
 
-function Step({
-  label,
-  state,
-  title,
-}: {
-  label: string;
-  state: StepState;
-  title?: string;
-}) {
-  return (
-    <span
-      className={`inline-flex items-center gap-1 text-[10px] ${STEP_TEXT[state]}`}
-      title={title || `${label}: ${state}`}
-    >
-      <span className={`w-2 h-2 rounded-full shrink-0 ${STEP_DOT[state]}`} />
-      {label}
-    </span>
-  );
+function stageStates(p: EpisodePipeline): { state: StepState; title: string }[] {
+  return [
+    { state: "done", title: "Ingested" },
+    { state: p.transcribed, title: `Transcribed: ${p.transcribed}` },
+    {
+      state: p.classified,
+      title:
+        p.classified === "na"
+          ? "Classify: skipped (no transcript)"
+          : p.classified === "done"
+            ? `Classified: ${p.classificationCount} mentions`
+            : "Classify: pending",
+    },
+    {
+      state: p.scored,
+      title:
+        p.scored === "na"
+          ? "Scored: no issues to score"
+          : `Scored: ${p.scoredCount}/${p.classificationCount}`,
+    },
+  ];
 }
 
-function PipelineTracker({ p }: { p: EpisodePipeline }) {
-  const scoredTitle =
-    p.scored === "na"
-      ? "Scored: no issues to score"
-      : `Scored: ${p.scoredCount}/${p.classificationCount}`;
-  const classifiedTitle =
-    p.classified === "na"
-      ? "Classify: skipped (no transcript)"
-      : p.classified === "done"
-        ? `Classified: ${p.classificationCount} mentions`
-        : "Classify: pending";
-
+function Dot({ state, title }: { state: StepState; title: string }) {
   return (
-    <div className="flex items-center gap-2.5 flex-wrap justify-end shrink-0">
-      <Step label="Ingested" state="done" title="Ingested" />
-      <Step label="Transcribed" state={p.transcribed} title={`Transcribe: ${p.transcribed}`} />
-      <Step label="Classified" state={p.classified} title={classifiedTitle} />
-      <Step label="Scored" state={p.scored} title={scoredTitle} />
-    </div>
+    <span className="inline-flex items-center justify-center" title={title}>
+      <span className={`w-2.5 h-2.5 rounded-full ${STEP_DOT[state]}`} />
+    </span>
   );
 }
 
@@ -115,50 +98,79 @@ export function EpisodeList({
   }
 
   return (
-    <div className="border border-gray-200 rounded-lg bg-white divide-y divide-gray-200">
-      {episodes.map((ep) => (
-        <div key={ep.id} className="px-4 py-3 flex items-start justify-between gap-4">
-          <div className="flex-1 min-w-0">
-            <div className="flex items-baseline gap-2 flex-wrap">
-              {showChannel && ep.channel && (
-                <>
-                  <span
-                    className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${leanStyle(ep.channel.political_lean)}`}
-                  >
-                    {ep.channel.political_lean}
-                  </span>
-                  <a
-                    href={`/channels/${ep.channel.id}`}
-                    className="text-xs text-gray-600 hover:text-gray-900 truncate"
-                  >
-                    {ep.channel.name}{" "}
-                    <span className="text-gray-400">({platformLabel(ep.channel.platform)})</span>
-                  </a>
-                  <span aria-hidden className="text-gray-300">
-                    ·
-                  </span>
-                </>
-              )}
-              <a
-                href={ep.source_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="font-medium text-gray-900 hover:underline inline-flex items-center gap-1 min-w-0"
-              >
-                <span className="truncate">{ep.title}</span>
-                <ExternalLink className="w-3 h-3 text-gray-400 shrink-0" />
-              </a>
-            </div>
-            <div className="text-xs text-gray-500 mt-1 tabular-nums">
-              {formatDate(ep.published_at)}
-              {formatDuration(ep.duration_sec) && (
-                <> · {formatDuration(ep.duration_sec)}</>
-              )}
-            </div>
-          </div>
-          {ep.pipeline && <PipelineTracker p={ep.pipeline} />}
-        </div>
-      ))}
+    <div className="border border-gray-200 rounded-lg bg-white overflow-x-auto">
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="border-b border-gray-200 text-[10px] uppercase tracking-wider text-gray-500">
+            <th className="text-left font-medium px-4 py-2.5">Episode</th>
+            {STAGE_COLS.map((c) => (
+              <th key={c} className="font-medium px-2 py-2.5 w-24 text-center">
+                {c}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-gray-100">
+          {episodes.map((ep) => {
+            const states = ep.pipeline ? stageStates(ep.pipeline) : null;
+            return (
+              <tr key={ep.id} className="align-top">
+                <td className="px-4 py-3">
+                  <div className="flex items-baseline gap-2 flex-wrap">
+                    {showChannel && ep.channel && (
+                      <>
+                        <span
+                          className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${leanStyle(ep.channel.political_lean)}`}
+                        >
+                          {ep.channel.political_lean}
+                        </span>
+                        <a
+                          href={`/channels/${ep.channel.id}`}
+                          className="text-xs text-gray-600 hover:text-gray-900 truncate"
+                        >
+                          {ep.channel.name}{" "}
+                          <span className="text-gray-400">
+                            ({platformLabel(ep.channel.platform)})
+                          </span>
+                        </a>
+                        <span aria-hidden className="text-gray-300">
+                          ·
+                        </span>
+                      </>
+                    )}
+                    <a
+                      href={ep.source_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="font-medium text-gray-900 hover:underline inline-flex items-center gap-1 min-w-0"
+                    >
+                      <span className="truncate">{ep.title}</span>
+                      <ExternalLink className="w-3 h-3 text-gray-400 shrink-0" />
+                    </a>
+                  </div>
+                  <div className="text-xs text-gray-500 mt-1 tabular-nums">
+                    {formatDate(ep.published_at)}
+                    {formatDuration(ep.duration_sec) && (
+                      <> · {formatDuration(ep.duration_sec)}</>
+                    )}
+                  </div>
+                </td>
+                {states
+                  ? states.map((s, i) => (
+                      <td key={i} className="px-2 py-3 text-center">
+                        <Dot state={s.state} title={s.title} />
+                      </td>
+                    ))
+                  : STAGE_COLS.map((_, i) => (
+                      <td key={i} className="px-2 py-3 text-center text-gray-300">
+                        –
+                      </td>
+                    ))}
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
     </div>
   );
 }
