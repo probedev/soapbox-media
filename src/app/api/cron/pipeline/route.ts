@@ -308,18 +308,6 @@ async function runTranscribe(): Promise<Record<string, unknown>> {
 
   for (const row of (pending || []) as any[]) {
     const platform = platformById.get(row.channel_id);
-    // TEMP DIAGNOSTIC — pinpoint where YouTube transcribe bails. Remove once
-    // root-caused. (2026-05-24)
-    console.log(
-      "[transcribe debug]",
-      JSON.stringify({
-        episodeId: row.id,
-        channelId: row.channel_id,
-        resolvedPlatform: platform ?? null,
-        mapSize: platformById.size,
-        url: (row.source_url || "").slice(0, 70),
-      }),
-    );
     if (platform !== "youtube") {
       // Podcast still pending after ingest means PodScan didn't have the
       // transcript yet — mark failed; it'll be retried on subsequent ingest
@@ -337,17 +325,12 @@ async function runTranscribe(): Promise<Record<string, unknown>> {
         u.hostname.includes("youtu.be")
           ? u.pathname.replace(/^\//, "")
           : u.searchParams.get("v");
-      console.log("[transcribe debug] videoId", JSON.stringify(videoId));
       if (!videoId) {
         await db.from("episodes").update({ transcript_status: "failed" }).eq("id", row.id);
         failed++;
         continue;
       }
       const transcript = await getVideoTranscript(videoId);
-      console.log(
-        "[transcribe debug] transcriptLen",
-        transcript ? transcript.length : null,
-      );
       if (!transcript || transcript.trim().length === 0) {
         await db.from("episodes").update({ transcript_status: "failed" }).eq("id", row.id);
         failed++;
@@ -358,7 +341,7 @@ async function runTranscribe(): Promise<Record<string, unknown>> {
         { onConflict: "episode_id", ignoreDuplicates: false },
       );
       if (txErr) {
-        console.log("[transcribe debug] upsert error", txErr.message);
+        console.error(`[transcribe] upsert failed for ${row.id}: ${txErr.message}`);
         failed++;
         continue;
       }
@@ -368,7 +351,9 @@ async function runTranscribe(): Promise<Record<string, unknown>> {
         .eq("id", row.id);
       ok++;
     } catch (e: any) {
-      console.log("[transcribe debug] threw", e?.message || String(e));
+      // Don't swallow silently — a missing env var or a Supadata outage should
+      // be visible in logs, not hidden behind a bare catch. (2026-05-24)
+      console.error(`[transcribe] ${row.id}: ${e?.message || String(e)}`);
       failed++;
     }
   }

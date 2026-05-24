@@ -7,6 +7,38 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
+## v0.6.18 · 2026-05-24
+
+Cron is end-to-end. Cleanup + the real root cause.
+
+### Fixed
+
+- **Cron transcribe now succeeds.** The actual blocker was operational, not
+  code: `SUPADATA_API_KEY` was missing/empty in the Vercel runtime, so
+  `getVideoTranscript` threw and every YouTube episode was marked failed.
+  (Masked until now because the v0.6.16 key/cache bugs kept the cron from
+  ever reaching the Supadata call.) Set the value in Vercel; a seeded
+  episode transcribed cleanly (`succeeded: 1`, ~1.4s round-trip, Supadata
+  credit consumed). With this, the full pipeline runs unattended:
+  ingest → transcribe → classify → score.
+
+### Changed
+
+- `runTranscribe` no longer swallows errors in a bare `catch {}` — failures
+  (missing env var, Supadata outage) are now logged. This is what would have
+  surfaced the `SUPADATA_API_KEY` problem on day one.
+
+### Removed
+
+- Temporary transcribe diagnostic logging (served its purpose locating the
+  Supadata-key failure).
+
+### Note
+
+- The v0.6.17 platform-by-map change is retained as a robustness improvement,
+  but it was not the root cause — the missing env var explained the failure
+  on its own. No evidence the channel embed was actually broken.
+
 ## v0.6.17 · 2026-05-24
 
 The last link in the cron chain.
