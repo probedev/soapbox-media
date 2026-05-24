@@ -3,8 +3,8 @@ import { getChannelExternalUrl } from "@/lib/channelLinks";
 import { createServiceClient } from "@/lib/db";
 import { Footer } from "@/components/Footer";
 import { Header } from "@/components/Header";
-import { EpisodeList } from "@/components/EpisodeList";
-import { getEpisodesForChannel } from "@/lib/episodes";
+import { EpisodeDataTable } from "@/components/EpisodeDataTable";
+import { getEpisodeTableRows } from "@/lib/episodes";
 import { notFound } from "next/navigation";
 import { ExternalLink } from "lucide-react";
 
@@ -60,10 +60,9 @@ export default async function ChannelPage({
       })
     : null;
 
-  // Episodes (last 25 by publish date — supports the receipts/transparency view)
-  const { episodes, total: totalEpisodes } = await getEpisodesForChannel(params.id, {
-    limit: 25,
-  });
+  // Episodes for this channel — same sortable/searchable table as /log,
+  // minus the redundant Category + Channel columns.
+  const episodeRows = await getEpisodeTableRows(1000, params.id);
 
   const markerPct = ((data.netLean + 10) / 20) * 100;
   const directionLabel = data.netLean >= 0 ? "R+" : "L+";
@@ -173,14 +172,8 @@ export default async function ChannelPage({
         <div className="max-w-4xl mx-auto px-6 py-10">
           <div className="flex items-baseline justify-between mb-4">
             <h2 className="text-lg font-semibold">Recent episodes</h2>
-            <span className="text-xs text-gray-500 tabular-nums">
-              {episodes.length} of {totalEpisodes.toLocaleString()}
-            </span>
           </div>
-          <EpisodeList
-            episodes={episodes}
-            emptyMessage="No episodes ingested yet for this channel."
-          />
+          <EpisodeDataTable data={episodeRows} hideChannelColumns />
         </div>
       </section>
 

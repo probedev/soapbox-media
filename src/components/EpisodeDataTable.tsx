@@ -40,6 +40,12 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 // ── formatting + status helpers ───────────────────────────────────────────
 
@@ -85,9 +91,14 @@ const STAGE_RANK: Record<Stage, number> = {
 function StatusDot({ state }: { state: Stage }) {
   const s = STATUS[state];
   return (
-    <span className="inline-flex items-center" title={s.label}>
-      <span className={cn("h-2.5 w-2.5 rounded-full", s.dot)} />
-    </span>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <span className="inline-flex items-center">
+          <span className={cn("h-2.5 w-2.5 rounded-full", s.dot)} />
+        </span>
+      </TooltipTrigger>
+      <TooltipContent>{s.label}</TooltipContent>
+    </Tooltip>
   );
 }
 
@@ -150,15 +161,19 @@ const columns: ColumnDef<EpisodeTableRow>[] = [
       const lean = row.getValue("political_lean") as string;
       const l = LEAN[lean] ?? LEAN.M;
       return (
-        <span
-          className={cn(
-            "inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-semibold",
-            l.cls,
-          )}
-          title={l.label}
-        >
-          {lean}
-        </span>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span
+              className={cn(
+                "inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-semibold",
+                l.cls,
+              )}
+            >
+              {lean}
+            </span>
+          </TooltipTrigger>
+          <TooltipContent>{l.label}</TooltipContent>
+        </Tooltip>
       );
     },
   },
@@ -175,9 +190,12 @@ const columns: ColumnDef<EpisodeTableRow>[] = [
     accessorKey: "channel_name",
     header: ({ column }) => <SortHeader label="Channel" column={column} />,
     cell: ({ row }) => (
-      <span className="whitespace-nowrap text-gray-700">
+      <a
+        href={`/channels/${row.original.channel_id}`}
+        className="whitespace-nowrap text-gray-700 hover:text-gray-900 hover:underline"
+      >
         {row.getValue("channel_name")}
-      </span>
+      </a>
     ),
   },
   {
@@ -235,13 +253,32 @@ const columns: ColumnDef<EpisodeTableRow>[] = [
 
 // ── table ────────────────────────────────────────────────────────────────
 
-export function EpisodeDataTable({ data }: { data: EpisodeTableRow[] }) {
+export function EpisodeDataTable({
+  data,
+  hideChannelColumns = false,
+}: {
+  data: EpisodeTableRow[];
+  /** On a single-channel page, drop the redundant Category + Channel columns. */
+  hideChannelColumns?: boolean;
+}) {
   const [sorting, setSorting] = React.useState<SortingState>([
     { id: "published_at", desc: true },
   ]);
   const [columnVisibility, setColumnVisibility] =
     React.useState<VisibilityState>({});
   const [search, setSearch] = React.useState("");
+
+  const activeColumns = React.useMemo(
+    () =>
+      hideChannelColumns
+        ? columns.filter(
+            (c) =>
+              (c as { accessorKey?: string }).accessorKey !== "political_lean" &&
+              (c as { accessorKey?: string }).accessorKey !== "channel_name",
+          )
+        : columns,
+    [hideChannelColumns],
+  );
 
   const filtered = React.useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -255,7 +292,7 @@ export function EpisodeDataTable({ data }: { data: EpisodeTableRow[] }) {
 
   const table = useReactTable({
     data: filtered,
-    columns,
+    columns: activeColumns,
     state: { sorting, columnVisibility },
     onSortingChange: setSorting,
     onColumnVisibilityChange: setColumnVisibility,
@@ -271,6 +308,7 @@ export function EpisodeDataTable({ data }: { data: EpisodeTableRow[] }) {
   const end = Math.min((pageIndex + 1) * pageSize, totalRows);
 
   return (
+    <TooltipProvider delayDuration={150}>
     <div>
       {/* Toolbar */}
       <div className="flex items-center justify-between gap-3 mb-3">
@@ -339,7 +377,7 @@ export function EpisodeDataTable({ data }: { data: EpisodeTableRow[] }) {
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={columns.length} className="h-24 text-center text-gray-500">
+                <TableCell colSpan={activeColumns.length} className="h-24 text-center text-gray-500">
                   No episodes match your search.
                 </TableCell>
               </TableRow>
@@ -384,5 +422,6 @@ export function EpisodeDataTable({ data }: { data: EpisodeTableRow[] }) {
         </div>
       </div>
     </div>
+    </TooltipProvider>
   );
 }

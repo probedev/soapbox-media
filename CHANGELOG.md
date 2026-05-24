@@ -20,8 +20,11 @@ pre-launch build leading into the November 2026 US midterms.
   button, input, table, badge, dropdown-menu.
 - **Episode receipts → a real data table** (`EpisodeDataTable`, TanStack
   Table + shadcn). Columns: category (L/M/R), date, channel, video, type,
-  length, and Transcribed / Classified / Scored status — all sortable, with
-  search and pagination and a column-visibility menu.
+  length, and Transcribed / Classified / Scored status (colored dots with
+  Radix tooltips) — all sortable, with search, pagination, and a
+  column-visibility menu. Channel names link to the channel page. The channel
+  drill-down's "Recent episodes" reuses the same table (Category + Channel
+  columns hidden).
 - **`episode_pipeline_summary` view** (migration `20260524000001`) computes
   per-episode classify/score counts in Postgres, so /log loads one light
   result set instead of thousands of join rows.

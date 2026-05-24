@@ -118,6 +118,7 @@ export interface EpisodeTableRow {
   published_at: string;
   source_url: string;
   duration_sec: number | null;
+  channel_id: string;
   channel_name: string;
   political_lean: "L" | "M" | "R";
   platform: "youtube" | "podcast";
@@ -135,16 +136,21 @@ export interface EpisodeTableRow {
  * loads a single light result set instead of thousands of join rows.
  * Paginated via .range() to clear the project Max Rows cap.
  */
-export async function getEpisodeTableRows(limit = 2000): Promise<EpisodeTableRow[]> {
+export async function getEpisodeTableRows(
+  limit = 2000,
+  channelId?: string,
+): Promise<EpisodeTableRow[]> {
   const db = createServiceClient();
   const PAGE = 1000;
   const rows: any[] = [];
   for (let from = 0, pages = 0; pages < 50 && rows.length < limit; pages++, from += PAGE) {
-    const { data, error } = await db
+    let q = db
       .from("episode_pipeline_summary")
       .select(
-        "id, title, published_at, source_url, duration_sec, channel_name, political_lean, platform, transcript_status, classification_count, scored_count",
-      )
+        "id, title, published_at, source_url, duration_sec, channel_id, channel_name, political_lean, platform, transcript_status, classification_count, scored_count",
+      );
+    if (channelId) q = q.eq("channel_id", channelId);
+    const { data, error } = await q
       .order("published_at", { ascending: false })
       .range(from, from + PAGE - 1);
     if (error) {
@@ -174,6 +180,7 @@ export async function getEpisodeTableRows(limit = 2000): Promise<EpisodeTableRow
       published_at: r.published_at,
       source_url: r.source_url,
       duration_sec: r.duration_sec,
+      channel_id: r.channel_id,
       channel_name: r.channel_name,
       political_lean: r.political_lean,
       platform: r.platform,
