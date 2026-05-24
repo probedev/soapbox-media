@@ -26,14 +26,6 @@ function relativeTime(iso: string | null): string {
   return `${diffDay}d ago`;
 }
 
-function monthYear(iso: string | null): string {
-  if (!iso) return "—";
-  return new Date(iso).toLocaleDateString("en-US", {
-    month: "short",
-    year: "numeric",
-  });
-}
-
 interface StatProps {
   value: string;
   label: string;
@@ -68,7 +60,7 @@ export async function SystemStats() {
           Latest data {relativeTime(stats.lastUpdated)}
         </span>
       </div>
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6">
         <Stat
           value={stats.channelsTracked.toString()}
           label="Shows tracked"
@@ -93,11 +85,6 @@ export async function SystemStats() {
           value={compactNumber(stats.sentimentScores)}
           label="Sentiment scores"
           sublabel="Every mention scored L↔R"
-        />
-        <Stat
-          value={monthYear(stats.coverageSinceISO)}
-          label="Coverage since"
-          sublabel="Continuous tracking"
         />
       </div>
     </div>

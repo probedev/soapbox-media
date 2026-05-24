@@ -13,7 +13,7 @@ export default async function LogPage() {
     <main className="min-h-screen">
       <Header />
 
-      <section className="px-6 pt-10 pb-16 max-w-6xl mx-auto">
+      <section className="px-6 pt-10 pb-16 max-w-7xl mx-auto">
         <div className="text-xs uppercase tracking-wider text-gray-500 mb-1">
           <a href="/" className="hover:text-gray-700">
             ← Soapbox Index

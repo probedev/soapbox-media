@@ -66,12 +66,12 @@ const LEAN: Record<string, { label: string; cls: string }> = {
 
 type Stage = "done" | "failed" | "partial" | "pending" | "na";
 
-const STATUS: Record<Stage, { label: string; cls: string }> = {
-  done: { label: "Done", cls: "bg-emerald-100 text-emerald-800" },
-  failed: { label: "Failed", cls: "bg-red-100 text-red-800" },
-  partial: { label: "Partial", cls: "bg-amber-100 text-amber-800" },
-  pending: { label: "Pending", cls: "bg-gray-100 text-gray-500" },
-  na: { label: "—", cls: "bg-transparent text-gray-300" },
+const STATUS: Record<Stage, { label: string; dot: string }> = {
+  done: { label: "Done", dot: "bg-emerald-500" },
+  failed: { label: "Failed", dot: "bg-red-500" },
+  partial: { label: "Partial", dot: "bg-amber-400" },
+  pending: { label: "Pending", dot: "bg-gray-300" },
+  na: { label: "Not applicable", dot: "bg-gray-200" },
 };
 
 const STAGE_RANK: Record<Stage, number> = {
@@ -82,17 +82,25 @@ const STAGE_RANK: Record<Stage, number> = {
   na: 4,
 };
 
-function StatusPill({ state }: { state: Stage }) {
+function StatusDot({ state }: { state: Stage }) {
   const s = STATUS[state];
   return (
-    <span
-      className={cn(
-        "inline-flex items-center rounded-md px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide",
-        s.cls,
-      )}
-    >
-      {s.label}
+    <span className="inline-flex items-center" title={s.label}>
+      <span className={cn("h-2.5 w-2.5 rounded-full", s.dot)} />
     </span>
+  );
+}
+
+function Legend() {
+  return (
+    <div className="flex items-center gap-3 text-[10px] text-gray-500">
+      {(["done", "failed", "partial", "pending"] as Stage[]).map((s) => (
+        <span key={s} className="flex items-center gap-1">
+          <span className={cn("h-2 w-2 rounded-full", STATUS[s].dot)} />
+          {STATUS[s].label}
+        </span>
+      ))}
+    </div>
   );
 }
 
@@ -167,7 +175,9 @@ const columns: ColumnDef<EpisodeTableRow>[] = [
     accessorKey: "channel_name",
     header: ({ column }) => <SortHeader label="Channel" column={column} />,
     cell: ({ row }) => (
-      <span className="text-gray-700">{row.getValue("channel_name")}</span>
+      <span className="whitespace-nowrap text-gray-700">
+        {row.getValue("channel_name")}
+      </span>
     ),
   },
   {
@@ -206,19 +216,19 @@ const columns: ColumnDef<EpisodeTableRow>[] = [
   {
     accessorKey: "transcribed",
     header: ({ column }) => <SortHeader label="Transcribed" column={column} />,
-    cell: ({ row }) => <StatusPill state={row.getValue("transcribed") as Stage} />,
+    cell: ({ row }) => <StatusDot state={row.getValue("transcribed") as Stage} />,
     sortingFn: stageSort,
   },
   {
     accessorKey: "classified",
     header: ({ column }) => <SortHeader label="Classified" column={column} />,
-    cell: ({ row }) => <StatusPill state={row.getValue("classified") as Stage} />,
+    cell: ({ row }) => <StatusDot state={row.getValue("classified") as Stage} />,
     sortingFn: stageSort,
   },
   {
     accessorKey: "scored",
     header: ({ column }) => <SortHeader label="Scored" column={column} />,
-    cell: ({ row }) => <StatusPill state={row.getValue("scored") as Stage} />,
+    cell: ({ row }) => <StatusDot state={row.getValue("scored") as Stage} />,
     sortingFn: stageSort,
   },
 ];
@@ -340,10 +350,13 @@ export function EpisodeDataTable({ data }: { data: EpisodeTableRow[] }) {
 
       {/* Pagination */}
       <div className="flex items-center justify-between gap-3 mt-3 text-xs text-gray-500">
-        <span className="tabular-nums">
-          {start.toLocaleString()}–{end.toLocaleString()} of{" "}
-          {totalRows.toLocaleString()}
-        </span>
+        <div className="flex items-center gap-4">
+          <span className="tabular-nums">
+            {start.toLocaleString()}–{end.toLocaleString()} of{" "}
+            {totalRows.toLocaleString()}
+          </span>
+          <Legend />
+        </div>
         <div className="flex items-center gap-2">
           <span className="tabular-nums">
             Page {pageIndex + 1} of {Math.max(1, table.getPageCount())}
