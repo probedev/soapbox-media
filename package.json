@@ -1,6 +1,6 @@
 {
   "name": "soapbox",
-  "version": "0.6.21",
+  "version": "0.6.22",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -13,7 +13,8 @@
     "transcribe": "tsx scripts/transcribe.ts",
     "classify": "tsx scripts/classify.ts",
     "score": "tsx scripts/score.ts",
-    "eval:extract-gold-set": "tsx scripts/extract-gold-set.ts"
+    "eval:extract-gold-set": "tsx scripts/extract-gold-set.ts",
+    "seed:gold-set": "tsx scripts/seed-gold-set.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.27.3",

@@ -153,19 +153,21 @@ const COLUMN_LABELS: Record<string, string> = {
   scored: "Scored",
 };
 
-// Relative column widths. With `table-fixed` + `w-full`, the browser scales
-// these to fill the container exactly — so the table always fits with no
-// horizontal scroll, and the Video column truncates instead of overflowing.
+// Column widths as PERCENTAGES of the table (which is w-full). With
+// `table-fixed`, percentages are relative to the table width, so they always
+// sum to the container — the table never exceeds it and there's no horizontal
+// scroll. (Pixel widths summing > container would force the table wider and
+// scroll — that was the earlier bug.) Long cells truncate instead.
 const COL_WIDTH: Record<string, number> = {
-  political_lean: 58,
-  published_at: 96,
-  channel_name: 150,
-  title: 300,
-  platform: 84,
-  duration_sec: 64,
-  transcribed: 104,
-  classified: 100,
-  scored: 84,
+  political_lean: 6,
+  published_at: 9,
+  channel_name: 14,
+  title: 28,
+  platform: 8,
+  duration_sec: 6,
+  transcribed: 10,
+  classified: 10,
+  scored: 9,
 };
 
 const columns: ColumnDef<EpisodeTableRow>[] = [
@@ -375,7 +377,11 @@ export function EpisodeDataTable({
                   <TableHead
                     key={h.id}
                     className="text-[11px] uppercase tracking-wider"
-                    style={{ width: COL_WIDTH[h.column.id] }}
+                    style={
+                      COL_WIDTH[h.column.id]
+                        ? { width: `${COL_WIDTH[h.column.id]}%` }
+                        : undefined
+                    }
                   >
                     {h.isPlaceholder
                       ? null

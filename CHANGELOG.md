@@ -7,6 +7,32 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
+## v0.6.22 · 2026-05-24
+
+Online gold-set labeling + /log table polish.
+
+### Added
+
+- **Online scoring-calibration tool** (`/eval/label`) to replace the CSV gold
+  set. Multiple independent labelers score the same blinded items (lean-coded
+  source only, no channel name / model score / ids) on sentiment (−5…+5),
+  intensity (1…5), confidence (1–3), + notes — instructions and the three
+  calibration examples are built into the page. Shared link + name to start;
+  forward-only and resumable. New `gold_items` / `gold_labels` tables
+  (migration `20260524000002`), seeded by `npm run seed:gold-set` (same
+  stratified sample as the CSV exporter; model answer frozen per item).
+  Submissions go through a server action on the service-role client — no
+  client-side DB access; the page is `noindex`.
+
+### Fixed
+
+- **/log table no longer scrolls horizontally.** Switched the fixed-layout
+  column widths from pixels (which summed wider than the container and forced
+  a scrollbar) to percentages that sum to 100%, so the table always fits.
+  Long titles/channels truncate with tooltips. Also aligned the page back to
+  the site-standard width, made channel names link to the channel page, and
+  swapped native `title` tooltips for Radix tooltips.
+
 ## v0.6.21 · 2026-05-24
 
 /log cleanup: admin split, shadcn/ui, real data table.
