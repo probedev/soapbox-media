@@ -7,6 +7,20 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
+## v0.6.28 · 2026-05-25
+
+### Changed
+
+- **"Biggest movers" now requires a minimum sample.** An issue must have at
+  least `MOVER_MIN_MENTIONS` (25) classifications in *both* the current and
+  prior 7-day window to qualify as a mover. Previously a quiet week could
+  produce a large, noisy lean swing and headline the card on a thin sample
+  (e.g. an 18-mention week outranking a 400-mention one). The swing is only
+  trustworthy once each side of the comparison has enough rows behind it.
+  Verified against live data: the change correctly drops a thin-week issue and
+  promotes a large-sample swing to #1. Mention counts on the issue drill-down
+  (30-day window) were spot-checked against the DB and match exactly.
+
 ## v0.6.27 · 2026-05-25
 
 Housekeeping: finish the v0.6.26 dead-code removal and track the dev guide.

@@ -178,6 +178,15 @@ async function fetchScoreRows(): Promise<ScoreRow[]> {
 }
 
 /**
+ * Minimum mentions an issue needs in BOTH the current and prior window to be
+ * eligible as a "biggest mover". Without this, a quiet week (few mentions) can
+ * produce a large, noisy lean swing and grab the headline on a thin sample —
+ * e.g. an 18-mention week outranking a 400-mention one. The lean swing is only
+ * trustworthy once each side of the comparison has enough rows behind it.
+ */
+const MOVER_MIN_MENTIONS = 25;
+
+/**
  * Returns dashboard data using a trailing N-day rolling window (default 7).
  * Updated by the daily cron, so the number is always the most recent week's
  * worth of content but stable enough not to whipsaw with each new episode.
@@ -311,7 +320,14 @@ export async function getDashboardData(windowDays = 7): Promise<DashboardData> {
     }
     for (const issue of issueAggregates) {
       const prs = prevByIssue.get(issue.slug) || [];
-      if (prs.length === 0) continue;
+      // Require enough mentions on BOTH sides of the comparison; a thin window
+      // makes the lean swing too noisy to headline. (issue.numClassifications
+      // is the current-window count; prs.length is the prior-window count.)
+      if (
+        issue.numClassifications < MOVER_MIN_MENTIONS ||
+        prs.length < MOVER_MIN_MENTIONS
+      )
+        continue;
       const fromLean = clamp(weightedLean(prs).lean * 2, -10, 10);
       movers.push({
         slug: issue.slug,
