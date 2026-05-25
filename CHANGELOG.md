@@ -7,6 +7,18 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
+## v0.6.36 · 2026-05-25
+
+### Changed
+
+- **Methodology page de-hyped toward a lab-notebook voice.** Rewrote the intro
+  from marketing framing ("the way you'd want it measured", "source of truth")
+  to a factual statement of what the page documents; softened "hand-curated" →
+  "curated". The rigorous middle (formulas, channel-skew honesty, known
+  limitations) and the bottom "Why this exists" mission section are unchanged —
+  the goal was to keep hype away from the method. Per reader feedback that the
+  page mixed marketing jargon with the actual methodology.
+
 ## v0.6.35 · 2026-05-25
 
 User-feedback clarity pass on two charts (methodology rewrite tracked separately).

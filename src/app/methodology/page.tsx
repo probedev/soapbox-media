@@ -11,16 +11,15 @@ export default function MethodologyPage() {
       <section className="px-6 pt-10 pb-16 max-w-3xl mx-auto">
         <h1 className="text-3xl md:text-4xl font-semibold tracking-tight">Methodology</h1>
         <p className="text-gray-600 mt-3 leading-relaxed">
-          Soapbox measures alt-media political discourse the way you&apos;d want it measured: with
-          the math, the channel list, and the limitations all visible. This page is the source of
-          truth for how every number on the site is computed. The full pipeline runs nightly via
-          scheduled cron, so every figure on the site reflects the most recent 24 hours of ingested
-          content.
+          This page documents exactly how every number on Soapbox is computed — the data sources,
+          the math, the channel list, and the known limitations. If a figure appears on the site,
+          its derivation is here. The pipeline runs once daily, so every figure reflects the
+          content ingested as of the most recent run.
         </p>
 
         <h2 className="text-xl font-semibold mt-12">What we measure</h2>
         <p className="text-gray-700 mt-3 leading-relaxed">
-          We track a hand-curated set of high-reach alternative-media political channels
+          We track a curated set of high-reach alternative-media political channels
           (podcasts and YouTube shows) and analyze what they&apos;re saying about a defined set of
           political issues. We classify each substantive issue mention, then score it on alignment
           with the left or right position and the intensity of expression.
