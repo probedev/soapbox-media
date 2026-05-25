@@ -12,7 +12,8 @@ import {
   useReactTable,
 } from "@tanstack/react-table";
 import {
-  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
   ChevronLeft,
   ChevronRight,
   ExternalLink,
@@ -123,15 +124,20 @@ function SortHeader({
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   column: any;
 }) {
+  const sorted = column.getIsSorted();
   return (
     <Button
       variant="ghost"
       size="sm"
-      className="-ml-1 h-8 px-1 text-[11px] uppercase tracking-wider font-medium text-muted-foreground hover:text-foreground"
-      onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+      className="h-8 px-1 text-[11px] uppercase tracking-wider font-medium text-muted-foreground hover:text-foreground"
+      onClick={() => column.toggleSorting(sorted === "asc")}
     >
       {label}
-      <ArrowUpDown className="ml-1 h-3 w-3 shrink-0" />
+      {sorted === "asc" ? (
+        <ArrowUp className="ml-1 h-3 w-3 shrink-0" />
+      ) : sorted === "desc" ? (
+        <ArrowDown className="ml-1 h-3 w-3 shrink-0" />
+      ) : null}
     </Button>
   );
 }
@@ -376,7 +382,7 @@ export function EpisodeDataTable({
                 {hg.headers.map((h) => (
                   <TableHead
                     key={h.id}
-                    className="text-[11px] uppercase tracking-wider"
+                    className="text-[11px] uppercase tracking-wider overflow-hidden"
                     style={
                       COL_WIDTH[h.column.id]
                         ? { width: `${COL_WIDTH[h.column.id]}%` }

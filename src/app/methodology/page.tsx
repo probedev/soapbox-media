@@ -69,11 +69,12 @@ export default function MethodologyPage() {
 
         <h2 className="text-xl font-semibold mt-12">Issue taxonomy</h2>
         <p className="text-gray-700 mt-3 leading-relaxed">
-          A v0 set of 15 issues: Immigration, Inflation, Israel-Gaza, Ukraine, China policy,
+          A set of 16 issues: Immigration, Inflation, Israel–Gaza, Ukraine, China policy,
           Trump/GOP, Democratic leadership, Transgender/LGBTQ policy, Crime, Election integrity, AI
-          policy, Free speech, Education/DEI, Abortion, Climate. For each issue we declare a
-          left-leaning and right-leaning position; the sentiment score on every classification is
-          measured against those positions, not against US-political stereotypes.
+          policy, Free speech, Education/DEI, Abortion, Climate, and the Iran conflict. For each
+          issue we declare a left-leaning and right-leaning position; the sentiment score on every
+          classification is measured against those positions, not against US-political stereotypes.
+          The taxonomy expands as new themes become dominant in the discourse.
         </p>
 
         <h2 className="text-xl font-semibold mt-12">Classification and scoring</h2>
@@ -97,9 +98,10 @@ export default function MethodologyPage() {
         <h2 className="text-xl font-semibold mt-12">Known limitations</h2>
         <ul className="list-disc pl-6 mt-3 space-y-2 text-gray-700 leading-relaxed">
           <li>
-            <strong>Transcript coverage</strong>: some channels (notably Bannon&apos;s War Room)
-            aren&apos;t transcribed by our podcast provider; we have their metadata but can&apos;t
-            score them yet. These appear in channel listings but contribute no Soapbox Score.
+            <strong>Transcript coverage</strong>: a small fraction of episodes can&apos;t be
+            transcribed — a podcast feed without a published transcript, or a video without
+            captions. Those episodes are still ingested and listed but contribute no Soapbox Score
+            until a transcript becomes available.
           </li>
           <li>
             <strong>Short-form content</strong>: YouTube Shorts (under 3 minutes) are filtered
@@ -108,9 +110,11 @@ export default function MethodologyPage() {
             primarily clips. Their podcast feeds, where available, fill the gap.
           </li>
           <li>
-            <strong>Classifier noise</strong>: individual sentiment scores are accurate around
-            85-90% directionally. At aggregate level (per issue, per week, per channel) this washes
-            out. Don&apos;t over-interpret a single quote&apos;s score.
+            <strong>Scoring is model-produced and being calibrated</strong>: sentiment and
+            intensity are assigned by a language model, so individual scores carry noise and the
+            model can lean on the extremes of the scale. We&apos;re actively validating and
+            calibrating it against independent human labels. Read the aggregates (per issue, per
+            week, per channel), not any single quote&apos;s score.
           </li>
           <li>
             <strong>Latency</strong>: podcast transcripts arrive ~hours to days after publish,

@@ -1,11 +1,11 @@
 # Soapbox Architecture
 
-**Document version**: v0.5.0
-**Last updated**: 2026-05-12
+**Document version**: v0.6.26
+**Last updated**: 2026-05-25
 
-This is the live source-of-truth for how soapbox.media is built. It's
-maintained on every non-trivial commit; anything material that changes
-in the system should be reflected here in the same PR.
+High-level source-of-truth for how soapbox.media is built. For the
+authoritative, blow-by-blow evolution see `CHANGELOG.md`; this doc captures
+the current shape of the system.
 
 ---
 
@@ -23,6 +23,26 @@ right now"); the page beneath the headline shows every step of the math.
 
 ---
 
+## Subsystems added since v0.5 (see CHANGELOG for detail)
+
+- **Transcripts via Supadata** (v0.6.14) — managed YouTube-caption API,
+  replacing the unmaintained scraper.
+- **Operational surfaces** — `usage_log` fed by each cron run; `/admin`
+  (Basic-Auth) with pipeline-health, cost, and channel-audit views + shared
+  admin nav.
+- **Public transparency** — `/log` rebuilt as a shadcn/TanStack data table of
+  every episode's pipeline progress, backed by the `episode_pipeline_summary`
+  view; system-scale stats; a home-page Recharts trend chart.
+- **Scoring integrity** — `UNIQUE(classification_id)` on `sentiment_scores`
+  + idempotent upsert; classify dedup paginated via `.range()`.
+- **Human calibration** — `gold_items` / `gold_labels` tables + the
+  `/eval/label` online tool for multi-rater gold-set scoring.
+- **Infra correctness** — Supabase client forces `cache: "no-store"`
+  (Next.js fetch caching was freezing server reads); Vercel
+  `SUPABASE_SERVICE_ROLE_KEY` corrected to a true service-role key.
+
+---
+
 ## Pipeline diagram
 
 ```
@@ -33,7 +53,7 @@ right now"); the page beneath the headline shows every step of the math.
                                                               ▼
               PodScan transcripts (inline) ─┐
                                             ├──> [transcribe module] ──> transcripts table
-              youtube-transcript scrape ────┘
+              Supadata API (YT captions) ───┘
                                                               │
                                                               ▼
                           Claude Sonnet 4.6 ──> [classify module] ──> classifications table
@@ -61,13 +81,13 @@ work that wasn't completed in prior runs.
 |---|---|---|
 | Framework | Next.js 14 (app router) + TypeScript | Server components throughout |
 | Hosting | Vercel | Pro plan required for cron's 300s function timeout |
-| UI | Tailwind + lucide-react icons + Geist sans (via `geist` package) | No shadcn primitives yet — added if/when needed |
-| DB | Supabase Postgres | RLS off; service-role client used server-side |
+| UI | Tailwind + shadcn/ui + lucide-react + Geist sans | shadcn adopted in v0.6.21 (`src/components/ui/`); TanStack Table + Recharts for the data table and charts |
+| DB | Supabase Postgres | RLS **enabled on all tables with no policies** → only the service-role key can read/write; the app is server-side only. The Supabase client forces `cache: "no-store"` (Next.js caches `fetch` by default). |
 | Cron | Vercel Cron (`vercel.json`) | Daily at 10:00 UTC; auth via `CRON_SECRET` |
 | LLM classify | Claude Sonnet 4.6 | One call per transcript, JSON-array output |
 | LLM score | Claude Haiku 4.5 | One call per classification, JSON-object output |
 | Podcast transcripts | PodScan.fm | Transcripts arrive inline with episode metadata |
-| YouTube transcripts | youtube-transcript npm pkg | Scrapes YT's internal caption endpoint |
+| YouTube transcripts | Supadata managed API | Replaced the unmaintained `youtube-transcript` scraper in v0.6.14; native-caption mode, ~30k credits/mo plan |
 | Channel discovery | RSS (podcasts) + YouTube Data API v3 (videos) | |
 | Analytics | (planned) PostHog | Env vars wired; not yet active |
 | Scripts | tsx + dotenv | CLI runners under `scripts/` use the same lib code as the cron endpoint |
@@ -160,7 +180,11 @@ sentiment_scores
   ├─ sentiment numeric(3,1)    (-5..+5; negative = L-aligned)
   ├─ intensity numeric(3,1)    (1..5)
   ├─ supporting_quote, model, model_version
-  └─ created_at
+  ├─ created_at
+  └─ unique (classification_id)   ← one score per classification (v0.6.20)
+
+plus: usage_log (cron run history), gold_items + gold_labels (calibration),
+and the episode_pipeline_summary view (per-episode classify/score counts).
 
 weekly_index
   └─ (reserved; not yet populated — aggregation currently computed on read)
@@ -190,9 +214,11 @@ here — needs periodic re-fetch (vNext).
 
 For each episode with `transcript_status = 'pending'`:
 
-- **YouTube** — extracts video ID from `source_url`, calls
-  `youtube-transcript`, writes to transcripts table and flips status to
-  `'fetched'`. Fails to `'failed'` if no captions available.
+- **YouTube** — resolves the channel platform via an id→platform map (not a
+  PostgREST embed — the embed proved unreliable in the Vercel runtime),
+  extracts the video ID, calls Supadata's transcript API, writes to
+  transcripts and flips status to `'fetched'`. Fails to `'failed'` if no
+  captions are available.
 - **Podcast pending** — shouldn't happen often (ingest writes transcripts
   inline). When it does, marks `'failed'`; PodScan didn't have it ready.
 
@@ -207,9 +233,10 @@ For each transcript whose episode lacks any classifications:
   filters to valid issue_slugs (defends against hallucination).
 - Inserts mentions into `classifications` table.
 
-Conservative batch: `CLASSIFY_LIMIT = 2` per cron run to fit in the 300s
-function timeout. Backfill of large datasets uses the CLI script
-(`npm run classify -- 200`) without timeout constraints.
+Batch: `CLASSIFY_LIMIT = 15` per cron run to fit the 300s function timeout.
+The "already classified" diff paginates via `.range()` (a `.limit(50000)`
+silently caps at the project's 1000 Max Rows — this caused a re-classification
+runaway, fixed in v0.6.16). Large backfills use the CLI (`npm run classify -- 500`).
 
 ### 4. Score (`runScore`)
 
@@ -218,9 +245,12 @@ For each classification without a `sentiment_scores` row:
 - Loads classification + its issue's L/R positions + channel metadata.
 - Calls Claude Haiku 4.5 with the quote + L/R context.
 - Returns JSON object `{sentiment: -5..+5, intensity: 1..5}`.
-- Inserts to `sentiment_scores` table.
+- **Upserts** to `sentiment_scores` with `onConflict: classification_id`
+  (`ignoreDuplicates`). A `UNIQUE(classification_id)` constraint makes
+  overlapping runs (CLI + cron) idempotent — without it, concurrent runs
+  created duplicate scores (fixed in v0.6.20).
 
-Conservative batch: `SCORE_LIMIT = 30` per cron run. ~$0.0006 per row.
+Batch: `SCORE_LIMIT = 80` per cron run.
 
 ### 5. Aggregate (`src/lib/aggregate.ts`)
 
@@ -262,7 +292,7 @@ default 1000-row response cap.
 | Anthropic API | classify + score LLM calls | tokens; ~$10/mo at current cron cadence | $50/mo cap on key (planned bump to $150) |
 | PodScan.fm | podcast metadata + transcripts | per-call; we pay flat plan | plan-dependent |
 | YouTube Data API v3 | channel discovery + recent uploads + durations | quota units; ~50/day at cron cadence | 10,000 units/day free |
-| youtube-transcript | YT caption scrape | free; scrapes public endpoint | rate-limit risk on heavy fan-out |
+| Supadata | YouTube transcript fetch | 1 credit / request | ~30k credits/mo plan |
 | Supabase | Postgres + auth + storage | tiered by row count + transfer | free tier covers MVP |
 | Vercel | hosting + cron | Pro plan for 300s function timeout | $20/mo |
 
@@ -296,18 +326,24 @@ with a `usage_log` table fed by each cron run.
    automatically detected. Iran-conflict was the smoking gun on
    launch day. Designed solution: an "off-taxonomy" output channel
    in classify + embedding clustering (vNext, v0.6+).
-3. **Bannon's War Room not transcribed** — PodScan catalogs but doesn't
-   transcribe. We have metadata only.
-4. **Classifier directional accuracy** — ~85-90% per row. Aggregates
-   wash out noise; individual quotes can be miscategorized.
-5. **No admin tooling** — channel adds/removes via CLI scripts only
-   (vNext, v0.6).
+3. **Zero-mention episodes aren't marked done** — an episode that classifies
+   to no taxonomy matches gets no classification row, so it's re-scanned on
+   every classify run (minor cron cost, never converges to "nothing to do").
+   Fix is an episode-level `classified_at` flag (planned).
+4. **Scoring calibration in progress** — sentiment is bimodal: the model
+   over-uses the ends of the −5..+5 scale and barely touches ±1/±2. Being
+   validated and calibrated against an independent human gold set
+   (`/eval/label`, `gold_items` / `gold_labels`).
+5. **Channel curation is still CLI-only** — no admin UI to add/remove
+   channels yet. `/admin` (HTTP Basic Auth) does provide read-only pipeline
+   health, cost, and channel-audit views.
 6. **No PostHog** — env vars wired, but no events firing yet.
 7. **No error monitoring** — only Vercel function logs.
 8. **No mobile-specific QA** — pages are responsive but not specifically
    tested on narrow viewports.
-9. **Aggregation is computed on read** — fast enough at ~1.3k rows;
-   will need materialized views as data grows.
+9. **Aggregation is computed on read** — fine at ~8k score rows. The
+   `episode_pipeline_summary` view offloads the /log table's per-episode
+   counts to Postgres; broader materialized views may come as data grows.
 
 ---
 

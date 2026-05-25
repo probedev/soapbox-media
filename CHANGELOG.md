@@ -7,6 +7,40 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
+## v0.6.26 · 2026-05-25
+
+Pre-beta audit: stale content, dead code, docs.
+
+### Changed
+
+- **Activity is back in the top nav** (it was footer-only) now that /log is a
+  real surface.
+- **Methodology page refreshed**: removed the stale Bannon transcript-coverage
+  limitation; corrected "15 issues" → 16 (incl. the Iran conflict); replaced
+  the unvalidated "85–90% accurate" claim with an honest note that scoring is
+  model-produced and being calibrated against an independent human gold set.
+- **ARCHITECTURE.md + README** brought current: Supadata (not the old
+  scraper), RLS-on/no-policies + service-role + no-store fetch, shadcn/TanStack
+  UI, real cron batch limits, the `UNIQUE(classification_id)` constraint,
+  `episode_pipeline_summary` view, gold-set tables, and the `/admin` surfaces.
+
+### Removed
+
+- **Dead code**: `IndexSparkline` (replaced by `IndexAreaChart`) and
+  `EpisodeList` (replaced by `EpisodeDataTable`), plus the now-unused
+  `getRecentEpisodes` / `getEpisodesForChannel` / `attachPipeline` helpers in
+  `episodes.ts`. (The two component files are emptied here; `git rm` them.)
+
+## v0.6.25 · 2026-05-25
+
+### Fixed
+
+- **/log header sort-arrows overflowing.** A constant sort arrow on every
+  column header spilled into the neighbouring header on tight columns. The
+  arrow now appears only on the actively-sorted column (standard data-table
+  pattern), with `overflow-hidden` on the header cells as a safety. Headers
+  fit cleanly.
+
 ## v0.6.24 · 2026-05-25
 
 Home-page trend chart + /log header fix.

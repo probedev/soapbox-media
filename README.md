@@ -6,7 +6,16 @@ See [`../PRD.md`](../PRD.md) for the product spec.
 
 ## Status
 
-**Day 1 (2026-05-11)** — scaffold + placeholder dashboard. The Soapbox Index needle renders against placeholder data; live pipeline ships by Friday 2026-05-15.
+**Live** at [soapbox.media](https://www.soapbox.media). The full pipeline
+(ingest → transcribe → classify → score) runs autonomously via a daily Vercel
+cron and the site renders real data: the Soapbox Index + trend chart, issue
+and channel drill-downs, a public activity log, and a gold-set calibration
+tool at `/eval/label`.
+
+For the current system design see [`ARCHITECTURE.md`](ARCHITECTURE.md); for the
+release-by-release history see [`CHANGELOG.md`](CHANGELOG.md). The Day-1 setup
+checklist below is retained for historical/onboarding reference — those steps
+are long done.
 
 ## Quickstart
 

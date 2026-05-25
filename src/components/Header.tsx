@@ -1,7 +1,7 @@
 import Image from "next/image";
 import logoCrate from "@/assets/logo-crate.png";
 
-type ActivePage = "issues" | "channels" | "methodology" | null;
+type ActivePage = "issues" | "channels" | "activity" | "methodology" | null;
 
 interface HeaderProps {
   /** When set, that nav link gets the bolded/active treatment */
@@ -10,9 +10,7 @@ interface HeaderProps {
 
 /**
  * Shared site header used on every page. Centralizes the nav so adding a
- * new route only requires a single edit. /log lives in the footer rather
- * than the top nav — it's a transparency surface, not a primary user
- * destination.
+ * new route only requires a single edit.
  */
 export function Header({ activePage = null }: HeaderProps) {
   const linkClass = (page: Exclude<ActivePage, null>) =>
@@ -42,6 +40,7 @@ export function Header({ activePage = null }: HeaderProps) {
         <nav className="text-sm text-gray-600 flex gap-6">
           <a href="/issues" className={linkClass("issues")}>Issues</a>
           <a href="/channels" className={linkClass("channels")}>Channels</a>
+          <a href="/log" className={linkClass("activity")}>Activity</a>
           <a href="/methodology" className={linkClass("methodology")}>Methodology</a>
         </nav>
       </div>
