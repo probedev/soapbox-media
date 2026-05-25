@@ -7,6 +7,15 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
+## v0.6.31 · 2026-05-25
+
+### Changed
+
+- **/log table polish.** Status legend moved from the pagination footer to
+  above the table (right-aligned), so it's visible before scrolling. Date
+  column now numeric (`MM/DD/YYYY`) instead of spelled-out month. Both changes
+  also apply to the "Recent episodes" table on channel pages (shared component).
+
 ## v0.6.30 · 2026-05-25
 
 ### Added

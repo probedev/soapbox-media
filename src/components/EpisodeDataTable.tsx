@@ -52,9 +52,9 @@ import {
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
     year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
   });
 }
 
@@ -373,6 +373,11 @@ export function EpisodeDataTable({
         </DropdownMenu>
       </div>
 
+      {/* Status legend — above the table */}
+      <div className="flex justify-end mb-2">
+        <Legend />
+      </div>
+
       {/* Table */}
       <div className="rounded-lg border border-gray-200 bg-white">
         <Table className="table-fixed">
@@ -426,7 +431,6 @@ export function EpisodeDataTable({
             {start.toLocaleString()}–{end.toLocaleString()} of{" "}
             {totalRows.toLocaleString()}
           </span>
-          <Legend />
         </div>
         <div className="flex items-center gap-2">
           <span className="tabular-nums">
