@@ -115,6 +115,37 @@ function weekStartIso(iso: string): string {
   return d.toISOString().slice(0, 10);
 }
 
+/**
+ * Rolling lean trend for a row subset: one point per day for the last `points`
+ * days, each the trailing `windowDays`-day weighted lean normalized to −10..+10.
+ * Days with no rows are skipped. Same shape the home-page sparkline uses, so it
+ * feeds <IndexAreaChart> directly. Scope the `rows` to a single issue or channel
+ * before calling to get that entity's trend.
+ */
+function rollingLeanTrend(
+  rows: ScoreRow[],
+  now: Date,
+  windowDays = 7,
+  points = 30,
+): { values: number[]; dates: string[] } {
+  const values: number[] = [];
+  const dates: string[] = [];
+  for (let daysAgo = points - 1; daysAgo >= 0; daysAgo--) {
+    const windowEnd = new Date(now);
+    windowEnd.setUTCDate(windowEnd.getUTCDate() - daysAgo);
+    const windowStart = new Date(windowEnd);
+    windowStart.setUTCDate(windowStart.getUTCDate() - windowDays);
+    const wRows = rows.filter((r) => {
+      const d = new Date(r.episode_published_at);
+      return d >= windowStart && d < windowEnd;
+    });
+    if (wRows.length === 0) continue;
+    values.push(clamp(weightedLean(wRows).lean * 2, -10, 10));
+    dates.push(windowEnd.toISOString().slice(0, 10));
+  }
+  return { values, dates };
+}
+
 async function fetchScoreRows(): Promise<ScoreRow[]> {
   const db = createServiceClient();
   const all: ScoreRow[] = [];
@@ -598,6 +629,8 @@ export interface IssueDrillDown {
   channels: ChannelOnIssue[];
   numEpisodes: number;
   numClassifications: number;
+  /** Rolling lean trend for <IndexAreaChart> (oldest first). */
+  trend: { values: number[]; dates: string[] };
 }
 
 export async function getIssueDrillDown(slug: string): Promise<IssueDrillDown | null> {
@@ -642,6 +675,13 @@ export async function getIssueDrillDown(slug: string): Promise<IssueDrillDown | 
 
   const overall = clamp(weightedLean(issueRows).lean * 2, -10, 10);
 
+  // Trend uses all rows for this issue (the helper itself windows to the last
+  // ~37 days), independent of the 30-day leaderboard slice above.
+  const trend = rollingLeanTrend(
+    rows.filter((r) => r.issue_slug === slug),
+    new Date(),
+  );
+
   return {
     slug: issue.slug,
     name: issue.name,
@@ -652,6 +692,7 @@ export async function getIssueDrillDown(slug: string): Promise<IssueDrillDown | 
     channels,
     numEpisodes: new Set(issueRows.map((r) => r.episode_id)).size,
     numClassifications: issueRows.length,
+    trend,
   };
 }
 
@@ -675,6 +716,8 @@ export interface ChannelDrillDown {
   issues: IssueOnChannel[];
   numEpisodes: number;
   numClassifications: number;
+  /** Rolling net-lean trend for <IndexAreaChart> (oldest first). */
+  trend: { values: number[]; dates: string[] };
 }
 
 export async function getChannelDrillDown(channelId: string): Promise<ChannelDrillDown | null> {
@@ -716,6 +759,12 @@ export async function getChannelDrillDown(channelId: string): Promise<ChannelDri
 
   const netLean = clamp(weightedLean(channelRows).lean * 2, -10, 10);
 
+  // Net-lean trend across all this channel's issues (helper windows to ~37d).
+  const trend = rollingLeanTrend(
+    rows.filter((r) => r.channel_id === channelId),
+    new Date(),
+  );
+
   return {
     channel_id: channel.id,
     channel_name: channel.name,
@@ -725,5 +774,6 @@ export async function getChannelDrillDown(channelId: string): Promise<ChannelDri
     issues,
     numEpisodes: new Set(channelRows.map((r) => r.episode_id)).size,
     numClassifications: channelRows.length,
+    trend,
   };
 }

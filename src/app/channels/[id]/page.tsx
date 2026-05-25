@@ -3,6 +3,7 @@ import { getChannelExternalUrl } from "@/lib/channelLinks";
 import { createServiceClient } from "@/lib/db";
 import { Footer } from "@/components/Footer";
 import { Header } from "@/components/Header";
+import { IndexAreaChart } from "@/components/IndexAreaChart";
 import { EpisodeDataTable } from "@/components/EpisodeDataTable";
 import { getEpisodeTableRows } from "@/lib/episodes";
 import { notFound } from "next/navigation";
@@ -120,6 +121,15 @@ export default async function ChannelPage({
               style={{ left: `${markerPct}%`, transform: "translate(-50%, -50%)" }}
             />
           </div>
+
+          {data.trend.values.length >= 2 && (
+            <div className="mt-6 pt-6 border-t border-gray-100">
+              <div className="text-xs uppercase tracking-wider text-gray-500 mb-3">
+                How this channel has trended
+              </div>
+              <IndexAreaChart values={data.trend.values} dates={data.trend.dates} />
+            </div>
+          )}
         </div>
       </section>
 

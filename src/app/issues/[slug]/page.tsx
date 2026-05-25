@@ -1,6 +1,7 @@
 import { getIssueDrillDown } from "@/lib/aggregate";
 import { Footer } from "@/components/Footer";
 import { Header } from "@/components/Header";
+import { IndexAreaChart } from "@/components/IndexAreaChart";
 import { notFound } from "next/navigation";
 
 export const dynamic = "force-dynamic";
@@ -73,6 +74,16 @@ export default async function IssuePage({
             </div>
           </div>
         </div>
+
+        {/* Trend */}
+        {data.trend.values.length >= 2 && (
+          <div className="mt-6 border border-gray-200 rounded-lg p-6 bg-white">
+            <div className="text-xs uppercase tracking-wider text-gray-500 mb-3">
+              How this issue has trended
+            </div>
+            <IndexAreaChart values={data.trend.values} dates={data.trend.dates} />
+          </div>
+        )}
 
         {/* L/R positions */}
         <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-3">

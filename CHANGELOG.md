@@ -7,6 +7,19 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
+## v0.6.30 · 2026-05-25
+
+### Added
+
+- **Trend charts on issue and channel pages.** The home-page `IndexAreaChart`
+  (Recharts/shadcn) now also appears on `/issues/[slug]` ("How this issue has
+  trended") and `/channels/[id]` ("How this channel has trended"), showing the
+  entity's rolling lean over the last 30 days. New reusable
+  `rollingLeanTrend()` helper in `aggregate.ts` (same daily-rolling, trailing
+  7-day-window logic as the home sparkline, scoped to a single issue/channel);
+  `getIssueDrillDown` / `getChannelDrillDown` now return a `trend` series. The
+  chart is hidden when there are fewer than 2 points.
+
 ## v0.6.29 · 2026-05-25
 
 ### Fixed
