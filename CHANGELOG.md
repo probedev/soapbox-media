@@ -7,6 +7,15 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
+## v0.6.33 · 2026-05-25
+
+### Fixed
+
+- **Header on mobile + logo alignment.** The nav row didn't wrap, so on narrow
+  screens it overflowed and overlapped the wordmark. The header now wraps
+  (nav drops below the logo on mobile) with a tighter mobile gap. Also nudged
+  the wordmark up 1px so it sits centered against the crate icon.
+
 ## v0.6.32 · 2026-05-25
 
 ### Fixed

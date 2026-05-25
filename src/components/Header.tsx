@@ -20,7 +20,7 @@ export function Header({ activePage = null }: HeaderProps) {
 
   return (
     <header className="border-b border-gray-200 bg-white">
-      <div className="max-w-5xl mx-auto px-6 py-4 flex items-center justify-between">
+      <div className="max-w-5xl mx-auto px-6 py-4 flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
         <a href="/" className="flex items-center gap-2" aria-label="Soapbox home">
           <Image
             src={logoCrate}
@@ -32,12 +32,12 @@ export function Header({ activePage = null }: HeaderProps) {
             className="w-7 h-7 object-contain select-none"
             draggable={false}
           />
-          <span className="font-black text-2xl tracking-tight leading-none">
+          <span className="font-black text-2xl tracking-tight leading-none relative -top-px">
             <span className="text-[#C8202F]">soap</span>
             <span className="text-[#114A8A]">box</span>
           </span>
         </a>
-        <nav className="text-sm text-gray-600 flex gap-6">
+        <nav className="text-sm text-gray-600 flex flex-wrap gap-4 sm:gap-6">
           <a href="/issues" className={linkClass("issues")}>Issues</a>
           <a href="/channels" className={linkClass("channels")}>Channels</a>
           <a href="/log" className={linkClass("activity")}>Activity</a>
