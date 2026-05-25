@@ -7,6 +7,22 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
+## v0.6.27 · 2026-05-25
+
+Housekeeping: finish the v0.6.26 dead-code removal and track the dev guide.
+
+### Removed
+
+- **`IndexSparkline.tsx` and `EpisodeList.tsx`** — v0.6.26 emptied these to
+  stubs but never `git rm`'d them. Nothing imports either; deleting the files
+  completes that release's intent.
+
+### Added
+
+- **`CLAUDE.md`** is now tracked in the repo — the working guide for Claude
+  Code (commands, release ritual, guardrails, infra facts). Previously
+  untracked/local-only.
+
 ## v0.6.26 · 2026-05-25
 
 Pre-beta audit: stale content, dead code, docs.
