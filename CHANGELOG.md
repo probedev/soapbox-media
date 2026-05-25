@@ -7,6 +7,23 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
+## v0.6.35 · 2026-05-25
+
+User-feedback clarity pass on two charts (methodology rewrite tracked separately).
+
+### Changed
+
+- **Biggest Movers redesign.** Added column sub-headings (Issue · Last week ·
+  This week · Change). Replaced the ambiguous ↑/↓ delta with a neutral ←/→
+  arrow showing direction of movement on the left–right axis, decoupled from
+  position (which keeps its L/R color). Added a one-line decoder so it's clear
+  an issue can move right yet still sit in left territory. Per user feedback
+  that the chart was hard to decipher.
+- **Index contributions chart caption rewritten in plain language.** Removed
+  the inline `Σ(...)` formula (now linked to Methodology) and clearly
+  distinguishes the bar ("how much the issue moved the Index") from the number
+  ("average lean"), since a reader found the old wording opaque.
+
 ## v0.6.34 · 2026-05-25
 
 ### Fixed

@@ -26,42 +26,52 @@ function leanColor(v: number): string {
 }
 
 export function BiggestMovers({ movers }: BiggestMoversProps) {
+  // Shared column template so the header labels line up with the row values.
+  // Mobile drops the "Last week" column; sm+ shows all four.
+  const cols =
+    "grid grid-cols-[minmax(0,1fr)_4.5rem_5rem] sm:grid-cols-[minmax(0,1fr)_5rem_5rem_5rem] gap-x-3";
+
   return (
     <div>
-      <div className="flex items-baseline justify-between mb-4">
-        <h2 className="text-lg font-semibold">Biggest movers this week</h2>
-        <span className="text-xs text-gray-500">Δ from last week</span>
-      </div>
+      <h2 className="text-lg font-semibold mb-4">Biggest movers this week</h2>
       <div className="border border-gray-200 rounded-lg divide-y divide-gray-200">
+        {/* Column sub-headings */}
+        <div className={`${cols} px-4 py-2 text-[10px] uppercase tracking-wider text-gray-400`}>
+          <div>Issue</div>
+          <div className="text-right hidden sm:block">Last week</div>
+          <div className="text-right">This week</div>
+          <div className="text-right">Change</div>
+        </div>
         {movers.map((m) => {
           const movedRight = m.delta > 0;
           return (
             <a
               key={m.slug}
               href={`/issues/${m.slug}`}
-              className="flex items-center justify-between gap-3 px-4 py-3 hover:bg-gray-50 transition"
+              className={`${cols} items-center px-4 py-3 hover:bg-gray-50 transition`}
             >
-              <div className="font-medium text-gray-900">{m.name}</div>
-              <div className="flex items-center gap-3 text-sm tabular-nums">
-                <span className={`${leanColor(m.fromLean)} hidden sm:inline`}>
-                  {formatLean(m.fromLean)}
-                </span>
-                <span className="text-gray-400 hidden sm:inline">→</span>
-                <span className={`font-semibold ${leanColor(m.toLean)}`}>
-                  {formatLean(m.toLean)}
-                </span>
-                <span
-                  className={`font-semibold ${
-                    movedRight ? "text-red-600" : "text-blue-600"
-                  } min-w-[3.25rem] text-right`}
-                >
-                  {movedRight ? "↑" : "↓"} {Math.abs(m.delta).toFixed(1)}
-                </span>
+              <div className="font-medium text-gray-900 truncate">{m.name}</div>
+              <div className={`text-right text-sm tabular-nums hidden sm:block ${leanColor(m.fromLean)}`}>
+                {formatLean(m.fromLean)}
+              </div>
+              <div className={`text-right text-sm tabular-nums font-semibold ${leanColor(m.toLean)}`}>
+                {formatLean(m.toLean)}
+              </div>
+              {/* Neutral arrow = direction of movement on the L↔R axis,
+                  decoupled from where the issue currently sits. */}
+              <div className="text-right text-sm tabular-nums text-gray-500 whitespace-nowrap">
+                {movedRight ? "→" : "←"} {Math.abs(m.delta).toFixed(1)}
               </div>
             </a>
           );
         })}
       </div>
+      <p className="text-xs text-gray-500 mt-3 leading-relaxed">
+        Arrows show the direction of movement on the left–right axis; the colored
+        value is where the issue sits now. An issue can move{" "}
+        <span className="text-red-600">right</span> (→) yet still be in{" "}
+        <span className="text-blue-600">left</span> territory.
+      </p>
     </div>
   );
 }

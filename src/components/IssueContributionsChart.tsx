@@ -146,12 +146,13 @@ export async function IssueContributionsChart({
       </div>
 
       <p className="text-xs text-gray-500 mt-4 leading-relaxed">
-        Each row shows that issue&apos;s net push on the Soapbox Index over the last {windowDays}{" "}
-        days. Bar length is proportional to{" "}
-        <code className="text-gray-700">Σ (sentiment × intensity × log10(reach))</code> across all
-        classifications of that issue. The labeled number is the issue&apos;s{" "}
-        <em>average sentiment</em>, not the contribution magnitude. A smaller-volume issue with
-        strong sentiment can have a smaller bar than a larger-volume issue with weaker sentiment.
+        Each bar shows <strong className="font-semibold text-gray-700">how much that issue moved
+        the Soapbox Index</strong> over the last {windowDays} days — longer means a bigger push,
+        and the side shows which way it pushed. The number is the issue&apos;s{" "}
+        <strong className="font-semibold text-gray-700">average lean</strong> — which way it tilts
+        per mention. The two can disagree: an issue discussed a lot but mildly can move the Index
+        more than one discussed rarely but intensely.{" "}
+        <a href="/methodology" className="underline hover:text-gray-700">How this is calculated →</a>{" "}
         Click any issue for the channel-level breakdown.
       </p>
     </div>
