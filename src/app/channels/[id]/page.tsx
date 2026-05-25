@@ -127,7 +127,12 @@ export default async function ChannelPage({
               <div className="text-xs uppercase tracking-wider text-gray-500 mb-3">
                 How this channel has trended
               </div>
-              <IndexAreaChart values={data.trend.values} dates={data.trend.dates} />
+              <IndexAreaChart
+                values={data.trend.values}
+                dates={data.trend.dates}
+                maxWidthClass=""
+                includeZero={false}
+              />
             </div>
           )}
         </div>

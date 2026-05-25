@@ -7,6 +7,20 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
+## v0.6.32 · 2026-05-25
+
+### Fixed
+
+- **Issue/channel trend charts: width + vertical range.** The chart was capped
+  at `max-w-md`, so inside the wide drill-down cards it filled only the left
+  half. `IndexAreaChart` now takes a `maxWidthClass` prop (default `max-w-md`
+  for the home hero; `""` on the drill-downs so it fills the card). It also
+  takes `includeZero` (default `true`): the home Index keeps its 0-anchored
+  range, but issue/channel charts now fit to their own data — an entity that
+  sits far from neutral (e.g. a channel at L+4.8) uses the full chart height
+  instead of squashing the line into a third with dead space above it. The
+  zero reference line is hidden when not anchoring to zero.
+
 ## v0.6.31 · 2026-05-25
 
 ### Changed

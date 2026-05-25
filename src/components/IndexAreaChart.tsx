@@ -19,6 +19,19 @@ interface IndexAreaChartProps {
   dates: string[];
   /** Rolling-window length in days (for the caption). */
   windowDays?: number;
+  /**
+   * Tailwind max-width class for the chart container. Defaults to `max-w-md`
+   * (the narrow home-page hero). Pass `""` to let it fill its parent — used in
+   * the wide issue/channel drill-down cards.
+   */
+  maxWidthClass?: string;
+  /**
+   * Whether the vertical range must include 0 (the neutral line). True for the
+   * home Index (so the L/R side is obvious). False for an issue/channel that
+   * sits far from center — fit to the data so the line uses the full height
+   * instead of leaving dead space.
+   */
+  includeZero?: boolean;
 }
 
 function formatLean(v: number): string {
@@ -71,7 +84,13 @@ function IndexTooltip({
   );
 }
 
-export function IndexAreaChart({ values, dates, windowDays = 7 }: IndexAreaChartProps) {
+export function IndexAreaChart({
+  values,
+  dates,
+  windowDays = 7,
+  maxWidthClass = "max-w-md",
+  includeZero = true,
+}: IndexAreaChartProps) {
   if (values.length < 2) return null;
 
   const data: Point[] = values.map((v, i) => ({ date: dates[i] ?? "", index: v }));
@@ -80,8 +99,11 @@ export function IndexAreaChart({ values, dates, windowDays = 7 }: IndexAreaChart
   // obvious), padded a little so movement is legible without exaggeration.
   const dataMin = Math.min(...values);
   const dataMax = Math.max(...values);
-  const rawLo = Math.min(0, dataMin);
-  const rawHi = Math.max(0, dataMax);
+  // Home Index anchors to 0 so the L/R side is obvious; entity charts fit to
+  // their own data so the line uses the full height (no dead space when the
+  // entity sits far from neutral).
+  const rawLo = includeZero ? Math.min(0, dataMin) : dataMin;
+  const rawHi = includeZero ? Math.max(0, dataMax) : dataMax;
   const pad = Math.max(0.5, (rawHi - rawLo) * 0.15);
   const lo = Math.max(-10, rawLo - pad);
   const hi = Math.min(10, rawHi + pad);
@@ -90,7 +112,7 @@ export function IndexAreaChart({ values, dates, windowDays = 7 }: IndexAreaChart
   const maxVal = formatLean(dataMax);
 
   return (
-    <div className="w-full max-w-md">
+    <div className={`w-full ${maxWidthClass}`}>
       <ChartContainer config={chartConfig} className="h-[180px] w-full">
         <AreaChart data={data} margin={{ top: 8, right: 8, bottom: 4, left: 4 }}>
           <defs>
@@ -116,7 +138,9 @@ export function IndexAreaChart({ values, dates, windowDays = 7 }: IndexAreaChart
             tickCount={4}
             tickFormatter={(v: number) => formatLean(v)}
           />
-          <ReferenceLine y={0} stroke="#9ca3af" strokeDasharray="2 2" />
+          {includeZero && (
+            <ReferenceLine y={0} stroke="#9ca3af" strokeDasharray="2 2" />
+          )}
           <ChartTooltip cursor={{ stroke: "#d1d5db" }} content={<IndexTooltip />} />
           <Area
             dataKey="index"
@@ -124,6 +148,10 @@ export function IndexAreaChart({ values, dates, windowDays = 7 }: IndexAreaChart
             stroke="#374151"
             strokeWidth={2}
             fill="url(#fillIndex)"
+            // Fill from the line down to the bottom of the range. When the range
+            // is anchored to 0 (home), let Recharts default to the 0 baseline;
+            // otherwise fill to the bottom of the fitted range.
+            baseValue={includeZero ? undefined : lo}
             isAnimationActive={false}
             dot={false}
             activeDot={{ r: 4 }}
