@@ -371,7 +371,12 @@ async function runClassify(): Promise<Record<string, unknown>> {
     .eq("active", true);
   const issuesTyped = (issues || []) as IssueDef[];
 
-  // Pull transcript ids + content (paginate to clear 1000-row default cap)
+  // Pull transcript ids + content (paginate to clear 1000-row default cap).
+  // `classify_status` on the episode is the queue key: pending = not yet run
+  // through classify. Crucially this is independent of whether the episode
+  // produced mentions — a 0-mention episode is marked 'processed' below so it
+  // is NOT reprocessed every run (the head-of-line-blocking bug that burned
+  // ~$1/run on the same off-taxonomy episodes; see v0.6.29).
   const transcripts: any[] = [];
   const pageSize = 1000;
   for (let from = 0; ; from += pageSize) {
@@ -380,7 +385,7 @@ async function runClassify(): Promise<Record<string, unknown>> {
       .select(
         `episode_id, text,
          episode:episodes!transcripts_episode_id_fkey (
-           title, published_at,
+           title, published_at, classify_status,
            channel:channels!episodes_channel_id_fkey (
              name, political_lean
            )
@@ -391,18 +396,9 @@ async function runClassify(): Promise<Record<string, unknown>> {
     transcripts.push(...data);
     if (data.length < pageSize) break;
   }
-  const classified: { episode_id: string }[] = [];
-  for (let from = 0; ; from += pageSize) {
-    const { data } = await db
-      .from("classifications")
-      .select("episode_id")
-      .range(from, from + pageSize - 1);
-    if (!data || data.length === 0) break;
-    classified.push(...(data as any));
-    if (data.length < pageSize) break;
-  }
-  const classifiedSet = new Set(classified.map((c) => c.episode_id));
-  const pending = transcripts.filter((t) => !classifiedSet.has(t.episode_id));
+  const pending = transcripts.filter(
+    (t) => t.episode?.classify_status !== "processed",
+  );
 
   let totalMentions = 0;
   let inputTokens = 0;
@@ -429,9 +425,21 @@ async function runClassify(): Promise<Record<string, unknown>> {
           supporting_quote: m.supporting_quote,
         }));
         const { error: insErr } = await db.from("classifications").insert(rows);
-        if (insErr) failed++;
-        else totalMentions += result.mentions.length;
+        // Leave classify_status pending on insert failure so it retries; don't
+        // mark processed or we'd lose these mentions permanently.
+        if (insErr) {
+          failed++;
+          continue;
+        }
+        totalMentions += result.mentions.length;
       }
+      // Mark processed regardless of mention count — this is the fix for the
+      // reprocessing loop. 0-mention (off-taxonomy) episodes are recorded as
+      // done and never re-sent to the model.
+      await db
+        .from("episodes")
+        .update({ classify_status: "processed" })
+        .eq("id", t.episode_id);
       processed++;
     } catch {
       failed++;

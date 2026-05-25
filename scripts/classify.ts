@@ -23,6 +23,7 @@ interface PendingTranscript {
   episode: {
     title: string;
     published_at: string;
+    classify_status: string;
     channel: {
       name: string;
       political_lean: "L" | "M" | "R";
@@ -52,19 +53,16 @@ async function main() {
   const issuesTyped = issues as IssueDef[];
   console.log(`Loaded ${issuesTyped.length} issues from taxonomy.\n`);
 
-  // Find transcripts whose episode has no classifications.
-  // Supabase lacks a native NOT EXISTS join in select(), so we fetch every
-  // transcript and every existing classification, then diff in memory.
+  // Find transcripts whose episode hasn't been run through classify yet. The
+  // queue key is `episodes.classify_status` ('pending' until processed), which
+  // is set to 'processed' after each attempt REGARDLESS of mention count. This
+  // is what stops 0-mention (off-taxonomy) episodes from being reprocessed
+  // every run — the head-of-line-blocking loop fixed in v0.6.29.
   //
   // CRITICAL: must paginate via .range(). Supabase/PostgREST enforces a
   // project-level "Max Rows" cap (default 1000) that silently truncates
-  // .limit() — a large .limit(50000) still returns at most 1000 rows. The
-  // earlier version relied on .limit(50000) here; once the classifications
-  // table grew past 1000 rows the "already classified" set was incomplete,
-  // so episodes beyond the first page were re-classified on every run. Run
-  // it in a loop and you get the 2026-05-24 runaway: 234 episodes
-  // reclassified ~95× into 24k duplicate rows. Only .range() pagination walks
-  // the full set regardless of the Max Rows cap.
+  // .limit() — a large .limit(50000) still returns at most 1000 rows. Only
+  // .range() pagination walks the full set regardless of the Max Rows cap.
   const PAGE = 1000;
   const MAX_PAGES = 500; // safety bound (~500k rows) — never expected to hit
 
@@ -76,7 +74,7 @@ async function main() {
         `
         episode_id, text,
         episode:episodes!transcripts_episode_id_fkey (
-          title, published_at,
+          title, published_at, classify_status,
           channel:channels!episodes_channel_id_fkey (
             name, political_lean
           )
@@ -95,25 +93,8 @@ async function main() {
     allTranscripts.push(...(data as unknown as PendingTranscript[]));
   }
 
-  const classifiedEpisodeIds = new Set<string>();
-  for (let from = 0, pages = 0; pages < MAX_PAGES; pages++, from += PAGE) {
-    const { data, error } = await db
-      .from("classifications")
-      .select("episode_id")
-      .order("episode_id", { ascending: true })
-      .range(from, from + PAGE - 1);
-    if (error) {
-      console.error("Failed to load existing classifications:", error.message);
-      process.exit(1);
-    }
-    if (!data || data.length === 0) break;
-    for (const c of data as { episode_id: string }[]) {
-      classifiedEpisodeIds.add(c.episode_id);
-    }
-  }
-
   const pending = allTranscripts.filter(
-    (t) => !classifiedEpisodeIds.has(t.episode_id),
+    (t) => t.episode?.classify_status !== "processed",
   );
 
   if (pending.length === 0) {
@@ -151,8 +132,17 @@ async function main() {
       totalInputTokens += result.inputTokens || 0;
       totalOutputTokens += result.outputTokens || 0;
 
+      // Mark processed regardless of mention count so off-taxonomy episodes
+      // aren't reprocessed on every run (head-of-line-blocking fix, v0.6.29).
+      const markProcessed = () =>
+        db
+          .from("episodes")
+          .update({ classify_status: "processed" })
+          .eq("id", t.episode_id);
+
       if (result.mentions.length === 0) {
         console.log(`    ○ no taxonomy issues detected`);
+        await markProcessed();
         continue;
       }
 
@@ -164,10 +154,12 @@ async function main() {
       }));
       const { error: insErr } = await db.from("classifications").insert(rows);
       if (insErr) {
+        // Leave pending so it retries; marking processed would lose mentions.
         console.log(`    ✗ insert failed: ${insErr.message}`);
         failed += 1;
         continue;
       }
+      await markProcessed();
 
       totalMentions += result.mentions.length;
       const byIssue = result.mentions.reduce<Record<string, number>>((acc, m) => {

@@ -7,6 +7,30 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
+## v0.6.29 · 2026-05-25
+
+### Fixed
+
+- **Classify reprocessing loop (head-of-line blocking).** The cron + CLI
+  classify queue was defined as "transcripts with no classification row." An
+  episode that yields **0 mentions** never got a row, so it stayed "pending"
+  forever and was re-sent to Sonnet every run. The first 15 pending happened to
+  be genuinely off-taxonomy (sports, true crime, celebrity, stale/junk clips),
+  so they permanently clogged the `CLASSIFY_LIMIT=15` batch — ~$1/run for **0
+  new classifications**, while newer classifiable episodes behind them were
+  never reached and the backlog never drained. Diagnosed from live data: 142
+  pending, 350K input tokens → 60 output tokens across 15 episodes (model
+  correctly returning `[]`).
+- **Fix:** new `episodes.classify_status` column (migration
+  `add_episode_classify_status`). It's set to `processed` after each classify
+  attempt **regardless of mention count**, and the pending queue keys off it.
+  0-mention episodes are recorded as done and never re-sent; the batch advances
+  and the backlog drains. Backfill marked the 946 episodes that already had
+  classifications as `processed`; the never-reached remainder stay `pending` so
+  they're classified properly (not skipped). A partial index keeps the
+  pending-queue scan cheap. Applied to both `runClassify` (cron) and
+  `scripts/classify.ts` (CLI).
+
 ## v0.6.28 · 2026-05-25
 
 ### Changed
