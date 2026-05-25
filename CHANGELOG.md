@@ -7,6 +7,13 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
+## v0.6.34 · 2026-05-25
+
+### Fixed
+
+- **Logo alignment nudge.** Wordmark moved up another 1px (−2px total) to sit
+  centered against the crate icon.
+
 ## v0.6.33 · 2026-05-25
 
 ### Fixed
