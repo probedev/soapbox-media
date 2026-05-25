@@ -1,6 +1,6 @@
 import { SoapboxNeedle } from "@/components/SoapboxNeedle";
 import { IssuePreview } from "@/components/IssuePreview";
-import { IndexSparkline } from "@/components/IndexSparkline";
+import { IndexAreaChart } from "@/components/IndexAreaChart";
 import { IssueContributionsChart } from "@/components/IssueContributionsChart";
 import { BiggestMovers } from "@/components/BiggestMovers";
 import { TrustStrip } from "@/components/TrustStrip";
@@ -95,10 +95,10 @@ export default async function HomePage() {
 
         {data.sparkline.length >= 2 && (
           <div className="mt-6 flex flex-col items-center">
-            <IndexSparkline
+            <IndexAreaChart
               values={data.sparkline}
               dates={data.sparklineDates}
-              windowLabel={`${data.windowDays}-day`}
+              windowDays={data.windowDays}
             />
           </div>
         )}

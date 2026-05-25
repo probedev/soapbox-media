@@ -159,14 +159,14 @@ const COLUMN_LABELS: Record<string, string> = {
 // scroll. (Pixel widths summing > container would force the table wider and
 // scroll — that was the earlier bug.) Long cells truncate instead.
 const COL_WIDTH: Record<string, number> = {
-  political_lean: 6,
-  published_at: 9,
-  channel_name: 14,
-  title: 28,
-  platform: 8,
-  duration_sec: 6,
-  transcribed: 10,
-  classified: 10,
+  political_lean: 9,
+  published_at: 10,
+  channel_name: 13,
+  title: 23,
+  platform: 7,
+  duration_sec: 7,
+  transcribed: 11,
+  classified: 11,
   scored: 9,
 };
 

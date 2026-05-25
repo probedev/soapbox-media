@@ -7,6 +7,25 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
+## v0.6.24 · 2026-05-25
+
+Home-page trend chart + /log header fix.
+
+### Added
+
+- **Interactive Index trend chart** on the home page — a Recharts area chart
+  (via shadcn chart primitives, `src/components/ui/chart.tsx`) replacing the
+  static SVG sparkline under the needle. Shows the 30-day rolling Soapbox
+  Index with hover tooltips (date + L/R value), a neutral zero baseline, an
+  L/R-oriented y-axis, and a range caption. Adds the `recharts` dependency.
+
+### Fixed
+
+- **/log table header overlap.** v0.6.22's column percentages fit the cell
+  contents but not the header words, so narrow headers ("Category",
+  "Transcribed") overflowed and their sort arrows bled into the next column.
+  Rebalanced the widths (still summing to 100%) so every header fits cleanly.
+
 ## v0.6.22 · 2026-05-24
 
 Online gold-set labeling + /log table polish.
