@@ -1,4 +1,4 @@
-import { getDiscoveryCandidates, getActiveIssueOptions } from "@/lib/discovery";
+import { getDiscoveryCandidates, getActiveIssueOptions, getTopicOptions } from "@/lib/discovery";
 import { AdminNav } from "@/components/AdminNav";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
@@ -7,9 +7,10 @@ import { DiscoveryClient } from "./DiscoveryClient";
 export const dynamic = "force-dynamic";
 
 export default async function AdminDiscoveryPage() {
-  const [candidates, issueOptions] = await Promise.all([
+  const [candidates, issueOptions, topicOptions] = await Promise.all([
     getDiscoveryCandidates("pending"),
     getActiveIssueOptions(),
+    getTopicOptions(),
   ]);
 
   return (
@@ -28,7 +29,11 @@ export default async function AdminDiscoveryPage() {
           Nothing is added automatically.
         </p>
         <div className="mt-6">
-          <DiscoveryClient candidates={candidates} issueOptions={issueOptions} />
+          <DiscoveryClient
+            candidates={candidates}
+            issueOptions={issueOptions}
+            topicOptions={topicOptions}
+          />
         </div>
       </section>
       <Footer />

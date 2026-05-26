@@ -21,21 +21,23 @@ const inputClass =
 export function DiscoveryClient({
   candidates,
   issueOptions,
+  topicOptions,
 }: {
   candidates: DiscoveryCandidate[];
   issueOptions: { slug: string; name: string }[];
+  topicOptions: { slug: string; name: string }[];
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [openPromote, setOpenPromote] = useState<string | null>(null);
-  const [form, setForm] = useState({ slug: "", name: "", definition: "", left: "", right: "" });
+  const [form, setForm] = useState({ topic: "", slug: "", name: "", definition: "", left: "", right: "" });
   const [mergeSel, setMergeSel] = useState<Record<string, string>>({});
   const [err, setErr] = useState<string | null>(null);
 
   function beginPromote(c: DiscoveryCandidate) {
     setErr(null);
     setOpenPromote(c.id);
-    setForm({ slug: slugify(c.label), name: c.label, definition: c.summary || "", left: "", right: "" });
+    setForm({ topic: "", slug: slugify(c.label), name: c.label, definition: c.summary || "", left: "", right: "" });
   }
 
   function submitPromote(candidateId: string) {
@@ -43,6 +45,7 @@ export function DiscoveryClient({
     startTransition(async () => {
       const r = await promoteAction({
         candidateId,
+        topicSlug: form.topic,
         slug: form.slug,
         name: form.name,
         definition: form.definition,
@@ -165,8 +168,23 @@ export function DiscoveryClient({
               {openPromote === c.id && (
                 <div className="mt-4 border-t border-gray-100 pt-4 space-y-2.5">
                   <div className="text-xs uppercase tracking-wider text-gray-500">
-                    Promote to taxonomy issue
+                    Promote to a new issue
                   </div>
+                  <label className="text-xs text-gray-600 block">
+                    Parent topic
+                    <select
+                      className={inputClass}
+                      value={form.topic}
+                      onChange={(e) => setForm((f) => ({ ...f, topic: e.target.value }))}
+                    >
+                      <option value="">Choose a topic…</option>
+                      {topicOptions.map((t) => (
+                        <option key={t.slug} value={t.slug}>
+                          {t.name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                     <label className="text-xs text-gray-600">
                       Name
@@ -220,6 +238,7 @@ export function DiscoveryClient({
                       size="sm"
                       disabled={
                         pending ||
+                        !form.topic ||
                         !form.slug ||
                         !form.name ||
                         !form.definition ||

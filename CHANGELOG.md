@@ -7,6 +7,28 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
+## v0.6.41 · 2026-05-26
+
+Two-level taxonomy — Phase 2 (read path) + discovery integration + staged
+classify-broadening. (Parent **Topics** contain child **Issues**; see
+`docs/taxonomy-v2-design.md`.)
+
+### Added
+
+- **Issue taxonomy page grouped by Topic.** `/issues` now lists issues under
+  their parent Topic (Foreign Policy, Health, Rule of Law, …), making the
+  two-level structure visible. Index/scoring unchanged.
+- **Discovery promote is Topic-aware.** Promoting a candidate now requires
+  picking a **parent Topic**; the new child issue is created under it
+  (`issues.topic_slug`). `discovery_candidates.assigned_topic_slug` records it.
+- **7 gap-filling issues staged (inactive).** Health care, Social Security &
+  Medicare, Justice/rule-of-law, Government corruption, Gun policy, Drug policy,
+  Race & discrimination — to cover the empty/thin Topics classify is currently
+  blind to. **Staged `active=false` with draft L/R anchors**, so they do NOT
+  affect classify or the Index until the anchors are reviewed and activated.
+- Migrations `taxonomy_v2_topics_layer` and
+  `taxonomy_v2_gap_issues_and_discovery_topic` (DB; additive only).
+
 ## v0.6.40 · 2026-05-26
 
 ### Changed

@@ -213,10 +213,13 @@ export interface PromoteInput {
   definition: string;
   leftPosition: string;
   rightPosition: string;
+  /** Parent Topic the new child issue sits under (required). */
+  topicSlug: string;
 }
 
-/** Human-gated: create a new taxonomy issue from a candidate. */
+/** Human-gated: create a new child issue (under a parent Topic) from a candidate. */
 export async function promoteCandidate(input: PromoteInput): Promise<{ error?: string }> {
+  if (!input.topicSlug) return { error: "Choose a parent topic." };
   const db = createServiceClient();
   const { error: issueErr } = await db.from("issues").insert({
     slug: input.slug,
@@ -224,14 +227,27 @@ export async function promoteCandidate(input: PromoteInput): Promise<{ error?: s
     definition: input.definition,
     left_position: input.leftPosition,
     right_position: input.rightPosition,
+    topic_slug: input.topicSlug,
     active: true,
   });
   if (issueErr) return { error: issueErr.message };
   await db
     .from("discovery_candidates")
-    .update({ status: "promoted", merged_into_slug: input.slug, reviewed_at: new Date().toISOString() })
+    .update({
+      status: "promoted",
+      merged_into_slug: input.slug,
+      assigned_topic_slug: input.topicSlug,
+      reviewed_at: new Date().toISOString(),
+    })
     .eq("id", input.candidateId);
   return {};
+}
+
+/** Parent Topics — for the promote form's "parent topic" dropdown. */
+export async function getTopicOptions(): Promise<{ slug: string; name: string }[]> {
+  const db = createServiceClient();
+  const { data } = await db.from("topics").select("slug, name").order("sort_order");
+  return (data || []) as { slug: string; name: string }[];
 }
 
 export async function mergeCandidate(candidateId: string, slug: string): Promise<void> {
