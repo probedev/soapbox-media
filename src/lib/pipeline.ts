@@ -339,6 +339,7 @@ export async function runClassify(): Promise<Record<string, unknown>> {
   );
 
   let totalMentions = 0;
+  let totalOffTopics = 0;
   let inputTokens = 0;
   let outputTokens = 0;
   let processed = 0;
@@ -371,6 +372,17 @@ export async function runClassify(): Promise<Record<string, unknown>> {
         }
         totalMentions += result.mentions.length;
       }
+      // Emerging-issue discovery: store off-taxonomy political topics. Secondary
+      // to classification — a failure here must not fail the episode.
+      if (result.offTopics.length > 0) {
+        const topicRows = result.offTopics.map((o) => ({
+          episode_id: t.episode_id,
+          label: o.topic,
+          quote: o.supporting_quote,
+        }));
+        const { error: topicErr } = await db.from("discovery_topics").insert(topicRows);
+        if (!topicErr) totalOffTopics += result.offTopics.length;
+      }
       // Mark processed regardless of mention count — this is the fix for the
       // reprocessing loop. 0-mention (off-taxonomy) episodes are recorded as
       // done and never re-sent to the model.
@@ -389,6 +401,7 @@ export async function runClassify(): Promise<Record<string, unknown>> {
     pendingFound: pending.length,
     processed,
     mentions: totalMentions,
+    offTopics: totalOffTopics,
     failed,
     inputTokens,
     outputTokens,

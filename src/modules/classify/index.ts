@@ -17,6 +17,13 @@ export interface ClassificationMention {
   supporting_quote: string;
 }
 
+/** A substantive political topic discussed that is NOT in the taxonomy —
+ *  feedstock for emerging-issue discovery. */
+export interface OffTaxonomyTopic {
+  topic: string;
+  supporting_quote: string;
+}
+
 export interface ClassifyInput {
   transcript: string;
   channelName: string;
@@ -28,6 +35,8 @@ export interface ClassifyInput {
 
 export interface ClassifyResult {
   mentions: ClassificationMention[];
+  /** Off-taxonomy political topics for emerging-issue discovery. */
+  offTopics: OffTaxonomyTopic[];
   inputTokens?: number;
   outputTokens?: number;
   /** Raw response text from the model (useful for debugging) */
@@ -72,15 +81,26 @@ INSTRUCTIONS:
 3. Multiple distinct mentions of the SAME issue are fine — return each as a separate object.
 4. If a passage discusses multiple issues, return one object per issue with a quote that focuses on each.
 5. Prioritize quality over quantity. Better to return 3 clear, substantiated mentions than 15 weak ones.
-6. If there are NO substantive mentions of ANY taxonomy issue, return an empty array: []
+6. If there are NO substantive mentions of ANY taxonomy issue, use an empty "mentions" array.
 
-OUTPUT FORMAT — return ONLY a JSON array. No prose, no markdown code fences, no commentary.
+EMERGING-ISSUE DISCOVERY — separately, list any SUBSTANTIVE POLITICAL topic
+discussed that is NOT covered by the taxonomy above (a specific bill, event,
+policy, scandal, or controversy that maps to none of the issues). Give each a
+short, specific label (3–6 words, e.g. "Trump anti-weaponization fund" — not a
+vague word like "politics") plus a supporting quote. EXCLUDE anything
+non-political (sports, celebrity, ads, market chatter) and anything already
+covered by a taxonomy issue above. If none, use an empty "off_taxonomy" array.
 
-Example response shape:
-[
-  {"issue_slug": "immigration", "supporting_quote": "We need to seal the southern border completely — every other policy depends on this."},
-  {"issue_slug": "transgender", "supporting_quote": "Parents have a right to know what's being taught about gender in their kids' schools."}
-]`;
+OUTPUT FORMAT — return ONLY a JSON object with exactly this shape. No prose, no
+markdown code fences, no commentary:
+{
+  "mentions": [
+    {"issue_slug": "immigration", "supporting_quote": "We need to seal the southern border completely."}
+  ],
+  "off_taxonomy": [
+    {"topic": "Trump anti-weaponization fund", "supporting_quote": "The new fund to claw back what they call weaponized prosecutions..."}
+  ]
+}`;
 }
 
 export async function classifyTranscript(input: ClassifyInput): Promise<ClassifyResult> {
@@ -97,19 +117,34 @@ export async function classifyTranscript(input: ClassifyInput): Promise<Classify
   const rawText = textBlock && textBlock.type === "text" ? textBlock.text : "";
 
   const validSlugs = new Set(input.issues.map((i) => i.slug));
-  const parsed = extractJson<ClassificationMention[]>(rawText);
-  const mentions = Array.isArray(parsed)
-    ? parsed.filter(
-        (m): m is ClassificationMention =>
-          typeof m?.issue_slug === "string" &&
-          typeof m?.supporting_quote === "string" &&
-          validSlugs.has(m.issue_slug) &&
-          m.supporting_quote.length > 0,
-      )
-    : [];
+  // Tolerate both the current object shape {mentions, off_taxonomy} and a bare
+  // array (legacy / model returning just mentions).
+  const parsed = extractJson<unknown>(rawText);
+  const obj: { mentions?: unknown; off_taxonomy?: unknown } = Array.isArray(parsed)
+    ? { mentions: parsed, off_taxonomy: [] }
+    : (parsed as any) || {};
+
+  const rawMentions = Array.isArray(obj.mentions) ? obj.mentions : [];
+  const mentions = (rawMentions as any[]).filter(
+    (m): m is ClassificationMention =>
+      typeof m?.issue_slug === "string" &&
+      typeof m?.supporting_quote === "string" &&
+      validSlugs.has(m.issue_slug) &&
+      m.supporting_quote.length > 0,
+  );
+
+  const rawOff = Array.isArray(obj.off_taxonomy) ? obj.off_taxonomy : [];
+  const offTopics: OffTaxonomyTopic[] = (rawOff as any[])
+    .filter((o) => typeof o?.topic === "string" && o.topic.trim().length > 0)
+    .map((o) => ({
+      topic: String(o.topic).slice(0, 120),
+      supporting_quote:
+        typeof o?.supporting_quote === "string" ? o.supporting_quote.slice(0, 600) : "",
+    }));
 
   return {
     mentions,
+    offTopics,
     inputTokens: response.usage?.input_tokens,
     outputTokens: response.usage?.output_tokens,
     rawText,

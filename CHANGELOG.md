@@ -7,6 +7,42 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
+## v0.6.39 · 2026-05-26
+
+Emerging-issue discovery with admin oversight — the fixed 16-issue taxonomy no
+longer silently misses new topics (e.g. it would now surface something like a
+"Trump anti-weaponization fund" for review).
+
+### Added
+
+- **Harvest** (Phase 1): the classify pass now *also* returns substantive
+  political topics that don't fit the taxonomy (`OffTaxonomyTopic` — label +
+  quote), stored in the new `discovery_topics` table. Applies to both the cron
+  `runClassify` and the CLI. Marginal token cost; no extra LLM pass. Off-taxonomy
+  episodes (0 taxonomy mentions) are exactly where new issues hide.
+- **Cluster & rank** (Phase 2): `src/lib/discovery.ts` + `src/modules/discover`
+  merge recent off-taxonomy labels into candidate themes via one Haiku pass,
+  score each by reach × recency × frequency, and rebuild the pending
+  `discovery_candidates` set. Triggered by a weekly cron
+  (`/api/cron/discover`, Mondays 11:00 UTC) and `npm run discover`.
+- **Review queue** (Phase 3): `/admin/discovery` (Basic-Auth) lists ranked
+  candidates with example quotes + counts, and offers **Promote** (form → new
+  taxonomy issue, with human-written L/R positions), **Merge** (into an existing
+  issue), or **Ignore**. Added to AdminNav.
+- Migration `discovery_tables` (`discovery_topics`, `discovery_candidates`;
+  RLS-on/no-policies per convention).
+- One-time harvest-only backfill `npm run discover:backfill` (re-runs classify
+  over recent transcripts writing ONLY off-taxonomy topics, never duplicating
+  classifications) to populate discovery without waiting for days of cron.
+  Initial backfill of 40 episodes harvested 106 topics → 42 candidates.
+
+### Guardrail
+
+- Discovery **proposes, a human disposes** — the system never edits the taxonomy
+  on its own; only the admin Promote action (which requires the editor to write
+  the L/R positions) creates an issue. Decided candidates' source topics stay
+  linked so dismissed themes don't resurface.
+
 ## v0.6.38 · 2026-05-26
 
 ### Fixed

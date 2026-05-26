@@ -6,6 +6,7 @@ const LINKS = [
   { key: "pipeline", label: "Pipeline", href: "/admin/pipeline" },
   { key: "costs", label: "Costs", href: "/admin/costs" },
   { key: "channels", label: "Channels audit", href: "/admin/channels-audit" },
+  { key: "discovery", label: "Discovery", href: "/admin/discovery" },
 ] as const;
 
 export function AdminNav({ active }: { active?: string }) {

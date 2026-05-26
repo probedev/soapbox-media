@@ -104,6 +104,7 @@ async function main() {
   console.log(`Found ${pending.length} unclassified transcripts. Processing first ${Math.min(limit, pending.length)}.\n`);
 
   let totalMentions = 0;
+  let totalOffTopics = 0;
   let totalInputTokens = 0;
   let totalOutputTokens = 0;
   let failed = 0;
@@ -131,6 +132,19 @@ async function main() {
 
       totalInputTokens += result.inputTokens || 0;
       totalOutputTokens += result.outputTokens || 0;
+
+      // Emerging-issue discovery: harvest off-taxonomy topics regardless of
+      // mention count (off-taxonomy episodes are exactly where new issues hide).
+      if (result.offTopics.length > 0) {
+        const { error: topicErr } = await db.from("discovery_topics").insert(
+          result.offTopics.map((o) => ({
+            episode_id: t.episode_id,
+            label: o.topic,
+            quote: o.supporting_quote,
+          })),
+        );
+        if (!topicErr) totalOffTopics += result.offTopics.length;
+      }
 
       // Mark processed regardless of mention count so off-taxonomy episodes
       // aren't reprocessed on every run (head-of-line-blocking fix, v0.6.29).
@@ -178,7 +192,7 @@ async function main() {
 
   // Summary
   console.log(`\n${"─".repeat(60)}`);
-  console.log(`Processed: ${slice.length}, mentions written: ${totalMentions}, failed: ${failed}`);
+  console.log(`Processed: ${slice.length}, mentions written: ${totalMentions}, off-topics: ${totalOffTopics}, failed: ${failed}`);
   console.log(`Tokens — input: ${totalInputTokens.toLocaleString()}, output: ${totalOutputTokens.toLocaleString()}`);
   // Rough cost estimate at Sonnet 4.6 prices ($3/Mtok input, $15/Mtok output)
   const cost = (totalInputTokens * 3) / 1_000_000 + (totalOutputTokens * 15) / 1_000_000;
