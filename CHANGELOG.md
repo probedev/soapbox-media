@@ -7,6 +7,21 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
+## v0.6.37 · 2026-05-26
+
+### Fixed
+
+- **Cron split into per-stage jobs to fix a 300s timeout.** After v0.6.29 made
+  classify do real work, the combined nightly pipeline exceeded Vercel's 300s
+  function limit — the 2026-05-26 run returned `504`, classified 73 mentions,
+  then was killed before `score` (left them unscored) and before writing
+  `usage_log`. The four stages now each run as their own cron with a full 300s
+  budget: `/api/cron/{ingest,transcribe,classify,score}`, staggered at :00/:15/
+  :30/:45 past 10:00 UTC. Stage logic was extracted unchanged into
+  `src/lib/pipeline.ts` (stages never call each other, so they split cleanly —
+  see ARCHITECTURE.md). The old `/api/cron/pipeline` endpoint is kept for manual
+  full runs (logs as source "manual"). Each stage logs its own `usage_log` row.
+
 ## v0.6.36 · 2026-05-25
 
 ### Changed

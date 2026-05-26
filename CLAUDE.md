@@ -57,7 +57,10 @@ swappable. Aggregation (`src/lib/aggregate.ts`) is read-only.
 
 ## Infra facts
 
-- Cron: Vercel, daily `0 10 * * *` (10:00 UTC), `src/app/api/cron/pipeline`,
+- Cron: Vercel, four per-stage jobs staggered daily from 10:00 UTC —
+  `/api/cron/{ingest,transcribe,classify,score}` at :00/:15/:30/:45 (split in
+  v0.6.37 to dodge the 300s function timeout; stage logic lives in
+  `src/lib/pipeline.ts`). `/api/cron/pipeline` is kept for manual full runs. All
   auth via `CRON_SECRET`. Domain redirects apex → `www`.
 - Supabase project ref `xhqtirzxkbiehkuzglqm`. YT transcripts via **Supadata**
   (managed API, native-caption mode). Podcast transcripts inline from PodScan.
