@@ -7,6 +7,20 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
+## v0.6.40 · 2026-05-26
+
+### Changed
+
+- **Admin login screen + menu (replaces HTTP Basic Auth).** `/admin/*` is now
+  gated by a cookie session instead of the browser Basic Auth dialog. New
+  `/admin/login` form checks `ADMIN_PASSWORD` and sets an httpOnly cookie (value
+  = SHA-256 of the password, 30-day expiry); middleware redirects there when the
+  cookie is missing/invalid. New `/admin` landing menu (Pipeline · Costs ·
+  Channels audit · Discovery) and a **Log out** control in `AdminNav`. Same
+  password as before; cron auth (`CRON_SECRET`) and the public `/eval/label`
+  tool are unaffected. After deploy, existing sessions are logged out and must
+  sign in via the new form.
+
 ## v0.6.39 · 2026-05-26
 
 Emerging-issue discovery with admin oversight — the fixed 16-issue taxonomy no
