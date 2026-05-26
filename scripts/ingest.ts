@@ -18,6 +18,7 @@ import "./_load-env";
 import { createServiceClient } from "@/lib/db";
 import { getRecentUploads } from "@/lib/youtube";
 import { getPodcastEpisodes } from "@/lib/podscan";
+import { dedupKey, loadSiblingEpisodeKeys } from "@/lib/dedup";
 
 interface ChannelRow {
   id: string;
@@ -41,6 +42,7 @@ interface IngestResult {
   fetched: number;
   newRows: number;
   skippedShort: number;
+  skippedDup: number;
   failures: string[];
 }
 
@@ -55,6 +57,7 @@ async function ingestYouTubeChannel(
     fetched: 0,
     newRows: 0,
     skippedShort: 0,
+    skippedDup: 0,
     failures: [],
   };
   try {
@@ -69,7 +72,15 @@ async function ingestYouTubeChannel(
     result.skippedShort = videos.length - longEnough.length;
     const slice = longEnough.slice(0, perChannel);
 
+    // Skip episodes already ingested on a sibling channel (same show, other
+    // platform) — cross-platform re-post dedup.
+    const siblingKeys = await loadSiblingEpisodeKeys(db, channel.id, channel.name);
+
     for (const v of slice) {
+      if (siblingKeys.has(dedupKey(v.title, v.publishedAt))) {
+        result.skippedDup += 1;
+        continue;
+      }
       // NOTE: transcript_status intentionally omitted. Postgres uses DEFAULT
       // 'pending' on insert and preserves existing value on update. This
       // prevents re-ingest from resetting already-fetched episodes back to
@@ -114,6 +125,7 @@ async function ingestPodcastChannel(
     fetched: 0,
     newRows: 0,
     skippedShort: 0,
+    skippedDup: 0,
     transcriptsWritten: 0,
     failures: [],
   };
@@ -133,6 +145,10 @@ async function ingestPodcastChannel(
     });
     result.skippedShort = eps.length - longEnough.length;
     const slice = longEnough.slice(0, perChannel);
+
+    // Skip episodes already ingested on a sibling channel (same show, other
+    // platform) — cross-platform re-post dedup.
+    const siblingKeys = await loadSiblingEpisodeKeys(db, channel.id, channel.name);
 
     for (const ep of slice) {
       // Normalize PodScan's episode_-prefixed fields against legacy/alt variants
@@ -164,6 +180,10 @@ async function ingestPodcastChannel(
         result.failures.push(
           `episode missing date. Keys: [${Object.keys(ep).slice(0, 20).join(", ")}]`,
         );
+        continue;
+      }
+      if (siblingKeys.has(dedupKey(String(title), String(published)))) {
+        result.skippedDup += 1;
         continue;
       }
 

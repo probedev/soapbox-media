@@ -7,6 +7,22 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
+## v0.6.38 · 2026-05-26
+
+### Fixed
+
+- **Cross-platform episode duplication.** Shows tracked on both YouTube and a
+  podcast feed (e.g. The Rubin Report) publish the same episode to both, which
+  was ingested twice and **double-counted in the Index**. New `src/lib/dedup.ts`
+  matches a cross-post by show + normalized title + publish date; ingestion
+  (both the cron `runIngest` and the CLI `scripts/ingest.ts`) now skips an
+  episode already present on a sibling channel. Because channels ingest
+  reach-desc, the higher-reach copy is kept and the re-post is skipped.
+  Backfill: removed the 18 redundant copies already in the DB (with their
+  classifications/scores; transcripts cascaded) — all were lower-reach podcast
+  copies; where only one copy was processed, that one was kept regardless of
+  reach. No remaining cross-platform dup groups.
+
 ## v0.6.37 · 2026-05-26
 
 ### Fixed

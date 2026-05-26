@@ -14,6 +14,7 @@ import { getPodcastEpisodes } from "@/lib/podscan";
 import { classifyTranscript, type IssueDef } from "@/modules/classify";
 import { scoreClassification } from "@/modules/score";
 import { MODEL_SCORE } from "@/lib/anthropic";
+import { dedupKey, loadSiblingEpisodeKeys } from "@/lib/dedup";
 
 /** Shared cron auth: returns a NextResponse to short-circuit on failure, else null. */
 export function assertCronAuth(request: NextRequest): NextResponse | null {
@@ -72,9 +73,14 @@ export async function runIngest(): Promise<Record<string, unknown>> {
   let totalNew = 0;
   let totalTranscripts = 0;
   let totalSkippedShort = 0;
+  let totalSkippedDup = 0;
   let totalFailures = 0;
 
   for (const ch of channels || []) {
+    // Cross-platform dedup: skip episodes already ingested on a sibling channel
+    // of the same show (same name, other platform). Loaded per channel so the
+    // higher-reach copy (ingested first, reach-desc) wins and the re-post skips.
+    const siblingKeys = await loadSiblingEpisodeKeys(db, ch.id, ch.name);
     if (ch.platform === "youtube") {
       const uploadsId = "UU" + ch.platform_id.slice(2);
       try {
@@ -86,6 +92,10 @@ export async function runIngest(): Promise<Record<string, unknown>> {
         totalSkippedShort += videos.length - longEnough.length;
         const slice = longEnough.slice(0, INGEST_PER_CHANNEL);
         for (const v of slice) {
+          if (siblingKeys.has(dedupKey(v.title, v.publishedAt))) {
+            totalSkippedDup++;
+            continue;
+          }
           const { error: e, data } = await db
             .from("episodes")
             .upsert(
@@ -135,6 +145,10 @@ export async function runIngest(): Promise<Record<string, unknown>> {
           const duration = ep.episode_duration || (ep as any).duration;
           if (!url || !published) {
             totalFailures++;
+            continue;
+          }
+          if (siblingKeys.has(dedupKey(String(title), String(published)))) {
+            totalSkippedDup++;
             continue;
           }
           const hasTranscript = !!(transcriptText && String(transcriptText).trim().length > 0);
@@ -188,6 +202,7 @@ export async function runIngest(): Promise<Record<string, unknown>> {
     newEpisodes: totalNew,
     transcriptsInline: totalTranscripts,
     skippedShort: totalSkippedShort,
+    skippedCrossPlatformDup: totalSkippedDup,
     failures: totalFailures,
   };
 }
