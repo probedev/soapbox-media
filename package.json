@@ -15,6 +15,7 @@
     "score": "tsx scripts/score.ts",
     "discover": "tsx scripts/discover.ts",
     "discover:backfill": "tsx scripts/backfill-discovery.ts",
+    "backfill:issues": "tsx scripts/backfill-issues.ts",
     "eval:extract-gold-set": "tsx scripts/extract-gold-set.ts",
     "seed:gold-set": "tsx scripts/seed-gold-set.ts"
   },
