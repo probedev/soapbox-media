@@ -7,6 +7,20 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
+## v0.6.43 · 2026-05-27
+
+### Fixed
+
+- **Classify cron 504 after the taxonomy grew to 23 issues.** This morning's
+  scheduled classify ran the full 300s on a 15-episode batch and was killed
+  mid-batch (12 episodes done, no `usage_log` row) — the larger taxonomy makes
+  each episode slower and produce more mentions, so a fixed `CLASSIFY_LIMIT`
+  can overshoot. Added a **wall-clock budget** (`STAGE_TIME_BUDGET_MS = 240s`):
+  the classify loop stops when the budget is hit and always completes cleanly,
+  processing as many episodes as fit. `CLASSIFY_LIMIT` stays as an upper bound;
+  the run now reports `stoppedAtTimeBudget`. (Adapts automatically as the
+  taxonomy keeps growing.)
+
 ## v0.6.42 · 2026-05-27
 
 ### Added

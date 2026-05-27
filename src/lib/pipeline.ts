@@ -35,6 +35,13 @@ export const INGEST_PER_CHANNEL = 3;
 export const TRANSCRIBE_LIMIT = 40;
 export const CLASSIFY_LIMIT = 15;
 export const SCORE_LIMIT = 80;
+// Wall-clock budget per stage. The per-stage cron has a 300s function limit;
+// classify slows as the taxonomy grows (more issues → more mentions/episode),
+// so a fixed CLASSIFY_LIMIT can overshoot 300s and 504 (no usage_log row).
+// The loop stops when this budget is hit, so it always completes cleanly and
+// processes as many episodes as fit. (2026-05-27 incident: 15 episodes × 23
+// issues ran the full 300s and was killed mid-batch.)
+export const STAGE_TIME_BUDGET_MS = 240_000;
 
 export interface StageResult {
   ok: boolean;
@@ -303,6 +310,7 @@ export async function runTranscribe(): Promise<Record<string, unknown>> {
 
 export async function runClassify(): Promise<Record<string, unknown>> {
   const db = createServiceClient();
+  const stageStart = Date.now();
   const { data: issues } = await db
     .from("issues")
     .select("slug, name, definition")
@@ -344,8 +352,15 @@ export async function runClassify(): Promise<Record<string, unknown>> {
   let outputTokens = 0;
   let processed = 0;
   let failed = 0;
+  let timedOut = false;
 
   for (const t of pending.slice(0, CLASSIFY_LIMIT)) {
+    // Stop before the 300s function limit so the stage always finishes cleanly
+    // (writes its usage_log row) rather than being killed mid-batch.
+    if (Date.now() - stageStart > STAGE_TIME_BUDGET_MS) {
+      timedOut = true;
+      break;
+    }
     try {
       const result = await classifyTranscript({
         transcript: t.text,
@@ -400,6 +415,7 @@ export async function runClassify(): Promise<Record<string, unknown>> {
   return {
     pendingFound: pending.length,
     processed,
+    stoppedAtTimeBudget: timedOut,
     mentions: totalMentions,
     offTopics: totalOffTopics,
     failed,
