@@ -7,6 +7,18 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
+## v0.6.42 · 2026-05-27
+
+### Added
+
+- **Topic drill-down pages (`/topics/[slug]`)** — the deeper Phase 2 read path.
+  `getTopicDrillDown` rolls a parent Topic's child issues into a topic-level
+  lean + 30-day trend (same reach×intensity weighting as the Index, so the
+  numbers stay consistent across issue/topic/overall). Each topic page shows the
+  needle, trend chart, and its child issues ranked by share of voice. The
+  `/issues` topic headers now link to them. `ScoreRow` carries `issue_topic_slug`
+  (added to `fetchScoreRows`).
+
 ## v0.6.41 · 2026-05-26
 
 Two-level taxonomy — Phase 2 (read path) + discovery integration + staged

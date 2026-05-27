@@ -27,6 +27,7 @@ interface ScoreRow {
   intensity: number;
   issue_slug: string;
   issue_name: string;
+  issue_topic_slug: string | null;
   episode_id: string;
   episode_published_at: string;
   channel_id: string;
@@ -167,7 +168,7 @@ async function fetchScoreRows(): Promise<ScoreRow[]> {
         id, sentiment, intensity,
         classification:classifications!sentiment_scores_classification_id_fkey (
           issue_slug, episode_id,
-          issue:issues!classifications_issue_slug_fkey ( name ),
+          issue:issues!classifications_issue_slug_fkey ( name, topic_slug ),
           episode:episodes!classifications_episode_id_fkey (
             id, published_at,
             channel:channels!episodes_channel_id_fkey (
@@ -192,6 +193,7 @@ async function fetchScoreRows(): Promise<ScoreRow[]> {
         intensity: Number(r.intensity),
         issue_slug: c.issue_slug,
         issue_name: c.issue.name,
+        issue_topic_slug: c.issue.topic_slug ?? null,
         episode_id: c.episode_id,
         episode_published_at: e.published_at,
         channel_id: ch.id,
@@ -692,6 +694,83 @@ export async function getIssueDrillDown(slug: string): Promise<IssueDrillDown | 
     channels,
     numEpisodes: new Set(issueRows.map((r) => r.episode_id)).size,
     numClassifications: issueRows.length,
+    trend,
+  };
+}
+
+/**
+ * Topic drill-down: a parent Topic's lean rolled up from its child issues, with
+ * each child issue's own lean. Same weighting as the Index (reach × intensity),
+ * so a Topic's lean is consistent with its issues and the overall number.
+ */
+export interface IssueOnTopic {
+  issue_slug: string;
+  issue_name: string;
+  lean: number;
+  numMentions: number;
+  weight: number;
+}
+
+export interface TopicDrillDown {
+  slug: string;
+  name: string;
+  description: string;
+  overallLean: number;
+  issues: IssueOnTopic[];
+  numEpisodes: number;
+  numClassifications: number;
+  trend: { values: number[]; dates: string[] };
+}
+
+export async function getTopicDrillDown(slug: string): Promise<TopicDrillDown | null> {
+  const db = createServiceClient();
+  const { data: topic, error } = await db
+    .from("topics")
+    .select("slug, name, description")
+    .eq("slug", slug)
+    .single();
+  if (error || !topic) return null;
+
+  const rows = await fetchScoreRows();
+  const cutoff = new Date();
+  cutoff.setUTCDate(cutoff.getUTCDate() - 30);
+  const topicRows = rows.filter(
+    (r) => r.issue_topic_slug === slug && new Date(r.episode_published_at) >= cutoff,
+  );
+
+  const byIssue = new Map<string, ScoreRow[]>();
+  for (const r of topicRows) {
+    const arr = byIssue.get(r.issue_slug) || [];
+    arr.push(r);
+    byIssue.set(r.issue_slug, arr);
+  }
+  const issues: IssueOnTopic[] = [];
+  for (const [issue_slug, rs] of byIssue) {
+    const { lean, weight } = weightedLean(rs);
+    issues.push({
+      issue_slug,
+      issue_name: rs[0].issue_name,
+      lean: clamp(lean * 2, -10, 10),
+      numMentions: rs.length,
+      weight: Math.round(weight),
+    });
+  }
+  issues.sort((a, b) => b.weight - a.weight);
+
+  const overall = clamp(weightedLean(topicRows).lean * 2, -10, 10);
+  const trend = rollingLeanTrend(
+    rows.filter((r) => r.issue_topic_slug === slug),
+    new Date(),
+  );
+
+  return {
+    slug: topic.slug,
+    name: topic.name,
+    description: topic.description,
+    overallLean: overall,
+    issues,
+    numEpisodes: new Set(topicRows.map((r) => r.episode_id)).size,
+    numClassifications: topicRows.length,
     trend,
   };
 }

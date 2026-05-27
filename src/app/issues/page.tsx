@@ -41,14 +41,20 @@ export default async function IssuesListPage() {
   }
 
   // Topics (in order) that have at least one active issue, then an "Other" group.
-  const sections: { name: string; description: string; issues: IssueRow[] }[] = [];
+  const sections: { slug: string | null; name: string; description: string; issues: IssueRow[] }[] = [];
   for (const t of topics) {
     const group = byTopic.get(t.slug);
-    if (group && group.length) sections.push({ name: t.name, description: t.description, issues: group });
+    if (group && group.length)
+      sections.push({ slug: t.slug, name: t.name, description: t.description, issues: group });
   }
   const orphaned = byTopic.get("__none");
   if (orphaned && orphaned.length) {
-    sections.push({ name: "Other", description: "Political figures & parties (not yet bucketed).", issues: orphaned });
+    sections.push({
+      slug: null,
+      name: "Other",
+      description: "Political figures & parties (not yet bucketed).",
+      issues: orphaned,
+    });
   }
 
   return (
@@ -71,7 +77,13 @@ export default async function IssuesListPage() {
           {sections.map((s) => (
             <div key={s.name}>
               <div className="flex items-baseline gap-3 border-b border-gray-200 pb-2 mb-4">
-                <h2 className="text-lg font-semibold">{s.name}</h2>
+                {s.slug ? (
+                  <a href={`/topics/${s.slug}`} className="text-lg font-semibold hover:text-gray-600">
+                    {s.name} <span className="text-gray-400 font-normal">→</span>
+                  </a>
+                ) : (
+                  <h2 className="text-lg font-semibold">{s.name}</h2>
+                )}
                 <span className="text-xs text-gray-500">{s.description}</span>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
