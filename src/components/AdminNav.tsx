@@ -8,7 +8,8 @@ const LINKS = [
   { key: "home", label: "Home", href: "/admin" },
   { key: "pipeline", label: "Pipeline", href: "/admin/pipeline" },
   { key: "costs", label: "Costs", href: "/admin/costs" },
-  { key: "channels", label: "Channels audit", href: "/admin/channels-audit" },
+  { key: "channels", label: "Channels", href: "/admin/channels" },
+  { key: "channels-audit", label: "Audit", href: "/admin/channels-audit" },
   { key: "discovery", label: "Discovery", href: "/admin/discovery" },
 ] as const;
 

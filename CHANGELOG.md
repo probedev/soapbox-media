@@ -7,6 +7,24 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
+## v0.6.45 · 2026-05-28
+
+### Added
+
+- **`/admin/channels` — admin flow to add a channel + deep-ingest history.**
+  Editor enters a YouTube handle/URL + L/M/R lean; the server action resolves
+  via the YT API, enforces the **300K subscriber floor**, inserts, and
+  deep-ingests the last 30 episodes. The cron then catches up
+  transcribe→classify→score automatically. Shared logic in `src/lib/channels.ts`
+  (`addYouTubeChannel`, `extractYouTubeHandle`) so the CLI tool and the admin
+  UI go through the same code path. Page also shows the 20 most recently added
+  channels. AdminNav adds a new **Channels** tab; the existing audit moves to
+  the **Audit** label.
+- Per the channel expansion strategy, the existing 8 newly-seeded channels
+  (Valuetainment, TPUSA, Knowles, Klavan, Indisputable, Legal AF, Katie Phang,
+  Talking Feds) were seeded via SQL + `npm run backfill:channel-history` and
+  are catching up via cron. Panel is now **56 unique shows (69 channel rows)**.
+
 ## v0.6.44 · 2026-05-28
 
 ### Changed

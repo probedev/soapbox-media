@@ -259,7 +259,7 @@ export default async function ChannelsAuditPage() {
       <Header />
 
       <section className="px-6 pt-8 pb-16 max-w-6xl mx-auto">
-        <AdminNav active="channels" />
+        <AdminNav active="channels-audit" />
         <h1 className="text-3xl md:text-4xl font-semibold tracking-tight">
           Channels audit
         </h1>
