@@ -59,33 +59,43 @@ A candidate channel should satisfy **all** of these to be added:
 
 1. **Political-talk focus** — primarily commentary on US politics/policy (not
    entertainment with occasional politics, not sports, not pure interview).
-2. **Reach floor** — e.g. **≥100K YouTube subscribers** OR ≥100K monthly
-   podcast downloads (proxy via PodScan). The reach factor (`log10(reach)`)
-   means lower-reach channels barely move the needle anyway.
-3. **Activity** — publishes ≥1 substantive episode/week, with ≥6 months of
+2. **Alternative / independent media only** — podcasts and YouTube shows, not
+   legacy/traditional broadcasters (CNN, Fox, MSNBC, NYT, etc.). The product's
+   thesis is "what alt-media is saying"; legacy stays out of the panel for v1.
+   *Future*: a separate "Legacy vs Alt" cohort could be added for direct
+   sentiment comparison — see "Future extensions" below.
+3. **Reach floor: ≥300K YouTube subscribers** (or ≥300K monthly podcast
+   downloads). Set deliberately high — `log10(reach)` weighting means
+   sub-300K channels barely move the needle, and a higher floor keeps the
+   panel meaningful and the cost contained.
+4. **Activity** — publishes ≥1 substantive episode/week, with ≥6 months of
    continuous output.
-4. **L/M/R lean assignable** — not so niche that the lean is unclear.
-5. **Long-form** — at least most episodes ≥3 minutes (already enforced at
+5. **L/M/R lean assignable** — not so niche that the lean is unclear.
+6. **Long-form** — at least most episodes ≥3 minutes (already enforced at
    ingest by `MIN_DURATION_SEC = 180`).
 
-## Sourcing — where 152 more candidates come from
+## Sourcing — where candidates come from
 
-A pragmatic ladder:
+Primary mechanism: **YouTube API "Featured Channels"** for each of the current
+48 YT channels. The host curates a list of channels they "feature" on their
+page — peers, network siblings, friends-of-the-show. It's a *very* high-signal
+adjacency signal because the show itself picks them. We pull these for all
+48, aggregate, dedup against existing, filter to ≥300K subs, rank by how many
+of our 48 endorse each candidate. Tooling lives in `scripts/discover-channels.ts`
+(see below).
 
-1. **The shows the current 48 already mention** — guests, named competitors,
-   network siblings (Daily Wire, MeidasTouch, etc.). Cheap and surfaces the
-   actually-influential adjacent voices.
-2. **Apple Podcasts Politics & News charts** — top 50 in the US, dedup against
-   the current 48.
-3. **Editorial seed list** — your own additions. Highest signal.
-4. **Discovery-driven** — *future*: once the discovery feature also tracks
-   *who* is being talked about (an actor-axis we deferred), it could surface
-   under-covered voices. Not for v1 of this expansion.
+Secondary:
+1. **Apple Podcasts Politics & News top charts** — dedup against the existing
+   panel + candidates from YT featured channels.
+2. **Editorial seed list** — your own additions; highest signal of all.
+3. **Future**: discovery's eventual actor-axis could surface under-covered
+   voices the existing 48 talk *about*. Deferred.
 
-Lean balance target: roughly mirror alt-media's actual share-of-voice (the
-methodology already says it's R-skewed). A reasonable starting target is
-**40% R / 40% L / 20% M**, but the *imbalance is itself a finding* per the
-methodology — so the target is "honest representation," not artificial parity.
+Lean balance: **no fixed target — honest imbalance**. Whoever has ≥300K
+subscribers and meets the other criteria gets in; we let the data fall where
+it falls. The methodology already says alt-media has a structural R-skew in
+published reach and that *"the imbalance is the finding, not a bug"* — this
+expansion stays consistent with that.
 
 ## Onboarding workflow
 
@@ -115,17 +125,29 @@ Each phase: 1 week of observation between, gating on (a) classify pending
 stays bounded, (b) monthly cost projection stays ≤$1k, (c) no spike in
 classify failures or 504s.
 
-## Open questions for you
+## Decisions made (2026-05-28)
 
-1. **Reach floor** — is 100K subs / 100K monthly downloads the right bar? Lower
-   surfaces longer-tail voices; higher keeps the Index dominated by the loudest.
-2. **Lean balance target** — explicit target (e.g., 40/40/20) or "honest
-   imbalance" (let the data fall where it falls)?
-3. **Source list cap** — how many channels do you want to seed yourself
-   editorially, vs. having me draft a candidate list from Apple Podcasts top
-   charts + the current 48's mentioned-shows for you to triage?
-4. **Cost ceiling** — strict ~$870/mo at full 200, or willing to go to $1k with
-   the levers above (lower `INGEST_PER_CHANNEL`, sampling for high-volume)?
+- ✅ **Reach floor: 300K** (subs or monthly downloads).
+- ✅ **Lean balance: honest imbalance** — no fixed target; whoever meets the
+  criteria gets in.
+- ✅ **Sourcing: lead with YT API "Featured Channels" for the 48** —
+  candidate-discovery tool builds the list; you triage.
+
+- ✅ **Cost ceiling: up to $1,000/mo** for ongoing processing. The ~$870/mo
+  full-200 estimate fits with room; if per-episode classify cost runs higher
+  than $0.04 we can pull the levers (lower `INGEST_PER_CHANNEL` or sample
+  high-volume channels) before hitting the cap.
+
+## Future extensions (not for v1)
+
+- **Legacy vs Alternative cohort.** Add a separate panel of legacy/traditional
+  media (CNN, Fox, MSNBC, NYT podcasts, etc.) tagged with a `cohort` flag, so
+  the Index can be split: "alt-media sentiment on issue X" vs "legacy
+  sentiment on issue X". Same pipeline, same taxonomy; only difference is the
+  source set. This is the natural way to make the platform's thesis legible
+  ("here's where alt and legacy diverge") without polluting the core alt-media
+  panel. Schema sketch: `channels.cohort text default 'alt'`; aggregation
+  optionally filters/groups by cohort.
 
 ## Risks
 

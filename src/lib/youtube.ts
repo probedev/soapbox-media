@@ -148,6 +148,55 @@ export async function getRecentUploads(
 }
 
 /**
+ * Channels this channel "features" on its page — peers, network siblings,
+ * friends-of-the-show, hand-picked by the host. A very high-signal adjacency
+ * signal for finding competitors of an existing channel set. Costs 1 quota
+ * unit per call. Returns the deduped list of featured channel IDs.
+ */
+export async function getFeaturedChannels(channelId: string): Promise<string[]> {
+  const data = await ytFetch<{
+    items?: Array<{
+      snippet?: { type?: string };
+      contentDetails?: { channels?: string[] };
+    }>;
+  }>(`/channelSections?channelId=${channelId}&part=snippet,contentDetails`);
+  const out = new Set<string>();
+  for (const item of data.items || []) {
+    for (const id of item.contentDetails?.channels || []) out.add(id);
+  }
+  return [...out];
+}
+
+/**
+ * Fetch title + subscriber count for many channels in one go (batches of 50,
+ * 1 quota unit per batch). Returns a map keyed by channel id.
+ */
+export async function getChannelDetailsBatch(
+  ids: string[],
+): Promise<Map<string, { title: string; subscriberCount: number; description: string }>> {
+  const out = new Map<string, { title: string; subscriberCount: number; description: string }>();
+  for (let i = 0; i < ids.length; i += 50) {
+    const chunk = ids.slice(i, i + 50).join(",");
+    if (!chunk) continue;
+    const data = await ytFetch<{
+      items?: Array<{
+        id: string;
+        snippet: { title: string; description: string };
+        statistics?: { subscriberCount?: string };
+      }>;
+    }>(`/channels?id=${chunk}&part=snippet,statistics`);
+    for (const ch of data.items || []) {
+      out.set(ch.id, {
+        title: ch.snippet.title,
+        description: ch.snippet.description || "",
+        subscriberCount: parseInt(ch.statistics?.subscriberCount || "0", 10),
+      });
+    }
+  }
+  return out;
+}
+
+/**
  * Pull the existing transcript for a YouTube video via Supadata's API.
  *
  * Uses `mode=native` — fetch the existing caption track if any, do NOT
