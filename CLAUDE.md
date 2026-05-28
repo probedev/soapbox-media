@@ -57,11 +57,14 @@ swappable. Aggregation (`src/lib/aggregate.ts`) is read-only.
 
 ## Infra facts
 
-- Cron: Vercel, four per-stage jobs staggered daily from 10:00 UTC —
-  `/api/cron/{ingest,transcribe,classify,score}` at :00/:15/:30/:45 (split in
-  v0.6.37 to dodge the 300s function timeout; stage logic lives in
-  `src/lib/pipeline.ts`). `/api/cron/pipeline` is kept for manual full runs. All
-  auth via `CRON_SECRET`. Domain redirects apex → `www`.
+- Cron: Vercel, per-stage jobs with throughput-tuned cadences (set in
+  `vercel.json`). Ingest 1×/day (10:00 UTC). Transcribe + classify every 4h
+  (6×/day), classify offset +30 min. Score every 6h. Discover weekly (Mon
+  11:00 UTC). Each stage has a 300s function limit; classify's per-run wall-
+  clock is bounded by `STAGE_TIME_BUDGET_MS = 240s` in `src/lib/pipeline.ts`
+  (v0.6.43) so it always completes cleanly as the taxonomy grows. Stage logic
+  is in `src/lib/pipeline.ts`; `/api/cron/pipeline` kept for manual full runs.
+  All auth via `CRON_SECRET`. Domain redirects apex → `www`.
 - Supabase project ref `xhqtirzxkbiehkuzglqm`. YT transcripts via **Supadata**
   (managed API, native-caption mode). Podcast transcripts inline from PodScan.
 - Useful objects: `episode_pipeline_summary` view (per-episode classify/score

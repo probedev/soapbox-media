@@ -7,6 +7,26 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
+## v0.6.44 · 2026-05-28
+
+### Changed
+
+- **Cron stages run multi-times/day to fix the backlog dynamic.** Ingest stayed
+  daily (10:00 UTC); **transcribe and classify now run every 4h** (6×/day),
+  with classify offset +30 min; **score runs every 6h** (4×/day). Same total
+  work per day, smoother throughput — with the v0.6.43 time-budget guard each
+  run completes cleanly, so the only knob needed is *frequency*. At 48
+  channels this keeps the pipeline caught-up (transcribe 240/day vs ~148
+  ingest/day; classify ~90/day vs ~40/day transcribed). Empty runs are free.
+
+### Added
+
+- **Channel expansion strategy draft** (`docs/channel-expansion-strategy.md`)
+  for the 48→200 scale-up: curation criteria, sourcing ladder, ~$870/mo cost
+  model at 200 channels, throughput requirements (hourly classify), phased
+  rollout, and open editorial decisions (reach floor, lean balance target,
+  cost ceiling). Not implemented — review artifact.
+
 ## v0.6.43 · 2026-05-27
 
 ### Fixed
