@@ -21,6 +21,7 @@ export function AddChannelClient() {
   const [pending, startTransition] = useTransition();
   const [handle, setHandle] = useState("");
   const [lean, setLean] = useState<"L" | "M" | "R" | "">("");
+  const [rationale, setRationale] = useState("");
   const [err, setErr] = useState<string | null>(null);
   const [ok, setOk] = useState<SuccessNote | null>(null);
 
@@ -31,6 +32,7 @@ export function AddChannelClient() {
       const r = await addChannelAction({
         handleOrUrl: handle,
         lean: lean as "L" | "M" | "R",
+        rationale,
       });
       if (!r.ok) {
         setErr(r.error);
@@ -45,11 +47,12 @@ export function AddChannelClient() {
       });
       setHandle("");
       setLean("");
+      setRationale("");
       router.refresh();
     });
   }
 
-  const disabled = pending || !handle.trim() || !lean;
+  const disabled = pending || !handle.trim() || !lean || !rationale.trim();
 
   return (
     <div className="border border-gray-200 rounded-lg bg-white p-5">
@@ -80,6 +83,20 @@ export function AddChannelClient() {
             <option value="R">R (Right)</option>
           </select>
         </label>
+        <div /> {/* spacer */}
+      </div>
+      <label className="text-xs text-gray-600 block mt-2.5">
+        Lean rationale (one sentence — appears on /channels)
+        <textarea
+          rows={2}
+          className={inputClass}
+          placeholder='e.g. "Daily Wire host; social-conservative, Catholic-traditionalist culture commentary"'
+          value={rationale}
+          onChange={(e) => setRationale(e.target.value)}
+          disabled={pending}
+        />
+      </label>
+      <div className="flex items-center gap-3 mt-2">
         <Button onClick={submit} disabled={disabled}>
           {pending ? "Adding…" : "Add channel"}
         </Button>

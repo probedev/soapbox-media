@@ -29,6 +29,9 @@ export function extractYouTubeHandle(input: string): string | null {
 export interface AddChannelInput {
   handleOrUrl: string;
   lean: "L" | "M" | "R";
+  /** One-sentence rationale for the lean assignment — shown on /channels.
+   *  Required so the panel surface stays informative. */
+  rationale: string;
   nameOverride?: string;
   /** Max episodes to deep-ingest after adding. Default 30. */
   backfillCount?: number;
@@ -72,6 +75,10 @@ export async function addYouTubeChannel(input: AddChannelInput): Promise<AddChan
     throw new Error(`"${existing.name}" is already in the panel.`);
   }
 
+  if (!input.rationale?.trim()) {
+    throw new Error("Provide a one-sentence rationale (shown on /channels).");
+  }
+
   const { data: inserted, error: insErr } = await db
     .from("channels")
     .insert({
@@ -80,6 +87,7 @@ export async function addYouTubeChannel(input: AddChannelInput): Promise<AddChan
       platform_id: yt.id,
       political_lean: input.lean,
       reach: yt.subscriberCount,
+      classification_rationale: input.rationale.trim(),
       active: true,
     })
     .select("id, name")

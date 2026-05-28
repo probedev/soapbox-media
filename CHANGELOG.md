@@ -7,6 +7,18 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
+## v0.6.46 · 2026-05-28
+
+### Fixed
+
+- **Add-channel flow now requires a lean rationale.** The 21 channels seeded
+  today (and Sam Harris) were missing `classification_rationale`, so they
+  showed up on `/channels` without the one-sentence descriptions every other
+  channel has. Backfilled all 22 by hand in the project's editorial voice;
+  threaded the field through `addYouTubeChannel` and the `/admin/channels`
+  add form (required, validated, with a placeholder example) so the gap
+  can't recur.
+
 ## v0.6.45 · 2026-05-28
 
 ### Added
