@@ -84,7 +84,7 @@ async function main() {
   for (const r of rows) {
     const sub = r.subs >= 1_000_000 ? `${(r.subs / 1_000_000).toFixed(1)}M` : `${Math.round(r.subs / 1000)}K`;
     const srcs = r.sources.slice(0, 3).join(", ") + (r.sources.length > 3 ? `, +${r.sources.length - 3}` : "");
-    console.log(`${r.title}  ·  ${sub}  ·  ${r.endorsements}  ·  ${srcs}`);
+    console.log(`${r.title}  ·  ${sub}  ·  ${r.id}  ·  ${r.endorsements}  ·  ${srcs}`);
   }
   console.log(`\n${rows.length} candidates ≥${SUB_FLOOR.toLocaleString()} subs (${candidateIds.length - rows.length} below floor).`);
 }
