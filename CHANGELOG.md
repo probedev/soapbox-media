@@ -7,6 +7,23 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
+## v0.6.47 · 2026-05-29
+
+### Fixed
+
+- **Cron `classify` + `score` paginated without `ORDER BY` → silent backlog
+  stall.** Two of today's four scheduled classify runs (08:30 and 12:30 UTC)
+  reported `pendingFound = 0` despite 564 episodes actually being pending.
+  Once the `transcripts` table grew past 1000 rows, PostgREST's `.range()`
+  pagination returned non-deterministic pages — some runs got pages where
+  every row was already `classify_status='processed'`, so the cron silently
+  decided there was nothing to do and exited in 9 s. This is the exact
+  pagination gotcha called out in `CLAUDE.md`; the CLI scripts had stable
+  `.order("episode_id")` since v0.6.29 but `pipeline.ts` never got the same
+  treatment. Fixed in all three paginated reads (transcripts, classifications,
+  sentiment_scores) by adding stable PK ordering. Backfill drained manually
+  via CLI after the fix shipped.
+
 ## v0.6.46 · 2026-05-28
 
 ### Fixed

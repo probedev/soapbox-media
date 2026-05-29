@@ -329,7 +329,7 @@ export async function runClassify(): Promise<Record<string, unknown>> {
     const { data } = await db
       .from("transcripts")
       .select(
-        `episode_id, text,
+        `id, episode_id, text,
          episode:episodes!transcripts_episode_id_fkey (
            title, published_at, classify_status,
            channel:channels!episodes_channel_id_fkey (
@@ -337,6 +337,12 @@ export async function runClassify(): Promise<Record<string, unknown>> {
            )
          )`,
       )
+      // Stable PK order is REQUIRED for .range() once the table grows past 1000
+      // rows — without it PostgREST/Postgres can return inconsistent pages and
+      // a single .range() call may miss the un-processed tail entirely. (v0.6.47
+      // — 08:30 and 12:30 classify runs both reported pendingFound=0 while 564
+      // were actually pending.)
+      .order("id", { ascending: true })
       .range(from, from + pageSize - 1);
     if (!data || data.length === 0) break;
     transcripts.push(...data);
@@ -447,6 +453,8 @@ export async function runScore(): Promise<Record<string, unknown>> {
            )
          )`,
       )
+      // Stable PK order — same gotcha as runClassify above (v0.6.47).
+      .order("id", { ascending: true })
       .range(from, from + pageSize - 1);
     if (!data || data.length === 0) break;
     classifications.push(...data);
@@ -457,6 +465,8 @@ export async function runScore(): Promise<Record<string, unknown>> {
     const { data } = await db
       .from("sentiment_scores")
       .select("classification_id")
+      // UNIQUE(classification_id) so it's a stable pagination key.
+      .order("classification_id", { ascending: true })
       .range(from, from + pageSize - 1);
     if (!data || data.length === 0) break;
     scored.push(...(data as any));

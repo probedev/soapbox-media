@@ -3,5 +3,5 @@
  * and the `version` field in package.json. Single source of truth for
  * footer + admin surfaces.
  */
-export const VERSION = "0.6.46";
-export const RELEASE_DATE = "2026-05-25";
+export const VERSION = "0.6.47";
+export const RELEASE_DATE = "2026-05-29";
