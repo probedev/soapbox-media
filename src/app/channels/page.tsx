@@ -85,16 +85,25 @@ function platformAbbrev(p: "youtube" | "podcast"): string {
 
 export default async function ChannelsListPage() {
   const db = createServiceClient();
-  const { data: channels } = await db
-    .from("channels")
-    .select(
-      "id, name, platform, platform_id, political_lean, reach, classification_rationale",
-    )
-    .eq("active", true)
-    .order("reach", { ascending: false })
-    .range(0, 999);
-
-  const rows = (channels || []) as ChannelRow[];
+  // Paginate by `id` (stable PK) and terminate only on an empty page — see
+  // [[pagination-stable-order]]. A single `.range(0, 999)` silently truncates
+  // at 1000 active channels, which the panel will cross on the path to ~200
+  // unique shows (2-3 platform rows each) and definitely past that. JS
+  // re-sorts via groupByShow → maxReach, so SQL order doesn't affect the UI.
+  const rows: ChannelRow[] = [];
+  const pageSize = 1000;
+  for (let from = 0; ; from += pageSize) {
+    const { data, error } = await db
+      .from("channels")
+      .select(
+        "id, name, platform, platform_id, political_lean, reach, classification_rationale",
+      )
+      .eq("active", true)
+      .order("id", { ascending: true })
+      .range(from, from + pageSize - 1);
+    if (error || !data || data.length === 0) break;
+    rows.push(...(data as ChannelRow[]));
+  }
   const shows = groupByShow(rows);
 
   const byLean = {

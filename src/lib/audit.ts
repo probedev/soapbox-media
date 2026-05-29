@@ -125,6 +125,16 @@ interface ClassificationRow {
   supporting_quote: string;
 }
 
+/**
+ * Generic paginated fetch with the canonical Supabase pattern: stable PK
+ * ordering + empty-page-only termination. All callers use tables with an
+ * `id` PK; the order is hardcoded so the helper's contract is unambiguous
+ * ("I paginate by id, ascending") and callers can't accidentally pass a
+ * non-unique sort key. See [[pagination-stable-order]] / v0.6.51 for why
+ * both halves of this pattern matter — a short-page early-out (the bug
+ * removed below) silently drops the tail on deep-join queries, and missing
+ * ORDER BY lets pages overlap once the table grows past the Max Rows cap.
+ */
 async function paginatedSelect<T>(
   table: string,
   selectExpr: string,
@@ -136,11 +146,14 @@ async function paginatedSelect<T>(
   for (let from = 0; ; from += pageSize) {
     let query = db.from(table).select(selectExpr);
     if (filters) query = filters(query);
-    const { data, error } = await query.range(from, from + pageSize - 1);
+    const { data, error } = await query
+      .order("id", { ascending: true })
+      .range(from, from + pageSize - 1);
     if (error) throw new Error(`${table}: ${error.message}`);
     if (!data || data.length === 0) break;
     all.push(...(data as unknown as T[]));
-    if (data.length < pageSize) break;
+    // Empty-page-only termination — a short page on Vercel's edge→Supabase
+    // route is normal on deep payloads and does NOT mean we're done.
   }
   return all;
 }

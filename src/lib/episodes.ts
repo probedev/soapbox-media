@@ -48,8 +48,15 @@ export async function getEpisodeTableRows(
         "id, title, published_at, source_url, duration_sec, channel_id, channel_name, political_lean, platform, transcript_status, classification_count, scored_count",
       );
     if (channelId) q = q.eq("channel_id", channelId);
+    // published_at is the business order (newest first) but isn't unique —
+    // two episodes posted in the same second can re-cross page boundaries
+    // and appear duplicated in the table. Chain `id` as the stable tiebreaker
+    // so pagination is deterministic even when published_at values collide.
+    // (See [[pagination-stable-order]] — the missing-tiebreaker subspecies of
+    // the v0.6.47 family.)
     const { data, error } = await q
       .order("published_at", { ascending: false })
+      .order("id", { ascending: false })
       .range(from, from + PAGE - 1);
     if (error) {
       console.error("getEpisodeTableRows:", error.message);

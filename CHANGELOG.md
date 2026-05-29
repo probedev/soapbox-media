@@ -7,6 +7,45 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
+## v0.6.52 · 2026-05-29
+
+### Fixed
+
+- **Audit-pass: remaining `.range()` antipatterns surfaced by the post-
+  v0.6.51 `grep -n "range(" src/` sweep.** Three callers had subspecies of
+  the same family of pagination bugs. None were currently breaking the cron
+  (that was v0.6.51), but each would have bitten silently as the panel keeps
+  scaling — so fixing all of them is part of "runs autonomously."
+  - `src/lib/audit.ts` `paginatedSelect` — the generic helper used by
+    `/admin/channels-audit` had both halves of the v0.6.47/v0.6.51 bug: no
+    `.order()` and a `data.length < pageSize` early-out. Hardcoded
+    `.order("id", ascending: true)` inside the helper (all three callers
+    use tables with an `id` PK; the helper's contract is now unambiguous
+    — "I paginate by id") and dropped the short-page break.
+  - `src/lib/episodes.ts` `getEpisodeTableRows` — had empty-page-only
+    termination ✓ but ordered by `published_at DESC` alone, which isn't
+    unique. Two episodes posted in the same second could re-cross page
+    boundaries and appear duplicated in the /log table. Added
+    `.order("id", descending)` as the stable tiebreaker after the business
+    order; UI behavior unchanged when published_at values are distinct
+    (the common case), now deterministic when they collide.
+  - `src/app/channels/page.tsx` — single-call `.range(0, 999)` silently
+    truncates at 1000 active channel rows. We're at 85 today but the
+    scale-out target is ~200 unique shows (2–3 platform rows each, easily
+    400–600), well within the lifetime of this code. Converted to the
+    canonical paginated loop (`.order("id")` + empty-page-only break);
+    JS-side `groupByShow → maxReach` already re-sorts so the user-visible
+    order is unchanged.
+
+### Notes
+
+- Repo now has 8 `.range()` callers, all conforming to the audit pattern in
+  `[[pagination-stable-order]]`: stable `.order(<unique_key>)` AND
+  `data.length === 0` as the only loop terminator. The pattern is
+  duplicated across 5 files (`aggregate.ts` ×2, `discovery.ts`,
+  `pipeline.ts` ×3, `audit.ts`, `episodes.ts`, `channels/page.tsx`) — a
+  good candidate for extraction into a shared helper if/when scope allows.
+
 ## v0.6.51 · 2026-05-29
 
 ### Fixed
