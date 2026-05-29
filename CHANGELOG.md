@@ -7,6 +7,30 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
+## v0.6.48 · 2026-05-29
+
+### Changed
+
+- **CLI classify is episodes-first.** The old `scripts/classify.ts` paginated
+  the entire `transcripts` table with `text` embedded in the SELECT — a 1700-
+  row × ~100KB/row payload that hit Postgres's `statement_timeout` once the
+  panel hit ~80 channels. Refactored to query `episodes` (no `text`) filtered
+  on `classify_status='pending' AND transcript_status='fetched'`, then load
+  each transcript on demand inside the loop. Orders by `published_at DESC` so
+  the most-recent backlog drains first. The cron path in `pipeline.ts` may
+  benefit from the same treatment if/when it starts timing out at larger
+  scale — for now its 300s function budget masks the inefficiency.
+
+### Added
+
+- **`scripts/discover-socialblade.ts`** — one-time parser for saved Social
+  Blade "Top by category" HTML pages (politics, news, etc.). Direct fetch is
+  blocked by Cloudflare, so you save the page from a browser, point this
+  script at the file(s), and it: extracts every `/youtube/channel/UC…` link
+  with name + sub count, filters to ≥300K, dedups against the existing panel
+  by both channel ID and normalized name, and prints a sorted candidate list.
+  Run via `npm run discover:socialblade <file.html> [file2.html] …`.
+
 ## v0.6.47 · 2026-05-29
 
 ### Fixed

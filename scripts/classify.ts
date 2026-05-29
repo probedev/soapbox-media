@@ -17,17 +17,13 @@ import { createServiceClient } from "@/lib/db";
 import { classifyTranscript, type IssueDef } from "@/modules/classify";
 import { MODEL_CLASSIFY } from "@/lib/anthropic";
 
-interface PendingTranscript {
-  episode_id: string;
-  text: string;
-  episode: {
-    title: string;
-    published_at: string;
-    classify_status: string;
-    channel: {
-      name: string;
-      political_lean: "L" | "M" | "R";
-    };
+interface PendingEpisode {
+  id: string;
+  title: string;
+  published_at: string;
+  channel: {
+    name: string;
+    political_lean: "L" | "M" | "R";
   };
 }
 
@@ -53,55 +49,49 @@ async function main() {
   const issuesTyped = issues as IssueDef[];
   console.log(`Loaded ${issuesTyped.length} issues from taxonomy.\n`);
 
-  // Find transcripts whose episode hasn't been run through classify yet. The
-  // queue key is `episodes.classify_status` ('pending' until processed), which
-  // is set to 'processed' after each attempt REGARDLESS of mention count. This
-  // is what stops 0-mention (off-taxonomy) episodes from being reprocessed
-  // every run — the head-of-line-blocking loop fixed in v0.6.29.
+  // Find pending episodes — episodes with a transcript that haven't been
+  // classified yet. The queue key is `episodes.classify_status` ('pending'
+  // until processed), set to 'processed' after each attempt REGARDLESS of
+  // mention count (the head-of-line-blocking fix from v0.6.29).
   //
-  // CRITICAL: must paginate via .range(). Supabase/PostgREST enforces a
-  // project-level "Max Rows" cap (default 1000) that silently truncates
-  // .limit() — a large .limit(50000) still returns at most 1000 rows. Only
-  // .range() pagination walks the full set regardless of the Max Rows cap.
+  // We query episodes-first (not transcripts) so we don't have to drag the
+  // full transcript `text` column across every row of the entire transcripts
+  // table. At ~50–200KB per transcript and 1700+ rows, the old embed-and-
+  // filter approach hit Postgres's statement timeout. The text is fetched
+  // on-demand inside the loop, one episode at a time.
+  //
+  // CRITICAL: paginate via .range() with a stable .order(). Supabase enforces
+  // a 1000-row Max Rows cap that silently truncates .limit().
   const PAGE = 1000;
-  const MAX_PAGES = 500; // safety bound (~500k rows) — never expected to hit
+  const MAX_PAGES = 500;
 
-  const allTranscripts: PendingTranscript[] = [];
+  const allPending: PendingEpisode[] = [];
   for (let from = 0, pages = 0; pages < MAX_PAGES; pages++, from += PAGE) {
     const { data, error } = await db
-      .from("transcripts")
+      .from("episodes")
       .select(
-        `
-        episode_id, text,
-        episode:episodes!transcripts_episode_id_fkey (
-          title, published_at, classify_status,
-          channel:channels!episodes_channel_id_fkey (
-            name, political_lean
-          )
-        )
-      `,
+        `id, title, published_at,
+         channel:channels!episodes_channel_id_fkey (name, political_lean)`,
       )
-      // Stable order is required for correct .range() pagination — without it
-      // Postgres may return rows in an inconsistent order across pages.
-      .order("episode_id", { ascending: true })
+      .eq("classify_status", "pending")
+      .eq("transcript_status", "fetched")
+      // Newest first — recent backlog drains first, matches editorial value.
+      .order("published_at", { ascending: false })
       .range(from, from + PAGE - 1);
     if (error) {
-      console.error("Failed to load transcripts:", error.message);
+      console.error("Failed to load pending episodes:", error.message);
       process.exit(1);
     }
-    if (!data || data.length === 0) break; // terminate only on an empty page
-    allTranscripts.push(...(data as unknown as PendingTranscript[]));
+    if (!data || data.length === 0) break;
+    allPending.push(...(data as unknown as PendingEpisode[]));
+    if (data.length < PAGE) break;
   }
 
-  const pending = allTranscripts.filter(
-    (t) => t.episode?.classify_status !== "processed",
-  );
-
-  if (pending.length === 0) {
+  if (allPending.length === 0) {
     console.log("All transcripts already classified. Nothing to do.");
     return;
   }
-  console.log(`Found ${pending.length} unclassified transcripts. Processing first ${Math.min(limit, pending.length)}.\n`);
+  console.log(`Found ${allPending.length} unclassified transcripts. Processing first ${Math.min(limit, allPending.length)}.\n`);
 
   let totalMentions = 0;
   let totalOffTopics = 0;
@@ -109,24 +99,38 @@ async function main() {
   let totalOutputTokens = 0;
   let failed = 0;
 
-  const slice = pending.slice(0, limit);
+  const slice = allPending.slice(0, limit);
   for (let i = 0; i < slice.length; i++) {
-    const t = slice[i];
-    const truncatedTitle = (t.episode?.title || "(no title)").slice(0, 80);
-    const channelName = t.episode?.channel?.name || "(unknown)";
-    const lean = t.episode?.channel?.political_lean || "M";
+    const ep = slice[i];
+    const truncatedTitle = (ep.title || "(no title)").slice(0, 80);
+    const channelName = ep.channel?.name || "(unknown)";
+    const lean = ep.channel?.political_lean || "M";
 
     console.log(`[${i + 1}/${slice.length}] [${lean}] ${channelName}`);
     console.log(`    ${truncatedTitle}`);
-    console.log(`    transcript: ${t.text.length.toLocaleString()} chars`);
+
+    // Load this episode's transcript on demand — keeps per-iteration payload
+    // small (one transcript, not all of them).
+    const { data: tRow, error: tErr } = await db
+      .from("transcripts")
+      .select("text")
+      .eq("episode_id", ep.id)
+      .maybeSingle();
+    if (tErr || !tRow?.text) {
+      console.log(`    ✗ transcript missing (${tErr?.message || "no row"})`);
+      failed += 1;
+      continue;
+    }
+    const text = tRow.text;
+    console.log(`    transcript: ${text.length.toLocaleString()} chars`);
 
     try {
       const result = await classifyTranscript({
-        transcript: t.text,
+        transcript: text,
         channelName,
         politicalLean: lean,
-        episodeTitle: t.episode?.title || "",
-        publishedAt: t.episode?.published_at || new Date().toISOString(),
+        episodeTitle: ep.title || "",
+        publishedAt: ep.published_at || new Date().toISOString(),
         issues: issuesTyped,
       });
 
@@ -138,7 +142,7 @@ async function main() {
       if (result.offTopics.length > 0) {
         const { error: topicErr } = await db.from("discovery_topics").insert(
           result.offTopics.map((o) => ({
-            episode_id: t.episode_id,
+            episode_id: ep.id,
             label: o.topic,
             quote: o.supporting_quote,
           })),
@@ -152,7 +156,7 @@ async function main() {
         db
           .from("episodes")
           .update({ classify_status: "processed" })
-          .eq("id", t.episode_id);
+          .eq("id", ep.id);
 
       if (result.mentions.length === 0) {
         console.log(`    ○ no taxonomy issues detected`);
@@ -162,7 +166,7 @@ async function main() {
 
       // Insert all mentions
       const rows = result.mentions.map((m) => ({
-        episode_id: t.episode_id,
+        episode_id: ep.id,
         issue_slug: m.issue_slug,
         supporting_quote: m.supporting_quote,
       }));
