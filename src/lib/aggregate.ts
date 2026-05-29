@@ -54,6 +54,14 @@ export interface IssueMover {
   fromLean: number;
   toLean: number;
   delta: number;
+  /** Raw mention count in the current window. */
+  currentMentions: number;
+  /** Raw mention count in the parallel prior window. */
+  prevMentions: number;
+  /** currentMentions / prevMentions — week-over-week volume ratio.
+   *  >1 = attention rising, <1 = falling. Paired with `delta` so a row can
+   *  earn its spot on either axis: a lean swing, a volume swing, or both. */
+  volumeRatio: number;
 }
 
 export interface DashboardData {
@@ -147,6 +155,49 @@ function rollingLeanTrend(
   return { values, dates };
 }
 
+/**
+ * Rolling mention-count trend for a row subset: one point per day for the
+ * last `points` days, each the trailing `windowDays`-day raw mention count.
+ *
+ * Unlike `rollingLeanTrend`, which skips days where the window is empty
+ * (lean is undefined at 0/0), this *keeps* mid-series zero days — a stretch
+ * of zero is a real "issue went silent" signal worth seeing on the chart.
+ * Leading zeros are trimmed so the line starts at first observed activity.
+ *
+ * Feeds <VolumeAreaChart> directly. Scope the `rows` to a single issue or
+ * channel before calling to get that entity's attention trend.
+ */
+function rollingVolumeTrend(
+  rows: ScoreRow[],
+  now: Date,
+  windowDays = 7,
+  points = 30,
+): { values: number[]; dates: string[] } {
+  const values: number[] = [];
+  const dates: string[] = [];
+  for (let daysAgo = points - 1; daysAgo >= 0; daysAgo--) {
+    const windowEnd = new Date(now);
+    windowEnd.setUTCDate(windowEnd.getUTCDate() - daysAgo);
+    const windowStart = new Date(windowEnd);
+    windowStart.setUTCDate(windowStart.getUTCDate() - windowDays);
+    let count = 0;
+    for (const r of rows) {
+      const d = new Date(r.episode_published_at);
+      if (d >= windowStart && d < windowEnd) count += 1;
+    }
+    values.push(count);
+    dates.push(windowEnd.toISOString().slice(0, 10));
+  }
+  // Trim leading zero-days only — the entity wasn't being discussed yet.
+  // Mid-series zeros stay; that's the silence signal.
+  let firstNonZero = 0;
+  while (firstNonZero < values.length && values[firstNonZero] === 0) firstNonZero++;
+  return {
+    values: values.slice(firstNonZero),
+    dates: dates.slice(firstNonZero),
+  };
+}
+
 async function fetchScoreRows(): Promise<ScoreRow[]> {
   const db = createServiceClient();
   const all: ScoreRow[] = [];
@@ -216,8 +267,28 @@ async function fetchScoreRows(): Promise<ScoreRow[]> {
  * produce a large, noisy lean swing and grab the headline on a thin sample —
  * e.g. an 18-mention week outranking a 400-mention one. The lean swing is only
  * trustworthy once each side of the comparison has enough rows behind it.
+ * The same floor applies to the volume-swing axis: a 4 → 12 mention spike is
+ * mathematically a 3× rise but well within noise.
  */
 const MOVER_MIN_MENTIONS = 25;
+
+/**
+ * Movers eligibility OR-rule thresholds. A row earns its spot if EITHER the
+ * lean shifted by at least `MOVER_LEAN_DELTA_FLOOR` OR mention volume rose
+ * past `MOVER_VOLUME_RATIO_UP` / fell below `MOVER_VOLUME_RATIO_DOWN`.
+ * Tuned so 0.5 lean swing (≈ smallest visible step in the L+/R+ display) and
+ * a 1.5× / 0.67× volume swing are roughly comparable "interesting" magnitudes.
+ */
+const MOVER_LEAN_DELTA_FLOOR = 0.5;
+const MOVER_VOLUME_RATIO_UP = 1.5;
+const MOVER_VOLUME_RATIO_DOWN = 1 / MOVER_VOLUME_RATIO_UP; // ≈ 0.667
+
+/**
+ * Cap on the number of movers shown. Set on the aggregate side (not at the
+ * call site) so every surface that consumes `DashboardData.movers` agrees
+ * on the leaderboard length.
+ */
+const MOVER_MAX_ROWS = 6;
 
 /**
  * Returns dashboard data using a trailing N-day rolling window (default 7).
@@ -342,7 +413,13 @@ export async function getDashboardData(windowDays = 7): Promise<DashboardData> {
   }
   issueAggregates.sort((a, b) => b.volume - a.volume);
 
-  // Movers: per-issue current vs previous window
+  // Movers: per-issue current vs previous window.
+  // A row earns its place if EITHER the lean swung OR mention volume swung —
+  // two orthogonal "biggest mover" signals shown side by side. The lean side
+  // answers "did anyone change their mind?"; the volume side answers "did the
+  // agenda shift?" An issue can spike in attention with stable lean (Iran
+  // breaking news) or drift L↔R while volume stays flat — both are worth
+  // surfacing.
   const movers: IssueMover[] = [];
   if (prevRows.length > 0) {
     const prevByIssue = new Map<string, ScoreRow[]>();
@@ -354,23 +431,46 @@ export async function getDashboardData(windowDays = 7): Promise<DashboardData> {
     for (const issue of issueAggregates) {
       const prs = prevByIssue.get(issue.slug) || [];
       // Require enough mentions on BOTH sides of the comparison; a thin window
-      // makes the lean swing too noisy to headline. (issue.numClassifications
-      // is the current-window count; prs.length is the prior-window count.)
+      // makes both the lean swing and the volume ratio too noisy to headline.
       if (
         issue.numClassifications < MOVER_MIN_MENTIONS ||
         prs.length < MOVER_MIN_MENTIONS
       )
         continue;
       const fromLean = clamp(weightedLean(prs).lean * 2, -10, 10);
+      const delta = issue.lean - fromLean;
+      const volumeRatio = issue.numClassifications / prs.length;
+      const leanInteresting = Math.abs(delta) >= MOVER_LEAN_DELTA_FLOOR;
+      const volumeInteresting =
+        volumeRatio >= MOVER_VOLUME_RATIO_UP ||
+        volumeRatio <= MOVER_VOLUME_RATIO_DOWN;
+      if (!leanInteresting && !volumeInteresting) continue;
       movers.push({
         slug: issue.slug,
         name: issue.name,
         fromLean,
         toLean: issue.lean,
-        delta: issue.lean - fromLean,
+        delta,
+        currentMentions: issue.numClassifications,
+        prevMentions: prs.length,
+        volumeRatio,
       });
     }
-    movers.sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta));
+    // Rank by max(|leanΔ|/2, |log2(volumeRatio)|): each axis scaled so a
+    // 2-point lean swing and a 2× volume swing carry equal ranking weight.
+    // log2 keeps "doubled" and "halved" symmetric (both score 1.0).
+    movers.sort((a, b) => {
+      const scoreA = Math.max(
+        Math.abs(a.delta) / 2,
+        Math.abs(Math.log2(a.volumeRatio)),
+      );
+      const scoreB = Math.max(
+        Math.abs(b.delta) / 2,
+        Math.abs(Math.log2(b.volumeRatio)),
+      );
+      return scoreB - scoreA;
+    });
+    if (movers.length > MOVER_MAX_ROWS) movers.length = MOVER_MAX_ROWS;
   }
 
   return {
@@ -633,6 +733,10 @@ export interface IssueDrillDown {
   numClassifications: number;
   /** Rolling lean trend for <IndexAreaChart> (oldest first). */
   trend: { values: number[]; dates: string[] };
+  /** Rolling 7-day mention-count trend for <VolumeAreaChart> (oldest first).
+   *  Same window cadence as `trend`, so the lean and attention sparklines
+   *  read as a paired story on the issue page. */
+  volumeTrend: { values: number[]; dates: string[] };
 }
 
 export async function getIssueDrillDown(slug: string): Promise<IssueDrillDown | null> {
@@ -677,12 +781,12 @@ export async function getIssueDrillDown(slug: string): Promise<IssueDrillDown | 
 
   const overall = clamp(weightedLean(issueRows).lean * 2, -10, 10);
 
-  // Trend uses all rows for this issue (the helper itself windows to the last
-  // ~37 days), independent of the 30-day leaderboard slice above.
-  const trend = rollingLeanTrend(
-    rows.filter((r) => r.issue_slug === slug),
-    new Date(),
-  );
+  // Trend uses all rows for this issue (the helpers themselves window to the
+  // last ~37 days), independent of the 30-day leaderboard slice above. The
+  // single `.filter` is reused so we walk the score-rows array once.
+  const issueAllRows = rows.filter((r) => r.issue_slug === slug);
+  const trend = rollingLeanTrend(issueAllRows, new Date());
+  const volumeTrend = rollingVolumeTrend(issueAllRows, new Date());
 
   return {
     slug: issue.slug,
@@ -695,6 +799,7 @@ export async function getIssueDrillDown(slug: string): Promise<IssueDrillDown | 
     numEpisodes: new Set(issueRows.map((r) => r.episode_id)).size,
     numClassifications: issueRows.length,
     trend,
+    volumeTrend,
   };
 }
 

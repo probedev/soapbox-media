@@ -7,6 +7,12 @@ interface Mover {
   fromLean: number;
   /** This week's lean, -10..+10 */
   toLean: number;
+  /** Raw mention count in the current window. */
+  currentMentions: number;
+  /** Raw mention count in the prior (parallel) window. */
+  prevMentions: number;
+  /** currentMentions / prevMentions — >1 = attention rising, <1 = falling. */
+  volumeRatio: number;
 }
 
 interface BiggestMoversProps {
@@ -25,11 +31,32 @@ function leanColor(v: number): string {
   return "text-gray-700";
 }
 
+/**
+ * Volume ratio reads naturally as "↑ 2.3×" when rising and "↓ 0.6×" when
+ * falling — the arrow tells direction; the number is always the raw ratio
+ * (60% of last week = "↓ 0.6×", not "1.7× lower"). A row with a sub-threshold
+ * ratio (it earned its spot on the lean axis instead) gets a neutral dot.
+ */
+function formatVolumeRatio(r: number): string {
+  if (!isFinite(r)) return "·";
+  if (r >= 1.05) return `↑ ${r.toFixed(1)}×`;
+  if (r <= 0.95) return `↓ ${r.toFixed(1)}×`;
+  return "·";
+}
+
+function volumeColor(r: number): string {
+  // Volume change is ideologically neutral — same gray either way. Slightly
+  // dimmer when the ratio is unremarkable so the eye skips it.
+  if (r >= 1.05 || r <= 0.95) return "text-gray-700";
+  return "text-gray-400";
+}
+
 export function BiggestMovers({ movers }: BiggestMoversProps) {
-  // Shared column template so the header labels line up with the row values.
-  // Mobile drops the "Last week" column; sm+ shows all four.
+  // Mobile keeps the original three columns (Issue · This week · Change) so
+  // the row stays readable on a 360px viewport. Desktop expands to six,
+  // adding Last week, Mentions, and Volume so the volume signal is visible.
   const cols =
-    "grid grid-cols-[minmax(0,1fr)_4.5rem_5rem] sm:grid-cols-[minmax(0,1fr)_5rem_5rem_5rem] gap-x-3";
+    "grid grid-cols-[minmax(0,1fr)_4.5rem_5rem] sm:grid-cols-[minmax(0,1fr)_4.5rem_4.5rem_4.5rem_4rem_4.5rem] gap-x-3";
 
   return (
     <div>
@@ -41,6 +68,8 @@ export function BiggestMovers({ movers }: BiggestMoversProps) {
           <div className="text-right hidden sm:block">Last week</div>
           <div className="text-right">This week</div>
           <div className="text-right">Change</div>
+          <div className="text-right hidden sm:block">Mentions</div>
+          <div className="text-right hidden sm:block">Volume</div>
         </div>
         {movers.map((m) => {
           const movedRight = m.delta > 0;
@@ -62,15 +91,23 @@ export function BiggestMovers({ movers }: BiggestMoversProps) {
               <div className="text-right text-sm tabular-nums text-gray-500 whitespace-nowrap">
                 {movedRight ? "→" : "←"} {Math.abs(m.delta).toFixed(1)}
               </div>
+              <div className="text-right text-sm tabular-nums text-gray-600 hidden sm:block">
+                {m.currentMentions.toLocaleString()}
+              </div>
+              <div className={`text-right text-sm tabular-nums whitespace-nowrap hidden sm:block ${volumeColor(m.volumeRatio)}`}>
+                {formatVolumeRatio(m.volumeRatio)}
+              </div>
             </a>
           );
         })}
       </div>
       <p className="text-xs text-gray-500 mt-3 leading-relaxed">
-        Arrows show the direction of movement on the left–right axis; the colored
-        value is where the issue sits now. An issue can move{" "}
-        <span className="text-red-600">right</span> (→) yet still be in{" "}
-        <span className="text-blue-600">left</span> territory.
+        Issues earn a row for the biggest shifts this week on either axis: lean
+        movement on the left–right scale (→ / ←) or a swing in attention
+        (↑ / ↓ mention volume). An issue can move{" "}
+        <span className="text-red-600">right</span> (→) yet still sit in{" "}
+        <span className="text-blue-600">left</span> territory, or hold steady on
+        lean while attention spikes or collapses.
       </p>
     </div>
   );

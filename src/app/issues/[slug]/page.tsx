@@ -2,6 +2,7 @@ import { getIssueDrillDown } from "@/lib/aggregate";
 import { Footer } from "@/components/Footer";
 import { Header } from "@/components/Header";
 import { IndexAreaChart } from "@/components/IndexAreaChart";
+import { VolumeAreaChart } from "@/components/VolumeAreaChart";
 import { notFound } from "next/navigation";
 
 export const dynamic = "force-dynamic";
@@ -75,18 +76,36 @@ export default async function IssuePage({
           </div>
         </div>
 
-        {/* Trend */}
+        {/* Trend — lean (L↔R) paired with attention (mention volume). Two
+            sparklines side-by-side answer the two reader questions at once:
+            "where is alt media landing on this?" + "is anyone actually
+            talking about it?" Volume falls back beneath the lean chart on
+            narrow viewports so each chart keeps a usable width. */}
         {data.trend.values.length >= 2 && (
-          <div className="mt-6 border border-gray-200 rounded-lg p-6 bg-white">
-            <div className="text-xs uppercase tracking-wider text-gray-500 mb-3">
-              How this issue has trended
+          <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="border border-gray-200 rounded-lg p-6 bg-white">
+              <div className="text-xs uppercase tracking-wider text-gray-500 mb-3">
+                Lean trend · L ↔ R
+              </div>
+              <IndexAreaChart
+                values={data.trend.values}
+                dates={data.trend.dates}
+                maxWidthClass=""
+                includeZero={false}
+              />
             </div>
-            <IndexAreaChart
-              values={data.trend.values}
-              dates={data.trend.dates}
-              maxWidthClass=""
-              includeZero={false}
-            />
+            {data.volumeTrend.values.length >= 2 && (
+              <div className="border border-gray-200 rounded-lg p-6 bg-white">
+                <div className="text-xs uppercase tracking-wider text-gray-500 mb-3">
+                  Attention trend · mention volume
+                </div>
+                <VolumeAreaChart
+                  values={data.volumeTrend.values}
+                  dates={data.volumeTrend.dates}
+                  maxWidthClass=""
+                />
+              </div>
+            )}
           </div>
         )}
 

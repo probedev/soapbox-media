@@ -125,7 +125,9 @@ export default async function HomePage() {
       {data.movers.length > 0 && (
         <section className="border-t border-gray-200 bg-white">
           <div className="max-w-3xl mx-auto px-6 py-12">
-            <BiggestMovers movers={data.movers.slice(0, 5)} />
+            {/* Cap (and ranking) live in getDashboardData so every consumer
+                of `data.movers` agrees on the leaderboard length. */}
+            <BiggestMovers movers={data.movers} />
           </div>
         </section>
       )}

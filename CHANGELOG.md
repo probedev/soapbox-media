@@ -7,6 +7,37 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
+## v0.6.50 · 2026-05-29
+
+### Added
+
+- **Mention-volume signal alongside lean in "Biggest movers."** The home card
+  now ranks issues on two orthogonal axes — lean swing (L↔R movement) and
+  mention-volume swing (attention shift) — and shows both. A row earns its
+  spot if `|leanΔ| ≥ 0.5` OR `volumeRatio` crosses `[0.67×, 1.5×]`; both
+  numbers display so visitors can see which signal (or both) put it there.
+  Ranking uses `max(|leanΔ|/2, |log2(volumeRatio)|)` so a 2-point lean swing
+  and a 2× volume swing carry equal weight, and the existing
+  `MOVER_MIN_MENTIONS = 25` floor applies on both windows so neither axis
+  fires on thin samples. Cap moved into `getDashboardData` (6 rows) — the
+  home page just renders `data.movers` directly now. Mobile keeps the
+  original 3-column layout for readability; desktop expands to 6 columns
+  (adds Last week / Mentions / Volume).
+- **Per-issue mention-volume sparkline on `/issues/[slug]`.** New
+  `<VolumeAreaChart>` component (neutral gray, non-negative y-axis, no
+  zero reference line — counterpart to `<IndexAreaChart>`) renders alongside
+  the existing lean trend in a 2-up grid. Answers the question the lean
+  chart can't: "is anyone actually talking about this issue right now?"
+  Powered by a new `rollingVolumeTrend()` helper in `aggregate.ts` that
+  mirrors `rollingLeanTrend`'s windowing but keeps mid-series zero days
+  (a stretch of zero is a real "issue went silent" signal — lean is just
+  undefined at 0/0, volume isn't); leading-only zero days are trimmed so
+  the chart starts at first activity.
+- **`IssueMover` extended** with `currentMentions`, `prevMentions`,
+  `volumeRatio` (week-over-week mention-count ratio). `IssueDrillDown` gains
+  `volumeTrend: { values, dates }`. No new pipeline cost — both surfaces are
+  derived from the existing `fetchScoreRows()` data.
+
 ## v0.6.49 · 2026-05-29
 
 ### Changed
