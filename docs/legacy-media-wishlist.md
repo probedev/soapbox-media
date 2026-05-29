@@ -48,6 +48,43 @@ add these with `cohort='legacy'`, and aggregation/reporting filters or groups by
 - **Reuters** — Reuters World News.
 - **France 24, Al Jazeera, Deutsche Welle** — international English-language.
 
+## From Social Blade Top 100 News (US, scraped 2026-05-29)
+
+Pulled from `socialblade.com/youtube/lists/top/100/subscribers/news/US` via
+`npm run discover:socialblade`. Each entry includes the YT handle and
+subscriber count at scrape time. Names already implicit in earlier sections
+(CNN, MSNBC, etc.) aren't repeated here.
+
+### Cable / broadcast networks not yet listed
+- **NewsNation** (@newsnation, 2.7M) — newer center-aligned cable network.
+- **Newsmax** (@newsmaxtv, 2.6M) — right-leaning cable.
+- **Fox Business** (@foxbusiness, 3.4M).
+- **CNBC Television** (@cnbctelevision, 3.4M).
+- **LiveNOW from FOX** (@livenowfox, 5.6M) — live-event channel.
+- **VICE News** (@vicenews, 9.3M) — established digital-native.
+- **Inside Edition** (@insideedition, 13.8M) — newsmagazine.
+
+### Digital-native news brands
+- **NowThis** (@nowthis, 2.2M) and **NowThis Impact** (@nowthisimpact, 5.0M).
+- **Forbes Breaking News** (@forbesbreakingnews, 5.6M).
+- **The Hill** (@thehill, 2.1M) — already in NPR-era list; YT presence noted.
+- **New York Post** (@nypost, 2.5M).
+- **USA TODAY** (@usatoday, 7.5M).
+- **Business Insider** (@businessinsider, 10.5M).
+- **COURT TV** (@courttv, 2.2M) — specialty / legal news.
+- **AJ+** (@ajplus, 2.5M) — Al Jazeera digital arm (parent already listed).
+
+### Local TV affiliates (deprioritize — narrow geo scope)
+- **Eyewitness News ABC7NY** (@abc7ny, 2.8M) — NYC.
+- **11Alive** (@11alive, 2.7M) — Atlanta.
+- **WFAA** (@wfaa8, 2.2M) — Dallas.
+
+### Ambiguous (alt vs legacy?)
+- **The Daily Wire** main channel (@dailywire, 3.3M) — Ben Shapiro's parent
+  outlet. We already track its individual hosts (Shapiro, Knowles, Walsh) in
+  the alt panel; the master channel reposts/aggregates their content, so
+  adding it would mostly double-count. Listed here as a placeholder decision.
+
 ## Open questions (defer until activation)
 
 - **Does The Daily (NYT) double-count?** It's already in our alt panel — when we

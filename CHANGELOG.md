@@ -7,6 +7,26 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
+## v0.6.49 · 2026-05-29
+
+### Changed
+
+- **`scripts/discover-socialblade.ts` handles markdown + smarter triage.**
+  Added a markdown-table parser (auto-detected by extension or content) so
+  Social Blade pages saved via a browser markdown-clipper extension work
+  directly — previously only HTML was supported. Tightened the bucketing:
+  beyond "in panel" / "legacy" / "candidate", the script now flags
+  "non-US/non-English" (Cyrillic / Devanagari / Burmese / CJK scripts; known
+  Spanish/Bengali/Hindi outlets) and "non-political" (gaming, true-crime,
+  finance-tutorial) so the actionable candidate list isn't drowned by 100-row
+  globals. Name normalization strips "The X Show" / "X Podcast" boilerplate
+  to catch Social Blade ↔ panel mismatches (Ben Shapiro ↔ "The Ben Shapiro
+  Show", etc.).
+
+- **`docs/legacy-media-wishlist.md`** — appended a "From Social Blade Top
+  100 News (US, 2026-05-29)" section with cable / broadcast, digital-native,
+  local-affiliate, and ambiguous-cohort entries surfaced by the scrape.
+
 ## v0.6.48 · 2026-05-29
 
 ### Changed
