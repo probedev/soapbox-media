@@ -7,6 +7,28 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
+## v0.6.51 · 2026-05-29
+
+### Fixed
+
+- **Cron classify + score short-page early-out → silent backlog stall (round
+  two).** Same `pendingFound=0` symptom as v0.6.47, different half of the
+  same pagination antipattern. v0.6.47 added the required `ORDER BY` but
+  kept `if (data.length < pageSize) break;` as the loop terminator. That
+  early-out fires on *any* short page — and Vercel's edge→Supabase route
+  hits a response-size cap before the row cap on `runClassify`'s deep-join
+  query (each row carries full transcript text). Once `transcripts` grew
+  past the response threshold (1,779 rows as of today), the first page came
+  back short, the loop exited, the in-memory array only held the oldest
+  already-processed rows, and the JS filter to `classify_status='pending'`
+  returned `[]`. Result: **3 of every 4 classify cron runs today found 0
+  pending despite 393 actually pending** (08:30/12:30/16:30 UTC; only the
+  00:34 + 04:34 runs processed work). Fix: terminate on empty page only —
+  matches the canonical pattern at `aggregate.ts:155-209` (v0.6.3) and the
+  `getSystemStats` pagination at `aggregate.ts:450-461`. Applied to all
+  three paginated loops in `pipeline.ts` (`runClassify` transcripts,
+  `runScore` classifications, `runScore` sentiment_scores).
+
 ## v0.6.50 · 2026-05-29
 
 ### Added

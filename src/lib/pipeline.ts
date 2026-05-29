@@ -346,7 +346,16 @@ export async function runClassify(): Promise<Record<string, unknown>> {
       .range(from, from + pageSize - 1);
     if (!data || data.length === 0) break;
     transcripts.push(...data);
-    if (data.length < pageSize) break;
+    // Terminate ONLY on an empty page. A short page (length < pageSize but
+    // > 0) does NOT mean we're done — Vercel's edge→Supabase route hits a
+    // response-size cap before the row cap on this deep-join query (each
+    // row carries the full transcript text), so the first page often returns
+    // truncated. The old `length < pageSize` early-out interpreted that as
+    // end-of-data, leaving `transcripts` populated only with the oldest
+    // already-processed rows → JS filter to pending returned [] → silent
+    // `pendingFound=0` on every run after the table crossed the response
+    // threshold. (v0.6.51 — same shape as v0.6.3 fix for the read-side
+    // aggregate path; v0.6.47 added ORDER BY but kept the early-out.)
   }
   const pending = transcripts.filter(
     (t) => t.episode?.classify_status !== "processed",
@@ -458,7 +467,8 @@ export async function runScore(): Promise<Record<string, unknown>> {
       .range(from, from + pageSize - 1);
     if (!data || data.length === 0) break;
     classifications.push(...data);
-    if (data.length < pageSize) break;
+    // Empty-page-only termination — short pages on deep joins are routine
+    // on Vercel's edge→Supabase route. See runClassify above (v0.6.51).
   }
   const scored: { classification_id: string }[] = [];
   for (let from = 0; ; from += pageSize) {
@@ -470,7 +480,9 @@ export async function runScore(): Promise<Record<string, unknown>> {
       .range(from, from + pageSize - 1);
     if (!data || data.length === 0) break;
     scored.push(...(data as any));
-    if (data.length < pageSize) break;
+    // Empty-page-only termination — see runClassify above (v0.6.51). This
+    // query is narrow (just classification_id) so a short page is less
+    // likely, but the response-size threshold isn't worth gambling on.
   }
   const scoredSet = new Set(scored.map((s) => s.classification_id));
   const pending = classifications.filter((c) => !scoredSet.has(c.id));
