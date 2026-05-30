@@ -1,6 +1,7 @@
 import { createServiceClient } from "@/lib/db";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
+import { PanelBalance } from "@/components/PanelBalance";
 import { getChannelExternalUrl } from "@/lib/channelLinks";
 import { ExternalLink } from "lucide-react";
 
@@ -139,6 +140,12 @@ export default async function ChannelsListPage() {
           </a>{" "}
           for system scale and daily health.
         </p>
+
+        {/* Panel balance badge — surfaces the count-vs-reach asymmetry the
+            intro paragraph can't quite admit. Counts are balanced by editorial
+            intent; reach is what it is in alt-media (largest R-shows are
+            bigger than largest L-shows). Honest is better than implied. */}
+        <PanelBalance shows={shows} />
 
         {(["L", "M", "R"] as const).map((bucket) => (
           <section key={bucket} className="mt-10">

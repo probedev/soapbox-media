@@ -7,6 +7,24 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
+## v0.6.55 · 2026-05-30
+
+### Added
+
+- **Panel balance badge on `/channels`.** Two stacked horizontal bars
+  (count + reach) show the L/M/R distribution side by side so the
+  asymmetry between editorial-intent-balanced counts and what-the-
+  landscape-looks-like reach is visible at a glance. Current state:
+  shows are 36% L / 14% M / 50% R but reach is 28% L / 15% M / 57% R —
+  right-leaning shows carry larger average audiences (2.77M vs 1.93M L),
+  so reach skews right. Badge says this plainly rather than letting the
+  intro paragraph imply uniform balance. Asymmetry sentence renders
+  dynamically — only shown when avg-reach ratio across cohorts ≥ 1.25×,
+  so it'll quiet down if the panel rebalances.
+- The honest copy explicitly notes that `log10(reach)` weighting in the
+  Index dampens the asymmetry but doesn't erase it — a methodology cue
+  for readers comparing the published Index to their intuition.
+
 ## v0.6.54 · 2026-05-30
 
 ### Added
