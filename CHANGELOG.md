@@ -7,6 +7,42 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
+## v0.6.60 · 2026-05-30
+
+### Performance
+
+- **Home page TTFB ~15s → expected ~4s.** Direct prod timing showed 14.6–15.8s
+  TTFB on `/`. Root cause: `fetchScoreRows()` was called TWICE per render
+  (once by `getDashboardData()` for the dashboard, once by `getIndexBreakdown()`
+  via the sibling `<IssueContributionsChart>` server component) — each
+  paginating the full 17K-row deep join independently, ~35 round trips to
+  Supabase apiece.
+  - **Wrapped `fetchScoreRows` with React `cache()`** so all server-component
+    callers within one render share the same Promise. Halves the work on
+    the home page; no behavior change.
+  - **Bumped `fetchScoreRows` pageSize 500 → 1000.** The 500 cap was added
+    in v0.6.3 because Vercel's edge→Supabase route returned short pages on
+    big response payloads and the old `length < pageSize` terminator
+    interpreted that as end-of-data (silent truncation). v0.6.51 fixed the
+    terminator to only stop on truly-empty pages, so short pages no longer
+    truncate; can safely go back to 1000-row pages. Halves round-trip count
+    again (17 pages instead of 34). Per-row payload is small (~300 bytes,
+    no text), so a 1000-row page is ~300KB — comfortably under response cap.
+- **Combined effect:** home page does ~17 round trips instead of ~70.
+  Other pages that call `fetchScoreRows` once each (`/issues/[slug]`,
+  `/topics/[slug]`, `/channels/[id]`) get the page-size win (about 50%
+  faster) but not the dedup win (they only call it once).
+- Re-time after deploy with `curl -o /dev/null -s -w "TTFB %{time_starttransfer}s\n" https://www.soapbox.media/` to verify.
+
+### Notes
+
+- The longer-term play is materializing the rolling-window aggregation in
+  Postgres (a view or materialized view computed by cron) so app reads a
+  small result set instead of all 17K scored rows. The original `aggregate.ts`
+  comment from v0 flagged this as the "v1 will move this" path. v0.6.60
+  buys time but doesn't replace it — at 100K+ scored rows the per-render
+  scan will still be slow even with dedup + bigger pages.
+
 ## v0.6.59 · 2026-05-30
 
 ### Fixed

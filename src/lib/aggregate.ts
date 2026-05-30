@@ -20,6 +20,7 @@
  * in JS. With ~1300 rows that's well under 100ms; we'll add caching / a
  * materialized view in v1 once data volume grows.
  */
+import { cache } from "react";
 import { createServiceClient } from "./db";
 
 interface ScoreRow {
@@ -198,16 +199,30 @@ function rollingVolumeTrend(
   };
 }
 
-async function fetchScoreRows(): Promise<ScoreRow[]> {
+/**
+ * Wrapped with React `cache()` so multiple server-component callers on the
+ * same render share one underlying fetch. The home page is the canonical
+ * hot path: `<HomePage>` calls `getDashboardData()` and the sibling
+ * `<IssueContributionsChart>` server component calls `getIndexBreakdown()`
+ * — both rely on this function. Without `cache()` they each paginated the
+ * full 17K-row deep-join independently, adding ~7s to TTFB (v0.6.60
+ * measured 15s home TTFB pre-fix). Per-render scope only — does NOT bridge
+ * separate requests.
+ *
+ * Page size bumped 500 → 1000 in v0.6.60. The 500 cap was added in v0.6.3
+ * because Vercel's edge→Supabase route returns short pages on big response
+ * payloads — but v0.6.51 fixed the terminator to only stop on empty pages,
+ * so a short page no longer truncates silently. 1000 halves round-trip
+ * count (17 pages instead of 34). The select payload per row is small
+ * (~300 bytes — IDs + a few short fields, no text), so a full 1000-row
+ * page is ~300KB; comfortably under the response cap.
+ */
+const fetchScoreRows = cache(async (): Promise<ScoreRow[]> => {
   const db = createServiceClient();
   const all: ScoreRow[] = [];
-  // Smaller pageSize to keep the deep-join response under Supabase's response
-  // size limit. The previous 1000 worked locally but Vercel's edge→Supabase
-  // route was returning partial pages, and the old `length < pageSize`
-  // terminator interpreted that as end-of-data, silently dropping ~46% of
-  // rows in production. See v0.6.3 fix.
-  const pageSize = 500;
-  // Safety bound so a malformed loop can't hang the request.
+  const pageSize = 1000;
+  // Safety bound so a malformed loop can't hang the request. 50 pages ×
+  // 1000 rows = 50K-row ceiling; current panel is 17K, headroom for 3×.
   const maxPages = 50;
 
   for (let page = 0; page < maxPages; page++) {
@@ -253,13 +268,11 @@ async function fetchScoreRows(): Promise<ScoreRow[]> {
         channel_reach: Number(ch.reach),
       });
     }
-    // Only terminate when we get a genuinely empty page. A short page
-    // (length < pageSize but > 0) does NOT mean we're done — it can just
-    // mean Supabase's response-size cap hit before the row cap. Continue
-    // paginating until we get an empty result.
+    // Empty-page-only termination — see [[pagination-stable-order]] for
+    // why a short page (length < pageSize, > 0) is normal on this route.
   }
   return all;
-}
+});
 
 /**
  * Minimum mentions an issue needs in BOTH the current and prior window to be
