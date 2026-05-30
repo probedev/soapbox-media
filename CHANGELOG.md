@@ -7,6 +7,61 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
+## v0.6.57 · 2026-05-30
+
+### Fixed
+
+- **`channels.reach` was set-once-at-seed and never refreshed.** Three call
+  sites wrote `reach` (`seed-channels.ts`, `channels.ts` add-flow,
+  `enrich-legacy-wishlist.ts`); none refreshed it. 84% of the panel was
+  carrying 17-day-old subscriber/listener counts. The `/channels` intro
+  paragraph claimed reach was "pulled live" — technically true, at seed
+  time only. Index math weights by `log10(reach)`, so stale reach = mildly
+  wrong weights.
+
+### Added
+
+- **Reach refresh piggybacked on the daily ingest cron.** The ingest pass
+  already iterates every active channel; now it also refreshes each
+  channel's reach in the same loop. YT is batched via
+  `getChannelDetailsBatch` (one API call for up to 50 channels, ~1 quota
+  unit each — free tier handles 10,000/day); podcasts are per-row via the
+  new `getPodcastById` helper in `src/lib/podscan.ts` (PodScan has no batch
+  endpoint). Failures are logged-and-skipped — a transient API blip on one
+  channel must not abort the whole ingest pass. Only positive `reach`
+  values overwrite the stored stat; a 0 / null response keeps the existing
+  number so a lookup miss doesn't zero out a known channel.
+- **`channels.reach_updated_at` column.** New `TIMESTAMPTZ` with `now()`
+  default. Backfilled to `created_at` for existing rows (conservative "at
+  least this stale" floor; the seed scripts didn't track it). Bumped on
+  every refresh attempt — even when the number didn't change — so
+  staleness-detection isn't misleading.
+- **Freshness signal on `<PanelScale>`** — top-right of the card now reads
+  "Reach refreshed Xh ago" (MAX(reach_updated_at) across active channels).
+  Same `relativeTime` shape as the existing "Latest data" timestamp on
+  `<SystemStats>`.
+- **`/channels` intro paragraph tightened** — now reads "Reach figures
+  refresh daily from the YouTube Data API and PodScan during the ingest
+  pass" instead of the previous "pulled live" wording, which is honest
+  about cadence.
+
+### Changed
+
+- **CLI `npm run ingest` now also refreshes reach** (mirrors the cron path
+  via the same helpers). Per-channel log line includes the before→after
+  delta when reach changes (`reach: 5,990,000 → 6,012,000  ↑ 22,000`)
+  so manual catchup runs print visible movement.
+
+### Notes
+
+- New migration `add_channels_reach_updated_at` — non-destructive
+  `ALTER TABLE … ADD COLUMN`, backfill from `created_at`, set NOT NULL +
+  default `now()`.
+- `pickPodscanReach` (same field-fallback as `seed-podcasts.ts`'s
+  `pickReach`) is now duplicated in three files (`seed-podcasts.ts`,
+  `pipeline.ts`, `scripts/ingest.ts`). Worth extracting to `src/lib/podscan.ts`
+  in a follow-up cleanup once the dust settles.
+
 ## v0.6.56 · 2026-05-30
 
 ### Changed

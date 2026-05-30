@@ -129,9 +129,9 @@ export default async function ChannelsListPage() {
         </h1>
         <p className="text-gray-600 mt-3 leading-relaxed max-w-3xl">
           {shows.length} hand-curated alt-media political shows, balanced across
-          Left, Middle, and Right publishing posture. Reach figures are pulled
-          live from the YouTube Data API and PodScan; classifications are
-          editorial and reviewed quarterly. See the{" "}
+          Left, Middle, and Right publishing posture. Reach figures refresh daily
+          from the YouTube Data API and PodScan during the ingest pass;
+          classifications are editorial and reviewed quarterly. See the{" "}
           <a href="/methodology" className="underline hover:text-gray-900">
             methodology page
           </a>{" "}

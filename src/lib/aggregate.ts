@@ -549,13 +549,20 @@ export interface PanelStats {
   platformSplit: { youtube: number; podcast: number };
   /** Largest single show by max reach across its platforms. */
   largestShow: { name: string; reach: number } | null;
+  /** MAX(reach_updated_at) across active channels — when the most-recently-
+   *  refreshed channel was last synced. Earliest channel's reach_updated_at
+   *  is the floor (worst-case staleness); MAX is the headline freshness. */
+  lastReachSync: string | null;
+  /** MIN(reach_updated_at) — the oldest reach number still in the panel.
+   *  Useful for "as old as X ago" reader signals. */
+  oldestReachSync: string | null;
 }
 
 export async function getPanelStats(): Promise<PanelStats> {
   const db = createServiceClient();
   const { data: channelRows } = await db
     .from("channels")
-    .select("name, political_lean, reach, platform")
+    .select("name, political_lean, reach, platform, reach_updated_at")
     .eq("active", true)
     .limit(2000);
   const rows = (channelRows || []) as {
@@ -563,6 +570,7 @@ export async function getPanelStats(): Promise<PanelStats> {
     political_lean: "L" | "M" | "R";
     reach: number | string | null;
     platform: "youtube" | "podcast";
+    reach_updated_at: string | null;
   }[];
 
   // Unique-show map keyed by name; lean is consistent across a show's rows,
@@ -585,6 +593,17 @@ export async function getPanelStats(): Promise<PanelStats> {
     audienceReachByLean[v.lean] += v.reach;
     if (!largest || v.reach > largest.reach) largest = { name, reach: v.reach };
   }
+  // Reach-freshness bookends: most-recent and oldest refresh timestamps
+  // across the active panel. /channels displays the most-recent one as
+  // "last refreshed" — readers' best signal of how live the numbers are.
+  let lastReachSync: string | null = null;
+  let oldestReachSync: string | null = null;
+  for (const c of rows) {
+    if (!c.reach_updated_at) continue;
+    if (!lastReachSync || c.reach_updated_at > lastReachSync) lastReachSync = c.reach_updated_at;
+    if (!oldestReachSync || c.reach_updated_at < oldestReachSync) oldestReachSync = c.reach_updated_at;
+  }
+
   return {
     showsTracked: showRows.size,
     channelsByLean,
@@ -594,6 +613,8 @@ export async function getPanelStats(): Promise<PanelStats> {
     platformRows: rows.length,
     platformSplit,
     largestShow: largest,
+    lastReachSync,
+    oldestReachSync,
   };
 }
 

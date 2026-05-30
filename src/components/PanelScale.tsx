@@ -13,6 +13,18 @@
  */
 import { getPanelStats } from "@/lib/aggregate";
 
+function relativeTime(iso: string | null): string {
+  if (!iso) return "—";
+  const diffMs = Date.now() - new Date(iso).getTime();
+  const diffMin = Math.floor(diffMs / 60_000);
+  const diffH = Math.floor(diffMin / 60);
+  const diffDay = Math.floor(diffH / 24);
+  if (diffMin < 1) return "just now";
+  if (diffMin < 60) return `${diffMin}m ago`;
+  if (diffH < 24) return `${diffH}h ago`;
+  return `${diffDay}d ago`;
+}
+
 function compactNumber(n: number): string {
   if (n >= 1_000_000_000) return `${(n / 1_000_000_000).toFixed(1)}B`;
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(n >= 10_000_000 ? 0 : 1)}M`;
@@ -59,8 +71,10 @@ export async function PanelScale() {
         <h2 className="text-sm font-semibold uppercase tracking-wider text-gray-600">
           Panel scale
         </h2>
-        <span className="text-[11px] text-gray-500">
-          composition · not processing
+        <span className="text-[11px] text-gray-500 tabular-nums">
+          {stats.lastReachSync
+            ? `Reach refreshed ${relativeTime(stats.lastReachSync)}`
+            : "composition · not processing"}
         </span>
       </div>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-6">

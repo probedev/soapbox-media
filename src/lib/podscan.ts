@@ -124,6 +124,27 @@ export async function searchPodcasts(query: string): Promise<PodscanPodcast[]> {
 }
 
 /**
+ * Fetch a single podcast by its PodScan id. Used by the daily reach-refresh
+ * pass (v0.6.57) — every channel iteration already has the stored
+ * platform_id, so we can hit the canonical podcast record and pull
+ * whatever reach metric PodScan currently exposes via the same pickReach
+ * fallback used at seed time. Returns null on 404 or any error so the
+ * refresh degrades gracefully (a missed refresh is fine; a thrown error
+ * would kill the whole ingest pass).
+ */
+export async function getPodcastById(podcastId: string): Promise<PodscanPodcast | null> {
+  try {
+    const data = await podscanFetch<{
+      podcast?: PodscanPodcast;
+      data?: PodscanPodcast;
+    }>(`/podcasts/${encodeURIComponent(podcastId)}`);
+    return data.podcast || data.data || null;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * List recent episodes for a podcast.
  * Best-guess endpoint: /podcasts/{id}/episodes (REST convention).
  * Falls back to flexible response parsing — caller normalizes field names.

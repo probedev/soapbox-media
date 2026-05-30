@@ -9,8 +9,8 @@
  */
 import { type NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/db";
-import { getRecentUploads, getVideoTranscript } from "@/lib/youtube";
-import { getPodcastEpisodes } from "@/lib/podscan";
+import { getRecentUploads, getVideoTranscript, getChannelDetailsBatch } from "@/lib/youtube";
+import { getPodcastEpisodes, getPodcastById, type PodscanPodcast } from "@/lib/podscan";
 import { classifyTranscript, type IssueDef } from "@/modules/classify";
 import { scoreClassification } from "@/modules/score";
 import { MODEL_SCORE } from "@/lib/anthropic";
@@ -76,6 +76,30 @@ export async function runIngest(): Promise<Record<string, unknown>> {
     .order("reach", { ascending: false });
   if (error) throw new Error(`load channels: ${error.message}`);
 
+  // Reach refresh (v0.6.57): the ingest pass is already iterating every active
+  // channel, so it's the natural place to also pull current subscriber/listener
+  // counts and write back to channels.reach. Without this, reach was set once
+  // at seed time and silently went stale (the 17-day-old numbers that
+  // motivated the fix). YT is batched via getChannelDetailsBatch (up to 50
+  // channels per API call, 1 quota unit each); podcast is per-row via
+  // getPodcastById since PodScan has no batch endpoint. Failures here are
+  // logged-and-skipped — ingest must not fail just because a single channel's
+  // reach lookup hit a transient API error.
+  const ytChannelIds = (channels || [])
+    .filter((c) => c.platform === "youtube")
+    .map((c) => c.platform_id);
+  let ytStats: Map<
+    string,
+    { title: string; subscriberCount: number; description: string }
+  > = new Map();
+  try {
+    ytStats = await getChannelDetailsBatch(ytChannelIds);
+  } catch (e) {
+    console.error(`[ingest] YT batch stats failed: ${(e as Error)?.message}`);
+  }
+  let reachRefreshed = 0;
+  let reachStale = 0;
+
   let totalFetched = 0;
   let totalNew = 0;
   let totalTranscripts = 0;
@@ -84,6 +108,35 @@ export async function runIngest(): Promise<Record<string, unknown>> {
   let totalFailures = 0;
 
   for (const ch of channels || []) {
+    // Refresh reach for this channel before the episode-fetch work. Writing
+    // a 0/falsy value would zero out a valid reach (a transient lookup miss
+    // shouldn't trash the stored stat), so we only update on positive values.
+    try {
+      let newReach: number | null = null;
+      if (ch.platform === "youtube") {
+        const stat = ytStats.get(ch.platform_id);
+        if (stat && stat.subscriberCount > 0) newReach = stat.subscriberCount;
+      } else if (ch.platform === "podcast") {
+        const pod = await getPodcastById(ch.platform_id);
+        if (pod) {
+          const r = pickPodscanReach(pod);
+          if (r > 0) newReach = r;
+        }
+      }
+      if (newReach !== null) {
+        await db
+          .from("channels")
+          .update({ reach: newReach, reach_updated_at: new Date().toISOString() })
+          .eq("id", ch.id);
+        reachRefreshed++;
+      } else {
+        reachStale++;
+      }
+    } catch (e) {
+      console.error(`[ingest] reach refresh failed for ${ch.name}: ${(e as Error)?.message}`);
+      reachStale++;
+    }
+
     // Cross-platform dedup: skip episodes already ingested on a sibling channel
     // of the same show (same name, other platform). Loaded per channel so the
     // higher-reach copy (ingested first, reach-desc) wins and the re-post skips.
@@ -211,7 +264,31 @@ export async function runIngest(): Promise<Record<string, unknown>> {
     skippedShort: totalSkippedShort,
     skippedCrossPlatformDup: totalSkippedDup,
     failures: totalFailures,
+    reachRefreshed,
+    reachStale,
   };
+}
+
+/**
+ * Pull the live reach number out of a PodScan podcast record using the same
+ * field fallback as scripts/seed-podcasts.ts:pickReach. Mirrored here rather
+ * than imported because the seed script lives in scripts/ and pipeline.ts
+ * is in src/ — keeping the dependency arrow pointed app→lib only.
+ */
+function pickPodscanReach(p: PodscanPodcast): number {
+  const candidates: unknown[] = [
+    p.reach,
+    p.reach_estimate,
+    (p as unknown as { audience_size?: number }).audience_size,
+    (p as unknown as { monthly_listeners?: number }).monthly_listeners,
+    (p as unknown as { audience?: number }).audience,
+    (p as unknown as { estimated_audience?: number }).estimated_audience,
+  ];
+  for (const c of candidates) {
+    const n = typeof c === "string" ? parseInt(c, 10) : (c as number);
+    if (typeof n === "number" && Number.isFinite(n) && n > 0) return Math.round(n);
+  }
+  return 0;
 }
 
 // ─── Transcribe ─────────────────────────────────────────────────────────
