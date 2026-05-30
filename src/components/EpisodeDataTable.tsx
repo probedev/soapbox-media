@@ -71,13 +71,21 @@ const LEAN: Record<string, { label: string; cls: string }> = {
   R: { label: "Right", cls: "bg-red-100 text-red-800" },
 };
 
-type Stage = "done" | "failed" | "partial" | "pending" | "na";
+type Stage = "done" | "failed" | "partial" | "pending" | "no-signal" | "na";
 
+// "no-signal" reads as a *complete* state ("we looked, found nothing political")
+// — distinct from "pending" ("not yet looked"). The hollow ring tells that story
+// visually: same footprint as the other dots but unfilled, signalling
+// "registered but empty." v0.6.54.
 const STATUS: Record<Stage, { label: string; dot: string }> = {
   done: { label: "Done", dot: "bg-emerald-500" },
   failed: { label: "Failed", dot: "bg-red-500" },
   partial: { label: "Partial", dot: "bg-amber-400" },
   pending: { label: "Pending", dot: "bg-gray-300" },
+  "no-signal": {
+    label: "No political signal · issue taxonomy didn't match",
+    dot: "border border-gray-400 bg-transparent",
+  },
   na: { label: "Not applicable", dot: "bg-gray-200" },
 };
 
@@ -86,7 +94,8 @@ const STAGE_RANK: Record<Stage, number> = {
   pending: 1,
   partial: 2,
   done: 3,
-  na: 4,
+  "no-signal": 4,
+  na: 5,
 };
 
 function StatusDot({ state }: { state: Stage }) {
@@ -104,14 +113,20 @@ function StatusDot({ state }: { state: Stage }) {
 }
 
 function Legend() {
+  // Visible legend covers the five real states episodes land in. `na` is
+  // omitted — it only appears as a degenerate cascade when transcribe failed
+  // and the downstream stages are gated, which is rare and self-explanatory
+  // (red dot upstream).
   return (
-    <div className="flex items-center gap-3 text-[10px] text-gray-500">
-      {(["done", "failed", "partial", "pending"] as Stage[]).map((s) => (
-        <span key={s} className="flex items-center gap-1">
-          <span className={cn("h-2 w-2 rounded-full", STATUS[s].dot)} />
-          {STATUS[s].label}
-        </span>
-      ))}
+    <div className="flex items-center gap-3 text-[10px] text-gray-500 flex-wrap justify-end">
+      {(["done", "failed", "partial", "pending", "no-signal"] as Stage[]).map(
+        (s) => (
+          <span key={s} className="flex items-center gap-1">
+            <span className={cn("h-2 w-2 rounded-full", STATUS[s].dot)} />
+            {s === "no-signal" ? "No signal" : STATUS[s].label}
+          </span>
+        ),
+      )}
     </div>
   );
 }

@@ -505,6 +505,17 @@ export interface SystemStats {
   channelsTracked: number;
   /** Unique-show counts split by editorial lean. */
   channelsByLean: { L: number; M: number; R: number };
+  /** Sum of unique-show reach (max reach per show across its platform rows).
+   *  Counted by unique show so a dual-platform show isn't double-counted —
+   *  one human who follows Ben Shapiro on YT AND podcast is one audience
+   *  unit, not two. (The Index math still uses per-row reach for weighting;
+   *  this stat is the public-facing "how big is the panel?" number.) */
+  audienceReach: number;
+  /** Unique-show reach split by editorial lean — sums to audienceReach. */
+  audienceReachByLean: { L: number; M: number; R: number };
+  /** Number of active issues in the taxonomy (drives the "across N issues"
+   *  sublabel on /log — dynamic so it doesn't go stale as taxonomy grows). */
+  activeIssues: number;
   /** Total episodes ever ingested (any transcript status). */
   episodesIngested: number;
   /** Episodes with a transcript on file — the ones actually analyzable. */
@@ -524,24 +535,42 @@ export async function getSystemStats(): Promise<SystemStats> {
   // Channels: collapse same-name rows (YT + Podcast of one show = one show)
   // and count unique shows overall and per lean. A show's lean is consistent
   // across its platform rows, so first-seen lean per name is canonical.
+  // Also fetch `reach` so we can sum unique-show audience for the /log stats
+  // panel — same collapse rule (max reach per show, not sum, since the same
+  // followers often appear on both platforms).
   const { data: channelRows } = await db
     .from("channels")
-    .select("name, political_lean")
+    .select("name, political_lean, reach")
     .eq("active", true)
     .limit(2000);
-  const leanByShow = new Map<string, "L" | "M" | "R">();
-  for (const c of (channelRows || []) as { name: string; political_lean: "L" | "M" | "R" }[]) {
-    if (!leanByShow.has(c.name)) leanByShow.set(c.name, c.political_lean);
+  const showRows = new Map<string, { lean: "L" | "M" | "R"; reach: number }>();
+  for (const c of (channelRows || []) as {
+    name: string;
+    political_lean: "L" | "M" | "R";
+    reach: number | string | null;
+  }[]) {
+    const r = Number(c.reach || 0);
+    const prev = showRows.get(c.name);
+    if (!prev || r > prev.reach) {
+      showRows.set(c.name, { lean: c.political_lean, reach: r });
+    }
   }
   const channelsByLean = { L: 0, M: 0, R: 0 };
-  for (const lean of leanByShow.values()) channelsByLean[lean] += 1;
-  const uniqueShowCount = leanByShow.size;
+  const audienceReachByLean = { L: 0, M: 0, R: 0 };
+  for (const { lean, reach } of showRows.values()) {
+    channelsByLean[lean] += 1;
+    audienceReachByLean[lean] += reach;
+  }
+  const uniqueShowCount = showRows.size;
+  const audienceReach =
+    audienceReachByLean.L + audienceReachByLean.M + audienceReachByLean.R;
 
-  const [episodes, transcripts, classifications, scores] = await Promise.all([
+  const [episodes, transcripts, classifications, scores, issues] = await Promise.all([
     db.from("episodes").select("*", { count: "exact", head: true }),
     db.from("transcripts").select("*", { count: "exact", head: true }),
     db.from("classifications").select("*", { count: "exact", head: true }),
     db.from("sentiment_scores").select("*", { count: "exact", head: true }),
+    db.from("issues").select("*", { count: "exact", head: true }).eq("active", true),
   ]);
 
   // Sum episode durations, paginated. Terminate only on an empty page and
@@ -582,6 +611,9 @@ export async function getSystemStats(): Promise<SystemStats> {
   return {
     channelsTracked: uniqueShowCount,
     channelsByLean,
+    audienceReach,
+    audienceReachByLean,
+    activeIssues: issues.count || 0,
     episodesIngested: episodes.count || 0,
     episodesAnalyzed: transcripts.count || 0,
     classifications: classifications.count || 0,

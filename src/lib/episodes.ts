@@ -6,6 +6,7 @@
 import { createServiceClient } from "./db";
 
 export type TranscriptStatus = "pending" | "fetched" | "failed" | "skipped";
+export type ClassifyStatus = "pending" | "processed" | "failed";
 
 /** Flat row shape for the episode data table, derived from the
  *  episode_pipeline_summary view. */
@@ -20,11 +21,20 @@ export interface EpisodeTableRow {
   political_lean: "L" | "M" | "R";
   platform: "youtube" | "podcast";
   transcript_status: TranscriptStatus;
+  classify_status: ClassifyStatus;
   classification_count: number;
   scored_count: number;
+  /** "done" = transcript fetched; "failed" = transcript fetch failed;
+   *  "pending" = not yet attempted. */
   transcribed: "done" | "failed" | "pending";
-  classified: "done" | "pending" | "na";
-  scored: "done" | "partial" | "pending" | "na";
+  /** "done" = classified, produced mentions; "no-signal" = classified, no
+   *  taxonomy match; "pending" = not yet classified; "na" only when the
+   *  prerequisite transcript fetch failed (nothing to classify). */
+  classified: "done" | "no-signal" | "pending" | "na";
+  /** "done" = all mentions scored; "partial" = some scored; "pending" =
+   *  has mentions but none scored yet; "no-signal" = no mentions to score
+   *  because the episode was off-taxonomy; "na" when classify is gated. */
+  scored: "done" | "partial" | "pending" | "no-signal" | "na";
 }
 
 /**
@@ -45,7 +55,7 @@ export async function getEpisodeTableRows(
     let q = db
       .from("episode_pipeline_summary")
       .select(
-        "id, title, published_at, source_url, duration_sec, channel_id, channel_name, political_lean, platform, transcript_status, classification_count, scored_count",
+        "id, title, published_at, source_url, duration_sec, channel_id, channel_name, political_lean, platform, transcript_status, classify_status, classification_count, scored_count",
       );
     if (channelId) q = q.eq("channel_id", channelId);
     // published_at is the business order (newest first) but isn't unique —
@@ -75,10 +85,30 @@ export async function getEpisodeTableRows(
         : r.transcript_status === "failed"
           ? "failed"
           : "pending";
+    // "no-signal" = classified, taxonomy didn't match (~8% of processed
+    // episodes — sports, true crime, celebrity, etc.). Distinct from
+    // "pending" so readers don't mistake a complete-but-empty result for
+    // in-progress work. v0.6.54 — see [[soapbox-roadmap]] no-signal status.
     const classified: EpisodeTableRow["classified"] =
-      transcribed === "failed" ? "na" : cc > 0 ? "done" : "pending";
+      transcribed === "failed"
+        ? "na"
+        : r.classify_status === "processed"
+          ? cc > 0
+            ? "done"
+            : "no-signal"
+          : "pending";
+    // Same "no-signal" treatment on scored — an off-taxonomy episode has
+    // nothing to score (not "pending Haiku"; structurally complete).
     const scored: EpisodeTableRow["scored"] =
-      cc === 0 ? "na" : sc >= cc ? "done" : sc > 0 ? "partial" : "pending";
+      classified === "na"
+        ? "na"
+        : classified === "no-signal"
+          ? "no-signal"
+          : sc >= cc
+            ? "done"
+            : sc > 0
+              ? "partial"
+              : "pending";
     return {
       id: r.id,
       title: r.title,
@@ -90,6 +120,7 @@ export async function getEpisodeTableRows(
       political_lean: r.political_lean,
       platform: r.platform,
       transcript_status: r.transcript_status,
+      classify_status: r.classify_status,
       classification_count: cc,
       scored_count: sc,
       transcribed,

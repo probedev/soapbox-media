@@ -7,6 +7,48 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
+## v0.6.54 · 2026-05-30
+
+### Added
+
+- **"No signal" status on the public activity log.** ~8% of processed
+  episodes (161/1941 today) are off-taxonomy — classified successfully but
+  produced no political-issue mentions (sports, true crime, celebrity, etc.).
+  These previously rendered as the same gray dots as "pending" episodes, with
+  the `scored` column tooltip saying "Not applicable" — confusing because
+  gray reads as in-progress, and a "complete but empty" episode isn't
+  in-progress. New `no-signal` status with a hollow outlined dot
+  (border-only, transparent fill — reads as "registered but empty") on both
+  the `classified` and `scored` columns when `classify_status='processed'`
+  and `classification_count = 0`. Tooltip: "No political signal · issue
+  taxonomy didn't match." Added to the visible legend.
+- **Combined-audience reach stat on `/log`.** Headline number for "how big
+  is this panel?" — sum of unique-show reach (max per show across platform
+  rows, so dual-platform shows aren't double-counted; matches the methodology
+  for the by-show comparison from yesterday's enrichment script). Sublabel
+  breaks reach out by editorial lean (L · M · R), same shape as the existing
+  show-count sublabel — surfaces cohort balance on the same surface.
+
+### Changed
+
+- **`episode_pipeline_summary` view: added `classify_status`.** Migration
+  `add_classify_status_to_pipeline_summary_view` — non-destructive
+  `CREATE OR REPLACE VIEW`. Column had to be appended at the end of the
+  SELECT (Postgres can't reorder existing view columns; only append). The
+  view's only consumer (`getEpisodeTableRows`) updated to select it.
+- **Hours-of-audio stat reformatted.** Was `1.4K` (compact) which read like
+  a placeholder; now `1,433` (full number) with sublabel `≈ 60 days
+  continuous` instead of the static `Long-form, Shorts filtered`. Confirmed
+  100% of episodes have `duration_sec` — the data was always plumbed; just
+  the formatter obscured it.
+- **Issues-mentions sublabel: dynamic count + folded sentiment-scores stat.**
+  Was hardcoded `Across 15 issues` (stale — taxonomy is at 23). Now reads
+  the active-issue count from `issues` table and renders `Across N issues,
+  all sentiment-scored`. The standalone "Sentiment scores" stat was dropped
+  to make room for combined-audience — post-v0.6.53 score == mentions for
+  the autonomous-cron steady state, so the standalone number wasn't pulling
+  its weight.
+
 ## v0.6.53 · 2026-05-30
 
 ### Fixed

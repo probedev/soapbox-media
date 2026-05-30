@@ -9,9 +9,18 @@ function compactNumber(n: number): string {
 }
 
 function hoursLabel(h: number): string {
-  if (h >= 1000) return `${(h / 1000).toFixed(1)}K`;
+  // Show the full number for hours — "1,433" reads as concrete data, where
+  // the previous compact "1.4K" was easy to mistake for an unwired placeholder.
+  // (v0.6.54.) Sub-hour values are unlikely on a daily-ingested pipeline.
   if (h >= 100) return Math.round(h).toLocaleString();
   return h.toFixed(1);
+}
+
+function daysContinuous(h: number): string {
+  const days = h / 24;
+  if (days >= 10) return `≈ ${Math.round(days)} days continuous`;
+  if (days >= 1) return `≈ ${days.toFixed(1)} days continuous`;
+  return `≈ ${Math.round(h)} hours continuous`;
 }
 
 function relativeTime(iso: string | null): string {
@@ -49,6 +58,13 @@ function Stat({ value, label, sublabel }: StatProps) {
 export async function SystemStats() {
   const stats = await getSystemStats();
   const leanSplit = `${stats.channelsByLean.L} L · ${stats.channelsByLean.M} M · ${stats.channelsByLean.R} R`;
+  // Audience reach broken out by lean — surfaces cohort balance the same way
+  // the show-count sublabel does. Compact-formatted because the numbers are
+  // 10s–100s of millions; precision past 2 sig figs isn't meaningful.
+  const reachByLean =
+    `${compactNumber(stats.audienceReachByLean.L)} L · ` +
+    `${compactNumber(stats.audienceReachByLean.M)} M · ` +
+    `${compactNumber(stats.audienceReachByLean.R)} R`;
 
   return (
     <div className="border border-gray-200 rounded-lg bg-white p-6">
@@ -66,6 +82,14 @@ export async function SystemStats() {
           label="Shows tracked"
           sublabel={leanSplit}
         />
+        {/* Combined-audience reach is the new headline number for "how big
+            is this panel?" — unique-show counted (max reach per show across
+            its platform rows) so dual-platform shows aren't double-counted. */}
+        <Stat
+          value={compactNumber(stats.audienceReach)}
+          label="Combined audience"
+          sublabel={reachByLean}
+        />
         <Stat
           value={compactNumber(stats.episodesAnalyzed)}
           label="Episodes analyzed"
@@ -74,17 +98,16 @@ export async function SystemStats() {
         <Stat
           value={hoursLabel(stats.hoursOfAudio)}
           label="Hours of audio"
-          sublabel="Long-form, Shorts filtered"
+          sublabel={daysContinuous(stats.hoursOfAudio)}
         />
+        {/* Issues count is dynamic now (was hardcoded "15") so it tracks the
+            living taxonomy as Topics/Issues are added. Sentiment-scores stat
+            folded into the sublabel since post-v0.6.53 score == mentions
+            (drain is autonomous; the standalone stat was redundant). */}
         <Stat
           value={compactNumber(stats.classifications)}
           label="Issue mentions"
-          sublabel="Across 15 issues"
-        />
-        <Stat
-          value={compactNumber(stats.sentimentScores)}
-          label="Sentiment scores"
-          sublabel="Every mention scored L↔R"
+          sublabel={`Across ${stats.activeIssues} issues, all sentiment-scored`}
         />
       </div>
     </div>
