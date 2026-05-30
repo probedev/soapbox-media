@@ -22,7 +22,8 @@
     "backfill:channel-history": "tsx scripts/backfill-channel-history.ts",
     "eval:extract-gold-set": "tsx scripts/extract-gold-set.ts",
     "seed:gold-set": "tsx scripts/seed-gold-set.ts",
-    "discover:socialblade": "tsx scripts/discover-socialblade.ts"
+    "discover:socialblade": "tsx scripts/discover-socialblade.ts",
+    "enrich:legacy-wishlist": "tsx scripts/enrich-legacy-wishlist.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.27.3",
