@@ -20,8 +20,20 @@
  * in JS. With ~1300 rows that's well under 100ms; we'll add caching / a
  * materialized view in v1 once data volume grows.
  */
-import { cache } from "react";
+import { cache as reactCache } from "react";
 import { createServiceClient } from "./db";
+
+/**
+ * Per-request memoization wrapper. React's `cache()` only exists inside the
+ * Next.js server runtime; in a plain Node/tsx CLI context (e.g.
+ * `npm run refresh:snapshot`) the import resolves to `undefined`. Fall back to
+ * an identity wrapper there — the CLI just runs without cross-call dedup, which
+ * is correct (it's a single short-lived process), while server requests keep
+ * the real per-render memoization that makes the double home-page call share
+ * one DB pass.
+ */
+const cache: typeof reactCache =
+  typeof reactCache === "function" ? reactCache : (fn) => fn;
 
 interface ScoreRow {
   sentiment: number;
@@ -841,6 +853,76 @@ export async function getIndexBreakdown(windowDays = 30): Promise<IndexBreakdown
   const index = clamp(overallLean * 2, -10, 10);
 
   return { index, windowDays, totalClassifications: windowed.length, issues };
+}
+
+/* ------------------------------------------------------------------------- *
+ * Home-page snapshot
+ *
+ * The home page renders getDashboardData() + getIndexBreakdown(), both of
+ * which paginate the full sentiment_scores deep join via fetchScoreRows. With
+ * `force-dynamic` that recomputed on every request (~9.5-15s TTFB). The data
+ * only changes when the daily pipeline runs, so we precompute the aggregate
+ * once at the end of the score cron and store it in the `dashboard_snapshot`
+ * table (one JSON row). The home page reads that single row instead.
+ * ------------------------------------------------------------------------- */
+
+/** Everything the home page needs, computed together so the heavy join runs
+ *  once. `dashboard` drives the hero/movers/issues; `breakdown` drives the
+ *  "Why is the Index where it is?" contribution chart. */
+export interface HomeSnapshot {
+  dashboard: DashboardData;
+  breakdown: IndexBreakdown;
+}
+
+/** Stable per-window key for the home snapshot row (e.g. `home:7`). */
+function homeSnapshotKey(windowDays: number): string {
+  return `home:${windowDays}`;
+}
+
+/**
+ * Recompute the full home-page aggregate and persist it to dashboard_snapshot.
+ * getDashboardData + getIndexBreakdown both call fetchScoreRows, which is
+ * React-`cache()`'d per request, so the ~17K-row deep join runs exactly ONCE
+ * per invocation. Called at the end of the score cron (the last data-producing
+ * stage) so the expensive work happens off the request path; also safe to call
+ * ad hoc (e.g. `npm run refresh:snapshot`) to force an immediate refresh.
+ */
+export async function writeHomeSnapshot(windowDays = 7): Promise<HomeSnapshot> {
+  // Sequential (not Promise.all) so the first call populates the per-request
+  // fetchScoreRows cache and the second reuses it — one DB pass, not two.
+  const dashboard = await getDashboardData(windowDays);
+  const breakdown = await getIndexBreakdown(windowDays);
+  const snapshot: HomeSnapshot = { dashboard, breakdown };
+
+  const db = createServiceClient();
+  const { error } = await db.from("dashboard_snapshot").upsert(
+    {
+      key: homeSnapshotKey(windowDays),
+      payload: snapshot,
+      computed_at: new Date().toISOString(),
+    },
+    { onConflict: "key" },
+  );
+  if (error) throw new Error(`writeHomeSnapshot: ${error.message}`);
+  return snapshot;
+}
+
+/**
+ * Read the precomputed home snapshot. Returns null when no snapshot exists yet
+ * (e.g. right after first deploy, before the first cron run) so callers can
+ * fall back to the live getDashboardData/getIndexBreakdown path.
+ */
+export async function readHomeSnapshot(
+  windowDays = 7,
+): Promise<HomeSnapshot | null> {
+  const db = createServiceClient();
+  const { data, error } = await db
+    .from("dashboard_snapshot")
+    .select("payload")
+    .eq("key", homeSnapshotKey(windowDays))
+    .maybeSingle();
+  if (error) throw new Error(`readHomeSnapshot: ${error.message}`);
+  return (data?.payload as HomeSnapshot) ?? null;
 }
 
 /**

@@ -6,6 +6,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { assertCronAuth, runStage, runScore } from "@/lib/pipeline";
 import { recordPipelineRun } from "@/lib/usage";
+import { writeHomeSnapshot } from "@/lib/aggregate";
 
 export const maxDuration = 300;
 export const dynamic = "force-dynamic";
@@ -19,6 +20,13 @@ export async function GET(request: NextRequest) {
     { totalDurationMs: result.durationMs, stages: { score: { detail: result.detail } } },
     "cron",
   ).catch((e) => console.error("recordPipelineRun failed:", e));
+
+  // Score is the last data-producing stage, so refresh the precomputed
+  // home-page snapshot now that new sentiment_scores may have landed.
+  // Best-effort: a snapshot failure must not fail the scoring cron.
+  await writeHomeSnapshot().catch((e) =>
+    console.error("writeHomeSnapshot failed:", e),
+  );
 
   return NextResponse.json(result);
 }

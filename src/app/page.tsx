@@ -6,10 +6,14 @@ import { BiggestMovers } from "@/components/BiggestMovers";
 import { TrustStrip } from "@/components/TrustStrip";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
-import { getDashboardData } from "@/lib/aggregate";
+import { getDashboardData, getIndexBreakdown, readHomeSnapshot } from "@/lib/aggregate";
 
-// Always recompute on request so the daily-cron pipeline is reflected immediately.
-// v1 will move this to cached SQL views / materialized aggregates.
+// The home page reads a precomputed snapshot (written at the end of the score
+// cron) so it serves one light row instead of re-aggregating the full
+// sentiment_scores join per request. Kept `force-dynamic` so it always reflects
+// the latest snapshot the moment the cron refreshes it — reading one indexed
+// row is sub-100ms. Falls back to a live computation only when the snapshot is
+// missing or unavailable (first deploy / before first cron / pre-migration).
 export const dynamic = "force-dynamic";
 
 function formatAsOfLabel(asOfDateIso: string, windowDays: number): string {
@@ -28,7 +32,15 @@ export default async function HomePage() {
   // below fetches its own breakdown over the same window, so the "Why is the
   // Index where it is?" narrative aligns with the headline number above.
   const HOMEPAGE_WINDOW_DAYS = 7;
-  const data = await getDashboardData(HOMEPAGE_WINDOW_DAYS);
+  // Prefer the precomputed snapshot. `.catch(() => null)` keeps the page alive
+  // if the dashboard_snapshot table doesn't exist yet (migration not applied)
+  // or the read errors — we just fall back to the live (slower) path.
+  const snapshot = await readHomeSnapshot(HOMEPAGE_WINDOW_DAYS).catch(() => null);
+  const data = snapshot?.dashboard ?? (await getDashboardData(HOMEPAGE_WINDOW_DAYS));
+  // Breakdown for <IssueContributionsChart>. From the snapshot when present;
+  // otherwise the component computes it live itself (prop left undefined).
+  const breakdown =
+    snapshot?.breakdown ?? (await getIndexBreakdown(HOMEPAGE_WINDOW_DAYS));
 
   const directionLabel = data.index >= 0 ? "R+" : "L+";
   const directionWord = data.index >= 0 ? "right" : "left";
@@ -117,7 +129,7 @@ export default async function HomePage() {
       {/* Why is the Index where it is? — per-issue contribution breakdown */}
       <section className="border-t border-gray-200 bg-gray-50">
         <div className="max-w-3xl mx-auto px-6 py-12">
-          <IssueContributionsChart windowDays={HOMEPAGE_WINDOW_DAYS} />
+          <IssueContributionsChart windowDays={HOMEPAGE_WINDOW_DAYS} breakdown={breakdown} />
         </div>
       </section>
 

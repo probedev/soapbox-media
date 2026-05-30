@@ -1,4 +1,8 @@
-import { getIndexBreakdown, type IssueContribution } from "@/lib/aggregate";
+import {
+  getIndexBreakdown,
+  type IndexBreakdown,
+  type IssueContribution,
+} from "@/lib/aggregate";
 
 function formatLean(direction: "L" | "R" | "neutral", magnitude: number): string {
   if (direction === "neutral") return "0.0";
@@ -64,12 +68,16 @@ function ContributionRow({
 
 interface IssueContributionsChartProps {
   windowDays?: number;
+  /** Precomputed breakdown (from the home snapshot). When provided the
+   *  component skips its own DB aggregation; otherwise it computes live. */
+  breakdown?: IndexBreakdown;
 }
 
 export async function IssueContributionsChart({
   windowDays = 30,
+  breakdown,
 }: IssueContributionsChartProps) {
-  const data = await getIndexBreakdown(windowDays);
+  const data = breakdown ?? (await getIndexBreakdown(windowDays));
 
   if (data.issues.length === 0) {
     return (

@@ -7,6 +7,39 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
+## v0.6.61 · 2026-05-30
+
+### Performance
+
+- **Home page TTFB: precompute the dashboard instead of recomputing per
+  request.** v0.6.60's `cache()` fix only deduped the double `fetchScoreRows`
+  call *within* one render — it can't cache across requests, and `cache()` is
+  per-render scope only. Direct prod timing after v0.6.60 still showed ~9.5s
+  TTFB on `/` (every visitor recomputed the full ~17K-row deep join from
+  scratch), while `/channels` and `/issues` stayed ~0.4s. Root cause is
+  structural: the home page re-aggregates all history on every hit, but the
+  underlying data only changes when the daily pipeline runs.
+  - **New `dashboard_snapshot` table** (migration
+    `20260530120000_dashboard_snapshot.sql`): one JSONB row per window key
+    (`home:7`) holding the precomputed `{ dashboard, breakdown }`. Service-role
+    only.
+  - **`writeHomeSnapshot()`** computes `getDashboardData()` + `getIndexBreakdown()`
+    once (sharing the per-request `fetchScoreRows` cache → one DB pass) and
+    upserts the row. Called at the end of the **score cron** (the last
+    data-producing stage) and the manual `/api/cron/pipeline` run; best-effort
+    so a snapshot failure never fails the cron. Also runnable ad hoc via
+    `npm run refresh:snapshot`.
+  - **`readHomeSnapshot()`** + home page now reads that single indexed row
+    (~sub-100ms). Falls back to the live computation when the snapshot is
+    missing or unavailable (first deploy / before first cron / pre-migration),
+    so the page never breaks. `<IssueContributionsChart>` takes the breakdown
+    as a prop (live fetch retained as fallback).
+  - Net: home `/` TTFB drops to ~0.4s for every visitor, with no cold-miss
+    cliff on deploys (unlike a request-level cache). Removes the 17K-row join
+    from the request path entirely; scales as the panel grows. Delivers the
+    "cached SQL views / materialized aggregates" TODO that was noted in
+    `src/app/page.tsx`.
+
 ## v0.6.60 · 2026-05-30
 
 ### Performance

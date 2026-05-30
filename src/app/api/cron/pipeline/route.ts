@@ -19,6 +19,7 @@ import {
   runScore,
 } from "@/lib/pipeline";
 import { recordPipelineRun } from "@/lib/usage";
+import { writeHomeSnapshot } from "@/lib/aggregate";
 
 export const maxDuration = 300;
 export const dynamic = "force-dynamic";
@@ -45,6 +46,12 @@ export async function GET(request: NextRequest) {
   await recordPipelineRun(summary, "manual").catch((e) => {
     console.error("recordPipelineRun failed:", e);
   });
+
+  // Refresh the precomputed home-page snapshot after a full manual run.
+  // Best-effort: never fail the run on a snapshot write.
+  await writeHomeSnapshot().catch((e) =>
+    console.error("writeHomeSnapshot failed:", e),
+  );
 
   return NextResponse.json(summary);
 }
