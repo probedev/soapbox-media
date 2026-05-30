@@ -7,6 +7,29 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
+## v0.6.62 · 2026-05-30
+
+### Added
+
+- **"What alt-media is talking about" card on `/issues`.** The issues page was
+  the only main page with no data card above its list — a static taxonomy
+  reference with no live signal. Added a topic-level attention rollup above the
+  taxonomy: the 23 issues' mention volume aggregated into the same 11 topics the
+  list is grouped by, ranked by mention count, each with a volume bar, the
+  topic's volume-weighted lean tint, and a deep link to its `/topics/[slug]`
+  page.
+  - Reads per-issue volume/lean from the existing `dashboard_snapshot` (one
+    row, no heavy join) via `readHomeSnapshot()`, with a live `getDashboardData`
+    fallback when the snapshot is absent. So the page stays fast and adds no new
+    DB aggregation.
+  - New `<IssueActivityByTopic>` component (pure presentational, prop-driven —
+    same pattern as `PanelBalance` / `PanelScale`). Bars + headline use raw
+    mention count ("how much is this discussed"); lean tint uses volume-weighted
+    lean so the direction matches the Index basis.
+  - Deliberately distinct from the home page's "Biggest movers" (a lean-swing
+    leaderboard) — this is an attention-volume *distribution*, answering the
+    `/issues` reader's question "which areas are hot, which should I open?"
+
 ## v0.6.61 · 2026-05-30
 
 ### Performance

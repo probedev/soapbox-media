@@ -1,8 +1,17 @@
 import { createServiceClient } from "@/lib/db";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
+import {
+  IssueActivityByTopic,
+  type TopicActivityRow,
+} from "@/components/IssueActivityByTopic";
+import { getDashboardData, readHomeSnapshot, type IssueAggregate } from "@/lib/aggregate";
 
 export const dynamic = "force-dynamic";
+
+const ACTIVITY_WINDOW_DAYS = 7;
+/** Display label for the unbucketed ("Other") topic group in the activity card. */
+const UNBUCKETED_TOPIC_LABEL = "Political figures & parties";
 
 interface IssueRow {
   slug: string;
@@ -57,6 +66,41 @@ export default async function IssuesListPage() {
     });
   }
 
+  // Activity rollup: read per-issue volume/lean from the precomputed home
+  // snapshot (fast — one row, no heavy join), fall back to a live compute only
+  // if the snapshot is missing. Then aggregate to the same topic groups the
+  // list uses below: mentions = Σ raw classification count, lean = volume-
+  // weighted so the tint matches the Index basis.
+  const snapshot = await readHomeSnapshot(ACTIVITY_WINDOW_DAYS).catch(() => null);
+  const issueStats: IssueAggregate[] =
+    snapshot?.dashboard.issues ??
+    (await getDashboardData(ACTIVITY_WINDOW_DAYS).then((d) => d.issues).catch(() => []));
+  const statsBySlug = new Map(issueStats.map((s) => [s.slug, s]));
+
+  const topicActivity: TopicActivityRow[] = sections
+    .map((s) => {
+      let mentions = 0;
+      let leanWeightSum = 0;
+      let volume = 0;
+      for (const issue of s.issues) {
+        const stat = statsBySlug.get(issue.slug);
+        if (!stat) continue;
+        mentions += stat.numClassifications;
+        volume += stat.volume;
+        leanWeightSum += stat.lean * stat.volume;
+      }
+      return {
+        slug: s.slug,
+        name: s.slug ? s.name : UNBUCKETED_TOPIC_LABEL,
+        mentions,
+        numIssues: s.issues.length,
+        lean: volume > 0 ? leanWeightSum / volume : 0,
+      };
+    })
+    .filter((r) => r.mentions > 0)
+    .sort((a, b) => b.mentions - a.mentions);
+  const totalMentions = topicActivity.reduce((sum, r) => sum + r.mentions, 0);
+
   return (
     <main className="min-h-screen">
       <Header activePage="issues" />
@@ -72,6 +116,16 @@ export default async function IssuesListPage() {
           position; every sentiment score is measured against those positions, not US-political
           stereotypes. Click any issue for the channel-level breakdown.
         </p>
+
+        {topicActivity.length > 0 && (
+          <div className="mt-8">
+            <IssueActivityByTopic
+              rows={topicActivity}
+              totalMentions={totalMentions}
+              windowDays={ACTIVITY_WINDOW_DAYS}
+            />
+          </div>
+        )}
 
         <div className="mt-10 space-y-10">
           {sections.map((s) => (
