@@ -529,6 +529,74 @@ export interface SystemStats {
   lastUpdated: string | null;
 }
 
+/**
+ * Panel-specific stats — composition of the channel set we track, NOT what
+ * the pipeline has done with it. Lives on `/channels`, separate from
+ * `getSystemStats` (which is processing-scale and lives on `/log`). Sharing
+ * the channels query would marginally save a round trip, but the SoC
+ * boundary keeps each page's data layer narrow and intentional.
+ */
+export interface PanelStats {
+  /** Unique shows (collapsed by name). */
+  showsTracked: number;
+  channelsByLean: { L: number; M: number; R: number };
+  /** Sum of unique-show reach (max per show across platform rows). */
+  audienceReach: number;
+  audienceReachByLean: { L: number; M: number; R: number };
+  /** Raw active channel rows — each (show, platform) is its own row. */
+  platformRows: number;
+  /** Per-platform breakdown of `platformRows`. */
+  platformSplit: { youtube: number; podcast: number };
+  /** Largest single show by max reach across its platforms. */
+  largestShow: { name: string; reach: number } | null;
+}
+
+export async function getPanelStats(): Promise<PanelStats> {
+  const db = createServiceClient();
+  const { data: channelRows } = await db
+    .from("channels")
+    .select("name, political_lean, reach, platform")
+    .eq("active", true)
+    .limit(2000);
+  const rows = (channelRows || []) as {
+    name: string;
+    political_lean: "L" | "M" | "R";
+    reach: number | string | null;
+    platform: "youtube" | "podcast";
+  }[];
+
+  // Unique-show map keyed by name; lean is consistent across a show's rows,
+  // reach is the MAX across platform rows (same audience often follows both).
+  const showRows = new Map<string, { lean: "L" | "M" | "R"; reach: number }>();
+  const platformSplit = { youtube: 0, podcast: 0 };
+  for (const c of rows) {
+    const r = Number(c.reach || 0);
+    const prev = showRows.get(c.name);
+    if (!prev || r > prev.reach) {
+      showRows.set(c.name, { lean: c.political_lean, reach: r });
+    }
+    platformSplit[c.platform] += 1;
+  }
+  const channelsByLean = { L: 0, M: 0, R: 0 };
+  const audienceReachByLean = { L: 0, M: 0, R: 0 };
+  let largest: { name: string; reach: number } | null = null;
+  for (const [name, v] of showRows) {
+    channelsByLean[v.lean] += 1;
+    audienceReachByLean[v.lean] += v.reach;
+    if (!largest || v.reach > largest.reach) largest = { name, reach: v.reach };
+  }
+  return {
+    showsTracked: showRows.size,
+    channelsByLean,
+    audienceReach:
+      audienceReachByLean.L + audienceReachByLean.M + audienceReachByLean.R,
+    audienceReachByLean,
+    platformRows: rows.length,
+    platformSplit,
+    largestShow: largest,
+  };
+}
+
 export async function getSystemStats(): Promise<SystemStats> {
   const db = createServiceClient();
 

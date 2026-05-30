@@ -1,0 +1,92 @@
+/**
+ * PanelScale — composition stats card for /channels.
+ *
+ * Mirrors the visual rhythm of SystemStats on /log, but the numbers are
+ * about the panel itself (who we track) rather than the pipeline's
+ * processing scale. This separation matters: a reader on /channels is
+ * asking "is this panel representative?", a reader on /log is asking "is
+ * the pipeline running?". Same component shape, different question.
+ *
+ * Sits ABOVE <PanelBalance> on the page so readers see magnitude (raw
+ * numbers) before distribution (stacked bars). Both surfaces use the same
+ * unique-show reach methodology.
+ */
+import { getPanelStats } from "@/lib/aggregate";
+
+function compactNumber(n: number): string {
+  if (n >= 1_000_000_000) return `${(n / 1_000_000_000).toFixed(1)}B`;
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(n >= 10_000_000 ? 0 : 1)}M`;
+  if (n >= 10_000) return `${(n / 1_000).toFixed(0)}K`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
+  return n.toLocaleString();
+}
+
+interface StatProps {
+  value: string;
+  label: string;
+  sublabel?: string;
+}
+
+function Stat({ value, label, sublabel }: StatProps) {
+  return (
+    <div>
+      <div className="text-3xl md:text-4xl font-semibold tracking-tight tabular-nums text-gray-900">
+        {value}
+      </div>
+      <div className="text-xs uppercase tracking-wider text-gray-500 mt-2 font-medium">
+        {label}
+      </div>
+      {sublabel && (
+        <div className="text-[11px] text-gray-400 mt-0.5">{sublabel}</div>
+      )}
+    </div>
+  );
+}
+
+export async function PanelScale() {
+  const stats = await getPanelStats();
+  const leanCount = `${stats.channelsByLean.L} L · ${stats.channelsByLean.M} M · ${stats.channelsByLean.R} R`;
+  const reachByLean =
+    `${compactNumber(stats.audienceReachByLean.L)} L · ` +
+    `${compactNumber(stats.audienceReachByLean.M)} M · ` +
+    `${compactNumber(stats.audienceReachByLean.R)} R`;
+  const platformSplit =
+    `${stats.platformSplit.youtube} YouTube · ${stats.platformSplit.podcast} Podcast`;
+
+  return (
+    <div className="border border-gray-200 rounded-lg bg-white p-6 mt-6">
+      <div className="flex items-baseline justify-between mb-5 gap-3 flex-wrap">
+        <h2 className="text-sm font-semibold uppercase tracking-wider text-gray-600">
+          Panel scale
+        </h2>
+        <span className="text-[11px] text-gray-500">
+          composition · not processing
+        </span>
+      </div>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+        <Stat
+          value={stats.showsTracked.toString()}
+          label="Shows tracked"
+          sublabel={leanCount}
+        />
+        <Stat
+          value={compactNumber(stats.audienceReach)}
+          label="Combined audience"
+          sublabel={reachByLean}
+        />
+        <Stat
+          value={stats.platformRows.toString()}
+          label="Platform rows"
+          sublabel={platformSplit}
+        />
+        {stats.largestShow && (
+          <Stat
+            value={compactNumber(stats.largestShow.reach)}
+            label="Largest single show"
+            sublabel={stats.largestShow.name}
+          />
+        )}
+      </div>
+    </div>
+  );
+}

@@ -2,6 +2,7 @@ import { createServiceClient } from "@/lib/db";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { PanelBalance } from "@/components/PanelBalance";
+import { PanelScale } from "@/components/PanelScale";
 import { getChannelExternalUrl } from "@/lib/channelLinks";
 import { ExternalLink } from "lucide-react";
 
@@ -141,10 +142,13 @@ export default async function ChannelsListPage() {
           for system scale and daily health.
         </p>
 
-        {/* Panel balance badge — surfaces the count-vs-reach asymmetry the
-            intro paragraph can't quite admit. Counts are balanced by editorial
-            intent; reach is what it is in alt-media (largest R-shows are
-            bigger than largest L-shows). Honest is better than implied. */}
+        {/* Magnitude first (PanelScale), distribution second (PanelBalance),
+            list third (per-lean grid). This matches the reader's natural
+            question order on /channels: "how big is this panel?" → "how is
+            it split?" → "show me the shows." Pipeline-side numbers live on
+            /log under <SystemStats>; the two cards intentionally don't
+            overlap. */}
+        <PanelScale />
         <PanelBalance shows={shows} />
 
         {(["L", "M", "R"] as const).map((bucket) => (

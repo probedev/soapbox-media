@@ -58,14 +58,13 @@ function Stat({ value, label, sublabel }: StatProps) {
 export async function SystemStats() {
   const stats = await getSystemStats();
   const leanSplit = `${stats.channelsByLean.L} L · ${stats.channelsByLean.M} M · ${stats.channelsByLean.R} R`;
-  // Audience reach broken out by lean — surfaces cohort balance the same way
-  // the show-count sublabel does. Compact-formatted because the numbers are
-  // 10s–100s of millions; precision past 2 sig figs isn't meaningful.
-  const reachByLean =
-    `${compactNumber(stats.audienceReachByLean.L)} L · ` +
-    `${compactNumber(stats.audienceReachByLean.M)} M · ` +
-    `${compactNumber(stats.audienceReachByLean.R)} R`;
 
+  // /log SystemStats is *pipeline-scale* only — what the system has been
+  // doing. Panel-composition numbers (combined audience reach, platform
+  // split, largest show) moved to <PanelScale> on /channels in v0.6.56,
+  // where they answer the reader question "is this panel representative?"
+  // rather than "is the pipeline running?". Shows-tracked stays here as
+  // the denominator that contextualizes the processing numbers.
   return (
     <div className="border border-gray-200 rounded-lg bg-white p-6">
       <div className="flex items-baseline justify-between mb-5 gap-3 flex-wrap">
@@ -76,19 +75,11 @@ export async function SystemStats() {
           Latest data {relativeTime(stats.lastUpdated)}
         </span>
       </div>
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
         <Stat
           value={stats.channelsTracked.toString()}
           label="Shows tracked"
           sublabel={leanSplit}
-        />
-        {/* Combined-audience reach is the new headline number for "how big
-            is this panel?" — unique-show counted (max reach per show across
-            its platform rows) so dual-platform shows aren't double-counted. */}
-        <Stat
-          value={compactNumber(stats.audienceReach)}
-          label="Combined audience"
-          sublabel={reachByLean}
         />
         <Stat
           value={compactNumber(stats.episodesAnalyzed)}
@@ -100,10 +91,6 @@ export async function SystemStats() {
           label="Hours of audio"
           sublabel={daysContinuous(stats.hoursOfAudio)}
         />
-        {/* Issues count is dynamic now (was hardcoded "15") so it tracks the
-            living taxonomy as Topics/Issues are added. Sentiment-scores stat
-            folded into the sublabel since post-v0.6.53 score == mentions
-            (drain is autonomous; the standalone stat was redundant). */}
         <Stat
           value={compactNumber(stats.classifications)}
           label="Issue mentions"

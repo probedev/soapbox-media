@@ -7,6 +7,41 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
+## v0.6.56 · 2026-05-30
+
+### Changed
+
+- **Stat cards re-homed by reader question, not by convenience.** /log's
+  System Scale was carrying the panel-composition stat ("Combined audience
+  reach", added in v0.6.54) which actually answers "is this panel
+  representative?" — a /channels question, not a /log question. The /log
+  reader is asking "is the pipeline running?". Moved the reach number off
+  /log and onto a new `<PanelScale>` card on /channels where it belongs.
+
+### Added
+
+- **`<PanelScale>` card on /channels** — composition stats (shows tracked,
+  combined audience, platform rows, largest single show). Same visual
+  shape as `<SystemStats>` on /log so the cards rhyme, but the question
+  they answer is different. Sits ABOVE `<PanelBalance>` so the page reads
+  magnitude (raw numbers) → distribution (stacked bars) → list (per-lean
+  show grid).
+- **New `getPanelStats()` aggregate helper.** Channels-table only — no
+  episode/classification/score queries. Returns shows tracked + L/M/R
+  count, audience reach + L/M/R split, platform row count + YT/Pod split,
+  and the largest single show by max reach. Mirrors the unique-show
+  methodology of `<PanelBalance>` and the old `getSystemStats.audienceReach`
+  field so all three surfaces agree on the same number.
+
+### Changed (cont.)
+
+- **`/log` System Scale trimmed to 4 pipeline-only stats** (was 5):
+  shows tracked, episodes analyzed, hours of audio, issue mentions. Grid
+  shifted from `lg:grid-cols-5` to `md:grid-cols-4` — same breathing
+  room per stat. `getSystemStats` still computes `audienceReach` +
+  `audienceReachByLean` for any downstream caller; it's just not
+  displayed on /log anymore.
+
 ## v0.6.55 · 2026-05-30
 
 ### Added
