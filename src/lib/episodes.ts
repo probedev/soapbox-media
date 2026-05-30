@@ -97,18 +97,29 @@ export async function getEpisodeTableRows(
             ? "done"
             : "no-signal"
           : "pending";
-    // Same "no-signal" treatment on scored — an off-taxonomy episode has
-    // nothing to score (not "pending Haiku"; structurally complete).
+    // Scored mirrors the upstream stage's reality, in cascade:
+    //   - "na" / "no-signal" inherit from classified (transcript failed, or
+    //     classify ran and found nothing to score).
+    //   - If classify hasn't run yet (classified === "pending"), scored is
+    //     ALSO "pending" — we genuinely can't score what hasn't been
+    //     classified. This guard fixes a v0.6.54 regression where the
+    //     previous logic fell through to `sc >= cc` with cc===0 and sc===0,
+    //     evaluating 0 >= 0 as true and rendering "done" on episodes that
+    //     were nowhere near scored. 132 episodes were affected.
+    //   - Only when classified === "done" (cc > 0, by construction) does
+    //     sc >= cc actually mean "all mentions scored."
     const scored: EpisodeTableRow["scored"] =
       classified === "na"
         ? "na"
         : classified === "no-signal"
           ? "no-signal"
-          : sc >= cc
-            ? "done"
-            : sc > 0
-              ? "partial"
-              : "pending";
+          : classified === "pending"
+            ? "pending"
+            : sc >= cc
+              ? "done"
+              : sc > 0
+                ? "partial"
+                : "pending";
     return {
       id: r.id,
       title: r.title,

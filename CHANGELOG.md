@@ -7,6 +7,27 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
+## v0.6.59 · 2026-05-30
+
+### Fixed
+
+- **`/log` scored status falsely rendered "done" for un-classified episodes.**
+  Regression from v0.6.54's status-cascade rewrite. When an episode hadn't
+  been classified yet, `classification_count = 0` and `scored_count = 0`,
+  so `sc >= cc` evaluated `0 >= 0` → true → "done". The pre-v0.6.54 code
+  caught this with a leading `cc === 0 ? "na"` branch; my rewrite only
+  caught the cc=0 case when `classify_status='processed'` (mapping to
+  "no-signal") and let cc=0 + `classify_status='pending'` fall through.
+  Result: 132 episodes were rendering as scored=green on /log when they
+  were nowhere near scored. Visible on the activity log as rows with
+  transcribed=gray, classified=gray, **scored=green** — a logical
+  impossibility the cascade should have prevented.
+
+  Fix: explicit `classified === "pending" ? "pending"` guard before the
+  `sc >= cc` check in `getEpisodeTableRows`. The score column now
+  faithfully cascades: can't be scored before classified, can't be
+  classified before transcribed.
+
 ## v0.6.58 · 2026-05-30
 
 ### Fixed
