@@ -42,9 +42,18 @@ async function main() {
 
   const db = createServiceClient();
 
-  // Paginate through all classifications. Supabase has a project-level
-  // "Max Rows" setting (default 1000) that caps .limit() — pagination via
-  // .range() is the robust path that works regardless of Supabase config.
+  // Paginate through all classifications. The canonical pattern (see
+  // [[pagination-stable-order]] / v0.6.47 + v0.6.51 + v0.6.52) is:
+  //   1. .order(<stable_unique_key>) — without it Postgres returns
+  //      non-deterministic pages once the table grows past 1000 rows.
+  //   2. Terminate ONLY on an empty page (data.length === 0). A short page
+  //      means Vercel's edge→Supabase route hit the response-size cap
+  //      before the row cap on this deep-join query (each row carries a
+  //      multi-field issue+channel join) — NOT end-of-data.
+  //
+  // The old short-page early-out (`data.length < pageSize`) silently dropped
+  // ~all of the catchup's classifications during the 2026-05-29 drain: 600
+  // scored, 5,809 stranded, "queue drained" sentinel fired anyway. v0.6.53.
   const allClassifications: PendingClassification[] = [];
   const pageSize = 1000;
   for (let from = 0; ; from += pageSize) {
@@ -63,6 +72,7 @@ async function main() {
         )
       `,
       )
+      .order("id", { ascending: true })
       .range(from, from + pageSize - 1);
     if (error) {
       console.error("Failed to load classifications:", error.message);
@@ -70,15 +80,18 @@ async function main() {
     }
     if (!data || data.length === 0) break;
     allClassifications.push(...(data as unknown as PendingClassification[]));
-    if (data.length < pageSize) break;
   }
 
-  // Same pagination for existing scores
+  // Same canonical pagination for existing scores — narrow query but the
+  // sentiment_scores table is the larger of the two (one row per scored
+  // mention) and will definitely span pages.
   const existingScores: { classification_id: string }[] = [];
   for (let from = 0; ; from += pageSize) {
     const { data, error } = await db
       .from("sentiment_scores")
       .select("classification_id")
+      // UNIQUE(classification_id) makes it a stable pagination key.
+      .order("classification_id", { ascending: true })
       .range(from, from + pageSize - 1);
     if (error) {
       console.error("Failed to load existing scores:", error.message);
@@ -86,7 +99,6 @@ async function main() {
     }
     if (!data || data.length === 0) break;
     existingScores.push(...data);
-    if (data.length < pageSize) break;
   }
   const scoredIds = new Set(existingScores.map((s) => s.classification_id));
   console.log(

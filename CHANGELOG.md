@@ -7,6 +7,41 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
+## v0.6.53 · 2026-05-30
+
+### Fixed
+
+- **CLI scripts had the same `.range()` family bug** the cron path got fixed
+  for in v0.6.51 — the previous audit pass (v0.6.52) only covered
+  `src/`, not `scripts/`. Caught by the catchup drain itself: the classify
+  stage drained cleanly (393 → 0, added 4,758 new classifications), but
+  `scripts/score.ts` told the catchup loop "queue drained" while 5,809
+  classifications were actually unscored. Root cause: both pagination loops
+  in `score.ts` had no `.order()` AND the `data.length < pageSize` early-out
+  — so the script only ever read page 0 of `classifications` and
+  `sentiment_scores`, scored the 200-ish overlap in page 0 across 3 catchup
+  iterations (600 scored), then page 0 showed "all scored" → "drained"
+  sentinel fired. Same dual-bug as the original v0.6.47.
+- **`scripts/score.ts`** — added stable `.order("id", asc)` on the
+  classifications loop and `.order("classification_id", asc)` on the
+  sentiment_scores loop (UNIQUE constraint makes it a valid pagination
+  key); removed both `data.length < pageSize` early-outs. Same canonical
+  pattern as `aggregate.ts:155-209`.
+- **`scripts/classify.ts`** — happened to work in the catchup drain (the
+  filtered `pending` set fits in a single page below the response cap), but
+  carried both the non-unique-sort-key bug and the short-page early-out.
+  Added `id` as a stable tiebreaker after `published_at`; removed the
+  short-page early-out. Future-proofs against the panel doubling.
+
+### Notes
+
+- Full audit now extended to `scripts/` directory; both CLI surfaces
+  (`classify.ts` + `score.ts`) and one already-correct file (`transcribe.ts`
+  uses single `.limit()`, not a paginated loop) conform.
+- The 5,809-classification score backlog this leak created will be drained
+  separately via `npm run score -- 8000` on the fixed v0.6.53 code (~$4 in
+  Haiku, ~30 min wall-clock).
+
 ## v0.6.52 · 2026-05-29
 
 ### Fixed

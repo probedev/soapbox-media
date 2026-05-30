@@ -76,7 +76,11 @@ async function main() {
       .eq("classify_status", "pending")
       .eq("transcript_status", "fetched")
       // Newest first — recent backlog drains first, matches editorial value.
+      // Chain `id` as the unique tiebreaker; without it, episodes published
+      // in the same second can re-cross page boundaries. (See
+      // [[pagination-stable-order]] — the non-unique-key subspecies.)
       .order("published_at", { ascending: false })
+      .order("id", { ascending: false })
       .range(from, from + PAGE - 1);
     if (error) {
       console.error("Failed to load pending episodes:", error.message);
@@ -84,7 +88,10 @@ async function main() {
     }
     if (!data || data.length === 0) break;
     allPending.push(...(data as unknown as PendingEpisode[]));
-    if (data.length < PAGE) break;
+    // Empty-page-only termination — a short page on this filtered query is
+    // routine (response-size cap with the channel join). v0.6.53 removed
+    // the old `data.length < PAGE` early-out for the same reason score.ts
+    // got its fix in this version.
   }
 
   if (allPending.length === 0) {
