@@ -7,6 +7,55 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
+## v0.6.58 · 2026-05-30
+
+### Fixed
+
+- **Podcast reach auto-refresh removed — PodScan's `audience_size` is
+  unreliable for the panel's purposes.** v0.6.57's reach-refresh pass
+  attempted to hit PodScan's `/podcasts/{id}` endpoint and pull
+  `pickPodscanReach` from the response, but the immediate post-deploy
+  refresh exposed the gap: zero of 44 podcasts updated. Probing the
+  endpoint directly showed `audience_size` IS exposed — just nested at
+  `reach.audience_size` (not top-level where the helper looked) — but
+  the values are wildly off from publicly-reported listener estimates:
+  - Joe Rogan Experience: DB 14.5M vs PodScan `reach.audience_size`: 4.7M
+  - Mark Levin Show: DB 7.0M vs PodScan `reach.audience_size`: **100**
+
+  Our stored numbers align with Edison-style weekly-listener estimates;
+  PodScan's appears to be its own internal-tracking metric (a lower bound,
+  often missing entirely). Auto-refreshing from PodScan would crash
+  podcast reach 50–70% to less-real numbers, so podcasts are now
+  intentionally NOT in the refresh path. Removed `getPodcastById` +
+  `pickPodscanReach` calls from `runIngest` and `scripts/ingest.ts`; the
+  41-channel YouTube refresh (which works perfectly, daily) is the entire
+  auto-refresh story now.
+
+### Changed
+
+- **Honest copy on `/channels`.** Intro paragraph: "YouTube subscriber
+  counts refresh daily during the ingest pass; podcast audience estimates
+  are editorial and reviewed at panel-add time." (Previously: "Reach
+  figures refresh daily from the YouTube Data API and PodScan" — half
+  wrong.)
+- **`<PanelScale>` freshness label**: now reads "YouTube subs refreshed
+  Xh ago · podcast reach editorial" — was "Reach refreshed Xh ago," which
+  implied podcasts were also auto-refreshed.
+
+### Notes
+
+- `getPodcastById` helper stays in `src/lib/podscan.ts` — it's a clean
+  by-id lookup that may be useful for other contexts (e.g., verifying a
+  candidate matches what's in the panel during admin add-flow); just not
+  for reach refresh.
+- The 44 podcast rows still have their `reach_updated_at` backfilled to
+  `created_at` (17 days old). That's accurate — we genuinely haven't
+  refreshed them. The PanelScale label correctly reads off
+  `MAX(reach_updated_at)` which is now-today (the YT refresh time), so
+  the visible signal is right.
+- Memory `[[podcast-reach-editorial]]` written so this gotcha isn't
+  re-discovered next time someone tries to wire PodScan to channels.reach.
+
 ## v0.6.57 · 2026-05-30
 
 ### Fixed

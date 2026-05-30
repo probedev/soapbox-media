@@ -16,15 +16,8 @@
 import "./_load-env";
 
 import { createServiceClient } from "@/lib/db";
-import {
-  getRecentUploads,
-  getChannelDetailsBatch,
-} from "@/lib/youtube";
-import {
-  getPodcastEpisodes,
-  getPodcastById,
-  type PodscanPodcast,
-} from "@/lib/podscan";
+import { getRecentUploads, getChannelDetailsBatch } from "@/lib/youtube";
+import { getPodcastEpisodes } from "@/lib/podscan";
 import { dedupKey, loadSiblingEpisodeKeys } from "@/lib/dedup";
 
 interface ChannelRow {
@@ -42,28 +35,6 @@ interface ChannelRow {
  *  promos, or trailers — too short for meaningful per-issue sentiment
  *  classification. Setting to 3 minutes per Gregg 2026-05-11. */
 const MIN_DURATION_SEC = 180;
-
-/**
- * Same field-fallback as scripts/seed-podcasts.ts:pickReach and the helper
- * in src/lib/pipeline.ts. Duplicated across all three callers because the
- * shape of PodScan's reach surface is the source of truth (varies by
- * podcast); a shared helper in @/lib/podscan would be the cleanup move.
- */
-function pickPodscanReach(p: PodscanPodcast): number {
-  const candidates: unknown[] = [
-    p.reach,
-    p.reach_estimate,
-    (p as unknown as { audience_size?: number }).audience_size,
-    (p as unknown as { monthly_listeners?: number }).monthly_listeners,
-    (p as unknown as { audience?: number }).audience,
-    (p as unknown as { estimated_audience?: number }).estimated_audience,
-  ];
-  for (const c of candidates) {
-    const n = typeof c === "string" ? parseInt(c, 10) : (c as number);
-    if (typeof n === "number" && Number.isFinite(n) && n > 0) return Math.round(n);
-  }
-  return 0;
-}
 
 interface IngestResult {
   channel: string;
@@ -321,44 +292,43 @@ async function main() {
   for (const channel of channels as ChannelRow[]) {
     console.log(`[${channel.political_lean}] ${channel.name} (${channel.platform}, reach ${Number(channel.reach).toLocaleString()})`);
 
-    // Refresh reach before processing episodes. Only update on positive
+    // YouTube only — podcast reach is editorial and intentionally not
+    // refreshed (PodScan's audience_size is unreliable; see runIngest in
+    // src/lib/pipeline.ts for the full rationale). Only update on positive
     // values — a transient lookup miss shouldn't zero out a known stat.
-    try {
-      let newReach: number | null = null;
-      if (channel.platform === "youtube") {
+    if (channel.platform === "youtube") {
+      try {
         const stat = ytStats.get(channel.platform_id);
-        if (stat && stat.subscriberCount > 0) newReach = stat.subscriberCount;
-      } else {
-        const pod = await getPodcastById(channel.platform_id);
-        if (pod) {
-          const r = pickPodscanReach(pod);
-          if (r > 0) newReach = r;
+        if (stat && stat.subscriberCount > 0) {
+          const newReach = stat.subscriberCount;
+          if (newReach !== Number(channel.reach)) {
+            await db
+              .from("channels")
+              .update({
+                reach: newReach,
+                reach_updated_at: new Date().toISOString(),
+              })
+              .eq("id", channel.id);
+            const delta = newReach - Number(channel.reach);
+            const sign = delta > 0 ? "↑" : "↓";
+            console.log(
+              `    reach: ${Number(channel.reach).toLocaleString()} → ${newReach.toLocaleString()}  ${sign} ${Math.abs(delta).toLocaleString()}`,
+            );
+            reachRefreshed++;
+          } else {
+            // Still bump reach_updated_at so we know we checked, even if
+            // the number didn't change — otherwise stale-detection is
+            // misleading (would imply we never refreshed when in fact we
+            // confirmed the value is still current).
+            await db
+              .from("channels")
+              .update({ reach_updated_at: new Date().toISOString() })
+              .eq("id", channel.id);
+          }
         }
+      } catch (e: any) {
+        console.log(`    ⚠ reach refresh: ${e?.message?.slice(0, 60)}`);
       }
-      if (newReach !== null && Number(newReach) !== Number(channel.reach)) {
-        await db
-          .from("channels")
-          .update({
-            reach: newReach,
-            reach_updated_at: new Date().toISOString(),
-          })
-          .eq("id", channel.id);
-        const delta = newReach - Number(channel.reach);
-        const sign = delta > 0 ? "↑" : "↓";
-        console.log(
-          `    reach: ${Number(channel.reach).toLocaleString()} → ${newReach.toLocaleString()}  ${sign} ${Math.abs(delta).toLocaleString()}`,
-        );
-        reachRefreshed++;
-      } else if (newReach !== null) {
-        // Still bump reach_updated_at so we know we checked, even if the
-        // number didn't change. Otherwise stale-detection is misleading.
-        await db
-          .from("channels")
-          .update({ reach_updated_at: new Date().toISOString() })
-          .eq("id", channel.id);
-      }
-    } catch (e: any) {
-      console.log(`    ⚠ reach refresh: ${e?.message?.slice(0, 60)}`);
     }
 
     const result: IngestResult =

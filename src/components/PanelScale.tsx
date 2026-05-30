@@ -71,9 +71,12 @@ export async function PanelScale() {
         <h2 className="text-sm font-semibold uppercase tracking-wider text-gray-600">
           Panel scale
         </h2>
+        {/* Freshness signal is YT-specific. Podcast reach is intentionally
+            editorial (PodScan's audience_size is unreliable; see v0.6.58
+            CHANGELOG) so we don't claim podcasts are auto-refreshed. */}
         <span className="text-[11px] text-gray-500 tabular-nums">
           {stats.lastReachSync
-            ? `Reach refreshed ${relativeTime(stats.lastReachSync)}`
+            ? `YouTube subs refreshed ${relativeTime(stats.lastReachSync)} · podcast reach editorial`
             : "composition · not processing"}
         </span>
       </div>
