@@ -7,6 +7,28 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
+## v0.6.65 · 2026-05-31
+
+### Performance
+
+- **`/log` now server-paginates its episode table.** The page was loading the
+  entire ~2,000-row archive every request to power client-side
+  search/sort/paginate — ~1.3s TTFB that grows with the archive. (Measured: the
+  underlying `episode_pipeline_summary` view runs in ~64ms — the DB was never
+  the bottleneck; the cost was fetching + serializing the full row set.)
+  - New `GET /api/episodes` endpoint: sort, search, and pagination run in
+    Postgres (`getEpisodeTablePage` — `.range()` + `count: 'exact'`), returning
+    only the ~25 rows a page shows plus the total count. Search is sanitized
+    before the PostgREST `or()` filter; stage columns sort by their underlying
+    status field.
+  - `EpisodeDataTable` gained a `serverSide` mode (TanStack manual
+    sorting/filtering/pagination + debounced search + abortable fetch). `/log`
+    uses it; the per-channel table keeps client mode (small, preloaded sets).
+    Expandable per-episode receipts (v0.6.64) work unchanged.
+  - `/log` TTFB no longer scales with the episode count — it fetches one page
+    regardless of archive size. Trade-off: the table now hydrates client-side
+    (a brief "Loading episodes…") rather than being in the initial HTML.
+
 ## v0.6.64 · 2026-05-31
 
 ### Added

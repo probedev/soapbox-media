@@ -320,11 +320,34 @@ const columns: ColumnDef<EpisodeTableRow>[] = [
 
 // ── table ────────────────────────────────────────────────────────────────
 
+// Client table column id → server sort key (a real DB column). Stage columns
+// map to their underlying status field so server ordering groups "how far each
+// episode got" — close enough to the client STAGE_RANK ordering.
+const SERVER_SORT_KEY: Record<string, string> = {
+  published_at: "published_at",
+  title: "title",
+  channel_name: "channel_name",
+  duration_sec: "duration_sec",
+  political_lean: "political_lean",
+  platform: "platform",
+  transcribed: "transcript_status",
+  classified: "classify_status",
+  scored: "scored_count",
+};
+
 export function EpisodeDataTable({
   data,
+  serverSide = false,
+  channelId,
   hideChannelColumns = false,
 }: {
-  data: EpisodeTableRow[];
+  /** Client mode: all rows preloaded (channel pages, small sets). */
+  data?: EpisodeTableRow[];
+  /** Server mode: fetch sorted/searched/paginated pages from /api/episodes so
+   *  the page never ships the whole archive. Used by /log. */
+  serverSide?: boolean;
+  /** Scope a server-mode fetch to one channel. */
+  channelId?: string;
   /** On a single-channel page, drop the redundant Category + Channel columns. */
   hideChannelColumns?: boolean;
 }) {
@@ -334,7 +357,62 @@ export function EpisodeDataTable({
   const [columnVisibility, setColumnVisibility] =
     React.useState<VisibilityState>({});
   const [expanded, setExpanded] = React.useState<ExpandedState>({});
+  const [pagination, setPagination] = React.useState({ pageIndex: 0, pageSize: 25 });
   const [search, setSearch] = React.useState("");
+
+  // Debounce the search box so server mode doesn't fire a request per keystroke.
+  const [debouncedSearch, setDebouncedSearch] = React.useState("");
+  React.useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(search), 300);
+    return () => clearTimeout(t);
+  }, [search]);
+
+  const [server, setServer] = React.useState<{
+    rows: EpisodeTableRow[];
+    total: number;
+    loading: boolean;
+    error: boolean;
+  }>({ rows: [], total: 0, loading: serverSide, error: false });
+
+  // Server mode: a changed result set (new search or sort) goes back to page 1.
+  React.useEffect(() => {
+    if (!serverSide) return;
+    setPagination((p) => (p.pageIndex === 0 ? p : { ...p, pageIndex: 0 }));
+  }, [debouncedSearch, sorting, serverSide]);
+
+  // Server mode: fetch the current page. Aborts in-flight requests so a fast
+  // typist / pager doesn't render a stale page over a newer one.
+  React.useEffect(() => {
+    if (!serverSide) return;
+    const ctrl = new AbortController();
+    setServer((s) => ({ ...s, loading: true }));
+    const s = sorting[0];
+    const params = new URLSearchParams({
+      page: String(pagination.pageIndex),
+      pageSize: String(pagination.pageSize),
+      sort: s ? SERVER_SORT_KEY[s.id] ?? "published_at" : "published_at",
+      dir: s ? (s.desc ? "desc" : "asc") : "desc",
+    });
+    if (debouncedSearch.trim()) params.set("q", debouncedSearch.trim());
+    if (channelId) params.set("channelId", channelId);
+    fetch(`/api/episodes?${params.toString()}`, { signal: ctrl.signal })
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`))))
+      .then((d: { rows: EpisodeTableRow[]; total: number }) =>
+        setServer({ rows: d.rows, total: d.total, loading: false, error: false }),
+      )
+      .catch(() => {
+        if (!ctrl.signal.aborted)
+          setServer((s) => ({ ...s, loading: false, error: true }));
+      });
+    return () => ctrl.abort();
+  }, [
+    serverSide,
+    channelId,
+    debouncedSearch,
+    sorting,
+    pagination.pageIndex,
+    pagination.pageSize,
+  ]);
 
   const activeColumns = React.useMemo(
     () =>
@@ -348,34 +426,48 @@ export function EpisodeDataTable({
     [hideChannelColumns],
   );
 
+  // Client mode filters in-memory; server mode already returns the filtered page.
   const filtered = React.useMemo(() => {
+    if (serverSide) return server.rows;
+    const base = data ?? [];
     const q = search.trim().toLowerCase();
-    if (!q) return data;
-    return data.filter(
+    if (!q) return base;
+    return base.filter(
       (r) =>
         r.title.toLowerCase().includes(q) ||
         r.channel_name.toLowerCase().includes(q),
     );
-  }, [data, search]);
+  }, [serverSide, server.rows, data, search]);
 
   const table = useReactTable({
     data: filtered,
     columns: activeColumns,
-    state: { sorting, columnVisibility, expanded },
+    state: { sorting, columnVisibility, expanded, pagination },
     onSortingChange: setSorting,
     onColumnVisibilityChange: setColumnVisibility,
     onExpandedChange: setExpanded,
+    onPaginationChange: setPagination,
     // Only episodes with classifications have a receipts sub-row to show.
     getRowCanExpand: (row) => row.original.classification_count > 0,
     getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
     getExpandedRowModel: getExpandedRowModel(),
-    initialState: { pagination: { pageSize: 25 } },
+    ...(serverSide
+      ? {
+          // Sorting, filtering, and pagination are done in Postgres; feed the
+          // server's total so TanStack derives the page count + nav state.
+          manualSorting: true,
+          manualFiltering: true,
+          manualPagination: true,
+          rowCount: server.total,
+        }
+      : {
+          getSortedRowModel: getSortedRowModel(),
+          getPaginationRowModel: getPaginationRowModel(),
+        }),
   });
 
-  const { pageIndex, pageSize } = table.getState().pagination;
-  const totalRows = table.getFilteredRowModel().rows.length;
+  const { pageIndex, pageSize } = pagination;
+  const totalRows = serverSide ? server.total : filtered.length;
   const start = totalRows === 0 ? 0 : pageIndex * pageSize + 1;
   const end = Math.min((pageIndex + 1) * pageSize, totalRows);
 
@@ -450,7 +542,19 @@ export function EpisodeDataTable({
             ))}
           </TableHeader>
           <TableBody>
-            {table.getRowModel().rows.length ? (
+            {serverSide && server.loading && server.rows.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={activeColumns.length} className="h-24 text-center text-gray-400">
+                  Loading episodes…
+                </TableCell>
+              </TableRow>
+            ) : serverSide && server.error ? (
+              <TableRow>
+                <TableCell colSpan={activeColumns.length} className="h-24 text-center text-red-500">
+                  Couldn&apos;t load episodes. Try again.
+                </TableCell>
+              </TableRow>
+            ) : table.getRowModel().rows.length ? (
               table.getRowModel().rows.map((row) => (
                 <React.Fragment key={row.id}>
                   <TableRow>

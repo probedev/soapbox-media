@@ -1,4 +1,3 @@
-import { getEpisodeTableRows } from "@/lib/episodes";
 import { EpisodeDataTable } from "@/components/EpisodeDataTable";
 import { SystemStats } from "@/components/SystemStats";
 import { Header } from "@/components/Header";
@@ -7,8 +6,9 @@ import { Footer } from "@/components/Footer";
 export const dynamic = "force-dynamic";
 
 export default async function LogPage() {
-  const rows = await getEpisodeTableRows(2000);
-
+  // The episode table fetches its own pages from /api/episodes (server-side
+  // sort/search/pagination), so the page no longer ships the whole archive —
+  // TTFB stays flat as the episode count grows. Only SystemStats renders here.
   return (
     <main className="min-h-screen">
       <Header activePage="activity" />
@@ -39,7 +39,7 @@ export default async function LogPage() {
           <h2 className="text-sm font-semibold uppercase tracking-wider text-gray-600 mb-3">
             Episode receipts
           </h2>
-          <EpisodeDataTable data={rows} />
+          <EpisodeDataTable serverSide />
         </div>
       </section>
 

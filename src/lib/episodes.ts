@@ -98,67 +98,153 @@ export async function getEpisodeTableRows(
     rows.push(...data);
   }
 
-  return rows.slice(0, limit).map((r) => {
-    const cc = Number(r.classification_count) || 0;
-    const sc = Number(r.scored_count) || 0;
-    const transcribed: EpisodeTableRow["transcribed"] =
-      r.transcript_status === "fetched"
-        ? "done"
-        : r.transcript_status === "failed"
-          ? "failed"
-          : "pending";
-    // "no-signal" = classified, taxonomy didn't match (~8% of processed
-    // episodes — sports, true crime, celebrity, etc.). Distinct from
-    // "pending" so readers don't mistake a complete-but-empty result for
-    // in-progress work. v0.6.54 — see [[soapbox-roadmap]] no-signal status.
-    const classified: EpisodeTableRow["classified"] =
-      transcribed === "failed"
-        ? "na"
-        : r.classify_status === "processed"
-          ? cc > 0
+  return rows.slice(0, limit).map(mapEpisodeRow);
+}
+
+/** Columns selected from episode_pipeline_summary for the table. */
+const EPISODE_SELECT =
+  "id, title, published_at, source_url, duration_sec, channel_id, channel_name, political_lean, platform, transcript_status, classify_status, classification_count, scored_count";
+
+/** Derive the flat EpisodeTableRow (incl. cascade stage states) from a raw
+ *  episode_pipeline_summary row. Shared by the full-list and paginated reads. */
+function mapEpisodeRow(r: any): EpisodeTableRow {
+  const cc = Number(r.classification_count) || 0;
+  const sc = Number(r.scored_count) || 0;
+  const transcribed: EpisodeTableRow["transcribed"] =
+    r.transcript_status === "fetched"
+      ? "done"
+      : r.transcript_status === "failed"
+        ? "failed"
+        : "pending";
+  // "no-signal" = classified, taxonomy didn't match (~8% of processed
+  // episodes — sports, true crime, celebrity, etc.). Distinct from "pending"
+  // so readers don't mistake a complete-but-empty result for in-progress
+  // work. v0.6.54 — see [[soapbox-roadmap]] no-signal status.
+  const classified: EpisodeTableRow["classified"] =
+    transcribed === "failed"
+      ? "na"
+      : r.classify_status === "processed"
+        ? cc > 0
+          ? "done"
+          : "no-signal"
+        : "pending";
+  // Scored mirrors the upstream stage's reality, in cascade (see the v0.6.54
+  // regression guard: classify-pending must stay scored-pending, not fall
+  // through to sc>=cc evaluating 0>=0 as "done").
+  const scored: EpisodeTableRow["scored"] =
+    classified === "na"
+      ? "na"
+      : classified === "no-signal"
+        ? "no-signal"
+        : classified === "pending"
+          ? "pending"
+          : sc >= cc
             ? "done"
-            : "no-signal"
-          : "pending";
-    // Scored mirrors the upstream stage's reality, in cascade:
-    //   - "na" / "no-signal" inherit from classified (transcript failed, or
-    //     classify ran and found nothing to score).
-    //   - If classify hasn't run yet (classified === "pending"), scored is
-    //     ALSO "pending" — we genuinely can't score what hasn't been
-    //     classified. This guard fixes a v0.6.54 regression where the
-    //     previous logic fell through to `sc >= cc` with cc===0 and sc===0,
-    //     evaluating 0 >= 0 as true and rendering "done" on episodes that
-    //     were nowhere near scored. 132 episodes were affected.
-    //   - Only when classified === "done" (cc > 0, by construction) does
-    //     sc >= cc actually mean "all mentions scored."
-    const scored: EpisodeTableRow["scored"] =
-      classified === "na"
-        ? "na"
-        : classified === "no-signal"
-          ? "no-signal"
-          : classified === "pending"
-            ? "pending"
-            : sc >= cc
-              ? "done"
-              : sc > 0
-                ? "partial"
-                : "pending";
-    return {
-      id: r.id,
-      title: r.title,
-      published_at: r.published_at,
-      source_url: r.source_url,
-      duration_sec: r.duration_sec,
-      channel_id: r.channel_id,
-      channel_name: r.channel_name,
-      political_lean: r.political_lean,
-      platform: r.platform,
-      transcript_status: r.transcript_status,
-      classify_status: r.classify_status,
-      classification_count: cc,
-      scored_count: sc,
-      transcribed,
-      classified,
-      scored,
-    };
-  });
+            : sc > 0
+              ? "partial"
+              : "pending";
+  return {
+    id: r.id,
+    title: r.title,
+    published_at: r.published_at,
+    source_url: r.source_url,
+    duration_sec: r.duration_sec,
+    channel_id: r.channel_id,
+    channel_name: r.channel_name,
+    political_lean: r.political_lean,
+    platform: r.platform,
+    transcript_status: r.transcript_status,
+    classify_status: r.classify_status,
+    classification_count: cc,
+    scored_count: sc,
+    transcribed,
+    classified,
+    scored,
+  };
+}
+
+/** Server-sortable columns. Stage columns map to their underlying DB field so
+ *  ordering is "group by how far it got" (close enough to the client stage
+ *  ranking). Anything else falls back to published_at. */
+export type EpisodeSortKey =
+  | "published_at"
+  | "title"
+  | "channel_name"
+  | "duration_sec"
+  | "political_lean"
+  | "platform"
+  | "transcript_status"
+  | "classify_status"
+  | "scored_count";
+
+const EPISODE_SORT_KEYS = new Set<EpisodeSortKey>([
+  "published_at",
+  "title",
+  "channel_name",
+  "duration_sec",
+  "political_lean",
+  "platform",
+  "transcript_status",
+  "classify_status",
+  "scored_count",
+]);
+
+export interface EpisodeTablePage {
+  rows: EpisodeTableRow[];
+  /** Total matching rows (across all pages) for the given filters. */
+  total: number;
+}
+
+/**
+ * One page of the episode table, sorted/searched/paginated in Postgres. Backs
+ * the server-driven /log table (and channel drill-downs) so the page fetches
+ * only the ~50 rows it renders instead of the whole archive — TTFB stays flat
+ * as the episode count grows. Returns the page plus the exact total count.
+ */
+export async function getEpisodeTablePage(opts: {
+  channelId?: string;
+  q?: string;
+  sort?: EpisodeSortKey;
+  dir?: "asc" | "desc";
+  page?: number;
+  pageSize?: number;
+}): Promise<EpisodeTablePage> {
+  const {
+    channelId,
+    q,
+    sort = "published_at",
+    dir = "desc",
+    page = 0,
+    pageSize = 50,
+  } = opts;
+  const sortKey: EpisodeSortKey = EPISODE_SORT_KEYS.has(sort) ? sort : "published_at";
+  const ascending = dir === "asc";
+
+  const db = createServiceClient();
+  let query = db
+    .from("episode_pipeline_summary")
+    .select(EPISODE_SELECT, { count: "exact" });
+
+  if (channelId) query = query.eq("channel_id", channelId);
+
+  if (q && q.trim()) {
+    // Sanitize before interpolating into the PostgREST or() filter DSL —
+    // commas, parens, and wildcards would otherwise change the filter's
+    // meaning. Strip them to spaces; ilike still matches on the rest.
+    const term = q.trim().replace(/[,()%*\\]/g, " ").trim();
+    if (term) {
+      query = query.or(`title.ilike.%${term}%,channel_name.ilike.%${term}%`);
+    }
+  }
+
+  const from = page * pageSize;
+  const { data, error, count } = await query
+    .order(sortKey, { ascending })
+    // Stable tiebreaker so rows don't re-cross page boundaries when the sort
+    // key has ties (e.g. same-second published_at).
+    .order("id", { ascending: false })
+    .range(from, from + pageSize - 1);
+  if (error) throw new Error(`getEpisodeTablePage: ${error.message}`);
+
+  return { rows: (data || []).map(mapEpisodeRow), total: count ?? 0 };
 }
