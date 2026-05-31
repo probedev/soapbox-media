@@ -22,6 +22,7 @@
  */
 import { cache as reactCache } from "react";
 import { createServiceClient } from "./db";
+import { type Cohort, PUBLIC_COHORTS } from "./cohort";
 
 /**
  * Per-request memoization wrapper. React's `cache()` only exists inside the
@@ -229,7 +230,8 @@ function rollingVolumeTrend(
  * (~300 bytes — IDs + a few short fields, no text), so a full 1000-row
  * page is ~300KB; comfortably under the response cap.
  */
-const fetchScoreRows = cache(async (): Promise<ScoreRow[]> => {
+const fetchScoreRows = cache(
+  async (cohorts: readonly Cohort[] = PUBLIC_COHORTS): Promise<ScoreRow[]> => {
   const db = createServiceClient();
   const all: ScoreRow[] = [];
   const pageSize = 1000;
@@ -250,7 +252,7 @@ const fetchScoreRows = cache(async (): Promise<ScoreRow[]> => {
           episode:episodes!classifications_episode_id_fkey (
             id, published_at,
             channel:channels!episodes_channel_id_fkey (
-              id, name, political_lean, reach
+              id, name, political_lean, reach, cohort
             )
           )
         )
@@ -266,6 +268,10 @@ const fetchScoreRows = cache(async (): Promise<ScoreRow[]> => {
       const e = c?.episode;
       const ch = e?.channel;
       if (!c || !e || !ch || !c.issue) continue;
+      // Cohort scope: the public master is independent-only until the
+      // comparison UX ships, so legacy channels' scored rows are excluded
+      // here even though they're ingesting. See [[lib/cohort]].
+      if (!cohorts.includes(ch.cohort)) continue;
       all.push({
         sentiment: Number(r.sentiment),
         intensity: Number(r.intensity),
@@ -320,8 +326,11 @@ const MOVER_MAX_ROWS = 6;
  * Updated by the daily cron, so the number is always the most recent week's
  * worth of content but stable enough not to whipsaw with each new episode.
  */
-export async function getDashboardData(windowDays = 7): Promise<DashboardData> {
-  const rows = await fetchScoreRows();
+export async function getDashboardData(
+  windowDays = 7,
+  cohorts: readonly Cohort[] = PUBLIC_COHORTS,
+): Promise<DashboardData> {
+  const rows = await fetchScoreRows(cohorts);
   const lastUpdated = new Date().toISOString();
   const now = new Date();
   const asOfDate = now.toISOString().slice(0, 10);
@@ -332,8 +341,18 @@ export async function getDashboardData(windowDays = 7): Promise<DashboardData> {
   // the rolling 7-day window for Index math).
   const db = createServiceClient();
   const [channelNamesRes, episodesCountRes] = await Promise.all([
-    db.from("channels").select("name").eq("active", true).limit(2000),
-    db.from("episodes").select("*", { count: "exact", head: true }),
+    db
+      .from("channels")
+      .select("name")
+      .eq("active", true)
+      .in("cohort", [...PUBLIC_COHORTS])
+      .limit(2000),
+    // Count via the cohort-aware view so legacy episodes don't inflate the
+    // public "episodes ingested" number before launch.
+    db
+      .from("episode_pipeline_summary")
+      .select("*", { count: "exact", head: true })
+      .in("cohort", [...PUBLIC_COHORTS]),
   ]);
   const totalShows = new Set(
     (channelNamesRes.data || []).map((c: { name: string }) => c.name),
@@ -589,6 +608,7 @@ export async function getPanelStats(): Promise<PanelStats> {
     .from("channels")
     .select("name, political_lean, reach, platform, reach_updated_at")
     .eq("active", true)
+    .in("cohort", [...PUBLIC_COHORTS])
     .limit(2000);
   const rows = (channelRows || []) as {
     name: string;
@@ -656,6 +676,7 @@ export async function getSystemStats(): Promise<SystemStats> {
     .from("channels")
     .select("name, political_lean, reach")
     .eq("active", true)
+    .in("cohort", [...PUBLIC_COHORTS])
     .limit(2000);
   const showRows = new Map<string, { lean: "L" | "M" | "R"; reach: number }>();
   for (const c of (channelRows || []) as {
@@ -680,7 +701,15 @@ export async function getSystemStats(): Promise<SystemStats> {
     audienceReachByLean.L + audienceReachByLean.M + audienceReachByLean.R;
 
   const [episodes, transcripts, classifications, scores, issues] = await Promise.all([
-    db.from("episodes").select("*", { count: "exact", head: true }),
+    // Episode count via the cohort-aware view so legacy is excluded pre-launch.
+    db
+      .from("episode_pipeline_summary")
+      .select("*", { count: "exact", head: true })
+      .in("cohort", [...PUBLIC_COHORTS]),
+    // NOTE: transcripts/classifications/scores totals are still whole-pipeline
+    // (cohort-scoping them needs a channel join). They only move once legacy is
+    // processed, and read as "total analysis done"; tighten at launch if we
+    // want these strictly independent too.
     db.from("transcripts").select("*", { count: "exact", head: true }),
     db.from("classifications").select("*", { count: "exact", head: true }),
     db.from("sentiment_scores").select("*", { count: "exact", head: true }),
@@ -694,9 +723,10 @@ export async function getSystemStats(): Promise<SystemStats> {
   const pageSize = 1000;
   for (let from = 0, pages = 0; pages < 500; pages++, from += pageSize) {
     const { data, error } = await db
-      .from("episodes")
+      .from("episode_pipeline_summary")
       .select("duration_sec")
       .not("duration_sec", "is", null)
+      .in("cohort", [...PUBLIC_COHORTS])
       .order("id", { ascending: true })
       .range(from, from + pageSize - 1);
     if (error || !data || data.length === 0) break;
@@ -807,8 +837,11 @@ export function buildAutoHeadline(breakdown: IndexBreakdown): string {
   return parts.join(" ");
 }
 
-export async function getIndexBreakdown(windowDays = 30): Promise<IndexBreakdown> {
-  const rows = await fetchScoreRows();
+export async function getIndexBreakdown(
+  windowDays = 30,
+  cohorts: readonly Cohort[] = PUBLIC_COHORTS,
+): Promise<IndexBreakdown> {
+  const rows = await fetchScoreRows(cohorts);
   const cutoff = new Date();
   cutoff.setUTCDate(cutoff.getUTCDate() - windowDays);
   const windowed = rows.filter(
@@ -970,7 +1003,13 @@ type ScoreRowFilter =
   | { kind: "issues"; issueSlugs: string[] }
   | { kind: "episodes"; episodeIds: string[] };
 
-async function fetchScoreRowsFiltered(filter: ScoreRowFilter): Promise<ScoreRow[]> {
+async function fetchScoreRowsFiltered(
+  filter: ScoreRowFilter,
+  // Issue/topic drill-downs scope to the master cohort to match the Index;
+  // the channel drill-down passes undefined (it's already one channel, of
+  // whatever cohort).
+  cohorts?: readonly Cohort[],
+): Promise<ScoreRow[]> {
   if (
     (filter.kind === "issues" && filter.issueSlugs.length === 0) ||
     (filter.kind === "episodes" && filter.episodeIds.length === 0)
@@ -991,7 +1030,7 @@ async function fetchScoreRowsFiltered(filter: ScoreRowFilter): Promise<ScoreRow[
       issue:issues!classifications_issue_slug_fkey ( name, topic_slug ),
       episode:episodes!classifications_episode_id_fkey (
         id, published_at,
-        channel:channels!episodes_channel_id_fkey ( id, name, political_lean, reach )
+        channel:channels!episodes_channel_id_fkey ( id, name, political_lean, reach, cohort )
       ),
       score:sentiment_scores!sentiment_scores_classification_id_fkey ( sentiment, intensity )
       `,
@@ -1016,6 +1055,7 @@ async function fetchScoreRowsFiltered(filter: ScoreRowFilter): Promise<ScoreRow[
       // Only scored classifications become ScoreRows (mirrors fetchScoreRows,
       // which starts from sentiment_scores).
       if (!score || !e || !ch || !iss) continue;
+      if (cohorts && !cohorts.includes(ch.cohort)) continue;
       all.push({
         sentiment: Number(score.sentiment),
         intensity: Number(score.intensity),
@@ -1068,7 +1108,10 @@ export async function getIssueDrillDown(slug: string): Promise<IssueDrillDown | 
   // Only this issue's score rows (DB-filtered on the indexed issue_slug),
   // not the whole table. The downstream `r.issue_slug === slug` filters below
   // are then no-ops on this already-scoped set.
-  const rows = await fetchScoreRowsFiltered({ kind: "issue", issueSlug: slug });
+  const rows = await fetchScoreRowsFiltered(
+    { kind: "issue", issueSlug: slug },
+    PUBLIC_COHORTS,
+  );
   // Last 30 days for drill-down to give a meaningful sample
   const cutoff = new Date();
   cutoff.setUTCDate(cutoff.getUTCDate() - 30);
@@ -1163,7 +1206,10 @@ export async function getTopicDrillDown(slug: string): Promise<TopicDrillDown | 
     .select("slug")
     .eq("topic_slug", slug);
   const issueSlugs = (topicIssues || []).map((i: { slug: string }) => i.slug);
-  const rows = await fetchScoreRowsFiltered({ kind: "issues", issueSlugs });
+  const rows = await fetchScoreRowsFiltered(
+    { kind: "issues", issueSlugs },
+    PUBLIC_COHORTS,
+  );
   const cutoff = new Date();
   cutoff.setUTCDate(cutoff.getUTCDate() - 30);
   const topicRows = rows.filter(

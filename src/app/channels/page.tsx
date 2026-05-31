@@ -1,4 +1,5 @@
 import { createServiceClient } from "@/lib/db";
+import { PUBLIC_COHORTS } from "@/lib/cohort";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { PanelBalance } from "@/components/PanelBalance";
@@ -101,6 +102,7 @@ export default async function ChannelsListPage() {
         "id, name, platform, platform_id, political_lean, reach, classification_rationale",
       )
       .eq("active", true)
+      .in("cohort", [...PUBLIC_COHORTS])
       .order("id", { ascending: true })
       .range(from, from + pageSize - 1);
     if (error || !data || data.length === 0) break;

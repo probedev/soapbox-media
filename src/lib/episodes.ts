@@ -4,6 +4,7 @@
  * classify/score counts are computed in Postgres rather than the app.
  */
 import { createServiceClient } from "./db";
+import { PUBLIC_COHORTS } from "./cohort";
 
 export type TranscriptStatus = "pending" | "fetched" | "failed" | "skipped";
 export type ClassifyStatus = "pending" | "processed" | "failed";
@@ -225,7 +226,10 @@ export async function getEpisodeTablePage(opts: {
     .from("episode_pipeline_summary")
     .select(EPISODE_SELECT, { count: "exact" });
 
+  // Scope to one channel (drill-down, any cohort) OR to the public cohort
+  // (the /log feed) so legacy channels' episodes stay hidden until launch.
   if (channelId) query = query.eq("channel_id", channelId);
+  else query = query.in("cohort", [...PUBLIC_COHORTS]);
 
   if (q && q.trim()) {
     // Sanitize before interpolating into the PostgREST or() filter DSL —

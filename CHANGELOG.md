@@ -7,6 +7,27 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
+## v0.6.67 · 2026-05-31
+
+### Added (foundation — invisible)
+
+- **Channel cohorts: `independent` vs `legacy`.** Groundwork for an
+  independent-vs-legacy comparison and a blended master Index. New
+  `channels.cohort` column (default `independent`, indexed); all 86 existing
+  channels backfilled to `independent`. `episode_pipeline_summary` view gains
+  `cohort`.
+- **All public reads are now cohort-aware**, gated by a single control point
+  (`src/lib/cohort.ts` → `PUBLIC_COHORTS = ['independent']`). The Index
+  (`fetchScoreRows`), issue/topic drill-downs, channel list, panel/system
+  stats (shows, episodes, hours), and the `/log` feed all filter to the public
+  cohort. This lets legacy channels be seeded and ingested **invisibly** —
+  legacy data accumulates but never surfaces until we flip `PUBLIC_COHORTS` and
+  ship the comparison UX. Zero behavior change now (every channel is
+  `independent`). Non-political legacy content stays a non-issue: it classifies
+  to `no-signal` and never enters scoring/weighting.
+  - Known follow-up: the secondary scale totals (transcripts/classifications
+    counts in SystemStats) are still whole-pipeline; tighten at launch.
+
 ## v0.6.66 · 2026-05-31
 
 ### Performance
