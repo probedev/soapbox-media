@@ -7,6 +7,26 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
+## v0.6.64 · 2026-05-31
+
+### Added
+
+- **Expandable per-episode receipts on `/log`.** Each scored episode row now
+  expands to show exactly what the pipeline classified and scored: every issue
+  mention with its sentiment chip (L+/R+, the home Index convention), a 1–5
+  intensity meter, and the supporting quote the model flagged — plus an episode
+  net-lean summary. Delivers on the page's "receipts, in the open" promise and
+  gives the operator a fast lens to spot mis-scores or bad issue-mappings before
+  scaling the channel set.
+  - Lazy-loaded on expand via a new `GET /api/episodes/[id]/mentions` route
+    (one episode at a time), so the table never eager-loads the full
+    classifications join. Mentions are sorted strongest-first
+    (|sentiment| × intensity).
+  - Built on the existing shadcn data table (shadcn `<Table>` primitives +
+    TanStack `getExpandedRowModel`); a caret appears only on episodes that
+    produced classifications. New `<EpisodeMentions>` sub-row component.
+  - Quotes are excerpts only, never full transcripts.
+
 ## v0.6.63 · 2026-05-31
 
 ### Fixed

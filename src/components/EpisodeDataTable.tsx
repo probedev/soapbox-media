@@ -5,10 +5,12 @@ import {
   type ColumnDef,
   type SortingState,
   type VisibilityState,
+  type ExpandedState,
   flexRender,
   getCoreRowModel,
   getSortedRowModel,
   getPaginationRowModel,
+  getExpandedRowModel,
   useReactTable,
 } from "@tanstack/react-table";
 import {
@@ -16,12 +18,14 @@ import {
   ArrowDown,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
   ExternalLink,
   SlidersHorizontal,
   Search,
 } from "lucide-react";
 
 import type { EpisodeTableRow } from "@/lib/episodes";
+import { EpisodeMentions } from "@/components/EpisodeMentions";
 import { cn } from "@/lib/utils";
 import {
   Table,
@@ -180,10 +184,11 @@ const COLUMN_LABELS: Record<string, string> = {
 // scroll. (Pixel widths summing > container would force the table wider and
 // scroll — that was the earlier bug.) Long cells truncate instead.
 const COL_WIDTH: Record<string, number> = {
+  expander: 4,
   political_lean: 9,
   published_at: 10,
   channel_name: 13,
-  title: 23,
+  title: 19,
   platform: 7,
   duration_sec: 7,
   transcribed: 11,
@@ -192,6 +197,28 @@ const COL_WIDTH: Record<string, number> = {
 };
 
 const columns: ColumnDef<EpisodeTableRow>[] = [
+  {
+    id: "expander",
+    header: () => null,
+    enableHiding: false,
+    // Only episodes that produced classifications have receipts to show. The
+    // expander toggles a lazy-loaded sub-row (EpisodeMentions); no caret means
+    // nothing to expand (pending, transcript-failed, or off-topic/no-signal).
+    cell: ({ row }) =>
+      row.getCanExpand() ? (
+        <button
+          onClick={row.getToggleExpandedHandler()}
+          aria-label={row.getIsExpanded() ? "Hide classifications" : "Show classifications"}
+          className="flex h-6 w-6 items-center justify-center text-gray-400 hover:text-gray-700"
+        >
+          {row.getIsExpanded() ? (
+            <ChevronDown className="h-4 w-4" />
+          ) : (
+            <ChevronRight className="h-4 w-4" />
+          )}
+        </button>
+      ) : null,
+  },
   {
     accessorKey: "political_lean",
     header: ({ column }) => <SortHeader label="Category" column={column} />,
@@ -306,6 +333,7 @@ export function EpisodeDataTable({
   ]);
   const [columnVisibility, setColumnVisibility] =
     React.useState<VisibilityState>({});
+  const [expanded, setExpanded] = React.useState<ExpandedState>({});
   const [search, setSearch] = React.useState("");
 
   const activeColumns = React.useMemo(
@@ -333,12 +361,16 @@ export function EpisodeDataTable({
   const table = useReactTable({
     data: filtered,
     columns: activeColumns,
-    state: { sorting, columnVisibility },
+    state: { sorting, columnVisibility, expanded },
     onSortingChange: setSorting,
     onColumnVisibilityChange: setColumnVisibility,
+    onExpandedChange: setExpanded,
+    // Only episodes with classifications have a receipts sub-row to show.
+    getRowCanExpand: (row) => row.original.classification_count > 0,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
+    getExpandedRowModel: getExpandedRowModel(),
     initialState: { pagination: { pageSize: 25 } },
   });
 
@@ -420,13 +452,22 @@ export function EpisodeDataTable({
           <TableBody>
             {table.getRowModel().rows.length ? (
               table.getRowModel().rows.map((row) => (
-                <TableRow key={row.id}>
-                  {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id}>
-                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                    </TableCell>
-                  ))}
-                </TableRow>
+                <React.Fragment key={row.id}>
+                  <TableRow>
+                    {row.getVisibleCells().map((cell) => (
+                      <TableCell key={cell.id}>
+                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                  {row.getIsExpanded() && (
+                    <TableRow className="hover:bg-transparent">
+                      <TableCell colSpan={row.getVisibleCells().length} className="p-0">
+                        <EpisodeMentions episodeId={row.original.id} />
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </React.Fragment>
               ))
             ) : (
               <TableRow>

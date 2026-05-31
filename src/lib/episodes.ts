@@ -37,6 +37,28 @@ export interface EpisodeTableRow {
   scored: "done" | "partial" | "pending" | "no-signal" | "na";
 }
 
+/** One classified-and-scored issue mention within an episode, for the
+ *  expandable "receipts" row on the activity log. */
+export interface EpisodeMention {
+  issueSlug: string;
+  issueName: string;
+  /** The exact transcript excerpt the model flagged. Never the full transcript. */
+  quote: string;
+  /** -5..+5; negative pulls the Index Left, positive Right. Null if unscored. */
+  sentiment: number | null;
+  /** 1..5 conviction. Null if unscored. */
+  intensity: number | null;
+}
+
+/** Per-episode classification detail, lazy-loaded when a log row is expanded. */
+export interface EpisodeMentionsResponse {
+  episodeId: string;
+  mentions: EpisodeMention[];
+  /** Intensity-weighted net lean across scored mentions (-5..+5), or null. */
+  netLean: number | null;
+  numIssues: number;
+}
+
 /**
  * Rows for the episode data table (the public /log page and channel
  * drill-downs). Reads the `episode_pipeline_summary` view (per-episode
