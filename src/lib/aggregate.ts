@@ -955,6 +955,107 @@ export interface IssueDrillDown {
   volumeTrend: { values: number[]; dates: string[] };
 }
 
+/**
+ * Score rows scoped to a single drill-down (one issue, one topic's issues, or
+ * one channel's episodes). Unlike fetchScoreRows (which pulls the whole ~17K-row
+ * join for global aggregates), this anchors on `classifications` and filters at
+ * the DB via an indexed column (`issue_slug` / `episode_id`), so a drill-down
+ * page returns only its own slice — tens-to-hundreds of rows — instead of the
+ * whole table. This is the fix for ~7s drill-down TTFBs (the pages used
+ * fetchScoreRows + a JS filter). Returns the same ScoreRow shape as
+ * fetchScoreRows; only scored classifications are included.
+ */
+type ScoreRowFilter =
+  | { kind: "issue"; issueSlug: string }
+  | { kind: "issues"; issueSlugs: string[] }
+  | { kind: "episodes"; episodeIds: string[] };
+
+async function fetchScoreRowsFiltered(filter: ScoreRowFilter): Promise<ScoreRow[]> {
+  if (
+    (filter.kind === "issues" && filter.issueSlugs.length === 0) ||
+    (filter.kind === "episodes" && filter.episodeIds.length === 0)
+  ) {
+    return [];
+  }
+
+  const db = createServiceClient();
+  const all: ScoreRow[] = [];
+  const pageSize = 1000;
+  const maxPages = 50;
+
+  for (let page = 0; page < maxPages; page++) {
+    const from = page * pageSize;
+    let q = db.from("classifications").select(
+      `
+      id, issue_slug, episode_id,
+      issue:issues!classifications_issue_slug_fkey ( name, topic_slug ),
+      episode:episodes!classifications_episode_id_fkey (
+        id, published_at,
+        channel:channels!episodes_channel_id_fkey ( id, name, political_lean, reach )
+      ),
+      score:sentiment_scores!sentiment_scores_classification_id_fkey ( sentiment, intensity )
+      `,
+    );
+    if (filter.kind === "issue") q = q.eq("issue_slug", filter.issueSlug);
+    else if (filter.kind === "issues") q = q.in("issue_slug", filter.issueSlugs);
+    else q = q.in("episode_id", filter.episodeIds);
+
+    // Stable PK order + empty-page-only termination (the canonical pagination
+    // pattern — see [[pagination-stable-order]]).
+    const { data, error } = await q
+      .order("id", { ascending: true })
+      .range(from, from + pageSize - 1);
+    if (error) throw new Error(`fetchScoreRowsFiltered: ${error.message}`);
+    if (!data || data.length === 0) break;
+
+    for (const r of data as any[]) {
+      const score = Array.isArray(r.score) ? r.score[0] : r.score;
+      const e = Array.isArray(r.episode) ? r.episode[0] : r.episode;
+      const iss = Array.isArray(r.issue) ? r.issue[0] : r.issue;
+      const ch = e && (Array.isArray(e.channel) ? e.channel[0] : e.channel);
+      // Only scored classifications become ScoreRows (mirrors fetchScoreRows,
+      // which starts from sentiment_scores).
+      if (!score || !e || !ch || !iss) continue;
+      all.push({
+        sentiment: Number(score.sentiment),
+        intensity: Number(score.intensity),
+        issue_slug: r.issue_slug,
+        issue_name: iss.name,
+        issue_topic_slug: iss.topic_slug ?? null,
+        episode_id: r.episode_id,
+        episode_published_at: e.published_at,
+        channel_id: ch.id,
+        channel_name: ch.name,
+        channel_lean: ch.political_lean,
+        channel_reach: Number(ch.reach),
+      });
+    }
+  }
+  return all;
+}
+
+/** Every episode id for a channel (paginated past the 1000-row cap). */
+async function fetchChannelEpisodeIds(
+  db: ReturnType<typeof createServiceClient>,
+  channelId: string,
+): Promise<string[]> {
+  const ids: string[] = [];
+  const pageSize = 1000;
+  for (let page = 0; page < 50; page++) {
+    const from = page * pageSize;
+    const { data, error } = await db
+      .from("episodes")
+      .select("id")
+      .eq("channel_id", channelId)
+      .order("id", { ascending: true })
+      .range(from, from + pageSize - 1);
+    if (error) throw new Error(`fetchChannelEpisodeIds: ${error.message}`);
+    if (!data || data.length === 0) break;
+    ids.push(...data.map((r: { id: string }) => r.id));
+  }
+  return ids;
+}
+
 export async function getIssueDrillDown(slug: string): Promise<IssueDrillDown | null> {
   const db = createServiceClient();
   const { data: issue, error: issueErr } = await db
@@ -964,7 +1065,10 @@ export async function getIssueDrillDown(slug: string): Promise<IssueDrillDown | 
     .single();
   if (issueErr || !issue) return null;
 
-  const rows = await fetchScoreRows();
+  // Only this issue's score rows (DB-filtered on the indexed issue_slug),
+  // not the whole table. The downstream `r.issue_slug === slug` filters below
+  // are then no-ops on this already-scoped set.
+  const rows = await fetchScoreRowsFiltered({ kind: "issue", issueSlug: slug });
   // Last 30 days for drill-down to give a meaningful sample
   const cutoff = new Date();
   cutoff.setUTCDate(cutoff.getUTCDate() - 30);
@@ -1052,7 +1156,14 @@ export async function getTopicDrillDown(slug: string): Promise<TopicDrillDown | 
     .single();
   if (error || !topic) return null;
 
-  const rows = await fetchScoreRows();
+  // Resolve the topic's child issues, then pull only their score rows
+  // (DB-filtered on issue_slug) instead of the whole table.
+  const { data: topicIssues } = await db
+    .from("issues")
+    .select("slug")
+    .eq("topic_slug", slug);
+  const issueSlugs = (topicIssues || []).map((i: { slug: string }) => i.slug);
+  const rows = await fetchScoreRowsFiltered({ kind: "issues", issueSlugs });
   const cutoff = new Date();
   cutoff.setUTCDate(cutoff.getUTCDate() - 30);
   const topicRows = rows.filter(
@@ -1129,7 +1240,10 @@ export async function getChannelDrillDown(channelId: string): Promise<ChannelDri
     .single();
   if (error || !channel) return null;
 
-  const rows = await fetchScoreRows();
+  // Only this channel's score rows: resolve its episode ids (indexed on
+  // channel_id), then DB-filter classifications to those episodes.
+  const episodeIds = await fetchChannelEpisodeIds(db, channelId);
+  const rows = await fetchScoreRowsFiltered({ kind: "episodes", episodeIds });
   const cutoff = new Date();
   cutoff.setUTCDate(cutoff.getUTCDate() - 30);
   const channelRows = rows.filter(

@@ -7,6 +7,26 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
+## v0.6.66 · 2026-05-31
+
+### Performance
+
+- **Drill-down pages (`/channels/[id]`, `/issues/[slug]`, `/topics/[slug]`)
+  were ~7s — now DB-filtered.** Each called `fetchScoreRows()` — the full
+  ~17K-row sentiment_scores deep join — then filtered in JS for the one
+  channel/issue/topic. They pulled the entire table to show a single slice
+  (the same problem the home page had, never fixed for the drill-downs).
+  - New `fetchScoreRowsFiltered()` anchors on `classifications` and filters at
+    the DB via the indexed `issue_slug` / `episode_id` columns, returning only
+    the rows in scope (e.g. iran-conflict 2,137 rows, a channel ~700, vs 17,673
+    every time). Same ScoreRow shape and scored-only semantics as
+    `fetchScoreRows`; paginated for hot issues that exceed 1,000 rows.
+  - `getIssueDrillDown` filters by `issue_slug`; `getTopicDrillDown` resolves
+    the topic's child issues then filters by their slugs; `getChannelDrillDown`
+    resolves the channel's episode ids then filters by them. The downstream JS
+    filters become no-ops on the already-scoped set, so the numbers are
+    unchanged — only faster. Stays live (no snapshot/staleness).
+
 ## v0.6.65 · 2026-05-31
 
 ### Performance
