@@ -7,6 +7,17 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
+## v0.6.69 · 2026-05-31
+
+### Performance
+
+- **Parallelized transcribe too.** The transcribe stage was still serial (the
+  slow part of a full drain). Now runs through the same `mapPool` at concurrency
+  8 — each Supadata call is multi-second, so the request rate stays ~2/s, well
+  under the 10/s Supadata limit. `TRANSCRIBE_LIMIT` raised 40→100 (the
+  wall-clock budget remains the real cap; the pool stops pulling at the
+  deadline). Transcribe rounds drop from ~3–6 min to well under a minute.
+
 ## v0.6.68 · 2026-05-31
 
 ### Performance

@@ -33,7 +33,11 @@ export function assertCronAuth(request: NextRequest): NextResponse | null {
 
 export const MIN_DURATION_SEC = 180;
 export const INGEST_PER_CHANNEL = 3;
-export const TRANSCRIBE_LIMIT = 40;
+// Transcribe runs through a concurrency pool too. Each Supadata call takes a
+// few seconds, so concurrency 8 keeps the request rate ~2/s — well under the
+// 10/s Supadata limit. Higher per-run limit since it's no longer serial.
+export const TRANSCRIBE_LIMIT = 100;
+export const TRANSCRIBE_CONCURRENCY = 8;
 // Classify (Sonnet) and score (Haiku) now process episodes/mentions through a
 // bounded-concurrency pool instead of one-at-a-time, so the per-run LIMITs are
 // higher — the wall-clock budget below is the real cap. Concurrency is sized
@@ -316,58 +320,67 @@ export async function runTranscribe(): Promise<Record<string, unknown>> {
 
   let ok = 0;
   let failed = 0;
+  const stageStart = Date.now();
 
-  for (const row of (pending || []) as any[]) {
-    const platform = platformById.get(row.channel_id);
-    if (platform !== "youtube") {
-      // Podcast still pending after ingest means PodScan didn't have the
-      // transcript yet — mark failed; it'll be retried on subsequent ingest
-      // runs if PodScan catches up.
-      await db
-        .from("episodes")
-        .update({ transcript_status: "failed" })
-        .eq("id", row.id);
-      failed++;
-      continue;
-    }
-    try {
-      const u = new URL(row.source_url);
-      const videoId =
-        u.hostname.includes("youtu.be")
-          ? u.pathname.replace(/^\//, "")
-          : u.searchParams.get("v");
-      if (!videoId) {
-        await db.from("episodes").update({ transcript_status: "failed" }).eq("id", row.id);
+  // Fetch transcripts through a bounded-concurrency pool (was serial). Each
+  // Supadata call is multi-second, so concurrency 8 stays ~2 req/s — under the
+  // 10/s limit. Pool stops pulling new rows at the time budget so the cron
+  // finishes under 300s. Counters are safe to mutate (single-threaded).
+  await mapPool(
+    (pending || []) as any[],
+    TRANSCRIBE_CONCURRENCY,
+    async (row) => {
+      const platform = platformById.get(row.channel_id);
+      if (platform !== "youtube") {
+        // Podcast still pending after ingest means PodScan didn't have the
+        // transcript yet — mark failed; retried on subsequent ingest runs.
+        await db
+          .from("episodes")
+          .update({ transcript_status: "failed" })
+          .eq("id", row.id);
         failed++;
-        continue;
+        return;
       }
-      const transcript = await getVideoTranscript(videoId);
-      if (!transcript || transcript.trim().length === 0) {
-        await db.from("episodes").update({ transcript_status: "failed" }).eq("id", row.id);
+      try {
+        const u = new URL(row.source_url);
+        const videoId =
+          u.hostname.includes("youtu.be")
+            ? u.pathname.replace(/^\//, "")
+            : u.searchParams.get("v");
+        if (!videoId) {
+          await db.from("episodes").update({ transcript_status: "failed" }).eq("id", row.id);
+          failed++;
+          return;
+        }
+        const transcript = await getVideoTranscript(videoId);
+        if (!transcript || transcript.trim().length === 0) {
+          await db.from("episodes").update({ transcript_status: "failed" }).eq("id", row.id);
+          failed++;
+          return;
+        }
+        const { error: txErr } = await db.from("transcripts").upsert(
+          { episode_id: row.id, text: transcript, provider: "youtube_captions" },
+          { onConflict: "episode_id", ignoreDuplicates: false },
+        );
+        if (txErr) {
+          console.error(`[transcribe] upsert failed for ${row.id}: ${txErr.message}`);
+          failed++;
+          return;
+        }
+        await db
+          .from("episodes")
+          .update({ transcript_status: "fetched" })
+          .eq("id", row.id);
+        ok++;
+      } catch (e: any) {
+        // Don't swallow silently — a missing env var or a Supadata outage
+        // should be visible in logs, not hidden behind a bare catch.
+        console.error(`[transcribe] ${row.id}: ${e?.message || String(e)}`);
         failed++;
-        continue;
       }
-      const { error: txErr } = await db.from("transcripts").upsert(
-        { episode_id: row.id, text: transcript, provider: "youtube_captions" },
-        { onConflict: "episode_id", ignoreDuplicates: false },
-      );
-      if (txErr) {
-        console.error(`[transcribe] upsert failed for ${row.id}: ${txErr.message}`);
-        failed++;
-        continue;
-      }
-      await db
-        .from("episodes")
-        .update({ transcript_status: "fetched" })
-        .eq("id", row.id);
-      ok++;
-    } catch (e: any) {
-      // Don't swallow silently — a missing env var or a Supadata outage should
-      // be visible in logs, not hidden behind a bare catch. (2026-05-24)
-      console.error(`[transcribe] ${row.id}: ${e?.message || String(e)}`);
-      failed++;
-    }
-  }
+    },
+    stageStart + STAGE_TIME_BUDGET_MS,
+  );
 
   return { processed: (pending || []).length, succeeded: ok, failed };
 }
