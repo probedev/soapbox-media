@@ -148,6 +148,73 @@ export async function getRecentUploads(
 }
 
 /**
+ * Paginate a channel's uploads playlist back to `sinceIso`, returning every
+ * upload published on/after that cutoff (newest first). Unlike getRecentUploads
+ * (single 50-item page), this walks pageTokens — needed to cover ~30 days of a
+ * high-volume channel. Durations are batch-fetched in chunks of 50. `hardCap`
+ * bounds a runaway (e.g. a firehose with thousands of uploads in the window).
+ */
+export async function getUploadsSince(
+  uploadsPlaylistId: string,
+  sinceIso: string,
+  hardCap = 1500,
+): Promise<YouTubeVideoSummary[]> {
+  const since = new Date(sinceIso).getTime();
+  const collected: YouTubeVideoSummary[] = [];
+  let pageToken: string | undefined;
+
+  // Uploads playlists are newest-first, so we can stop as soon as we cross the
+  // cutoff. 40-page backstop (= 2000 items) against a malformed loop.
+  for (let page = 0; page < 40 && collected.length < hardCap; page++) {
+    const data = await ytFetch<{
+      nextPageToken?: string;
+      items?: Array<{
+        contentDetails: { videoId: string; videoPublishedAt?: string };
+        snippet: { title: string; publishedAt: string };
+      }>;
+    }>(
+      `/playlistItems?playlistId=${uploadsPlaylistId}&part=snippet,contentDetails&maxResults=50${
+        pageToken ? `&pageToken=${pageToken}` : ""
+      }`,
+    );
+    const items = data.items || [];
+    if (items.length === 0) break;
+
+    let crossedCutoff = false;
+    for (const item of items) {
+      const publishedAt =
+        item.contentDetails.videoPublishedAt || item.snippet.publishedAt;
+      if (new Date(publishedAt).getTime() < since) {
+        crossedCutoff = true;
+        break;
+      }
+      collected.push({
+        videoId: item.contentDetails.videoId,
+        publishedAt,
+        title: item.snippet.title,
+        url: `https://www.youtube.com/watch?v=${item.contentDetails.videoId}`,
+      });
+    }
+    if (crossedCutoff || !data.nextPageToken) break;
+    pageToken = data.nextPageToken;
+  }
+
+  // Batch durations (videos.list caps at 50 ids/call).
+  for (let i = 0; i < collected.length; i += 50) {
+    const chunk = collected.slice(i, i + 50);
+    const details = await ytFetch<{
+      items?: Array<{ id: string; contentDetails: { duration: string } }>;
+    }>(`/videos?id=${chunk.map((v) => v.videoId).join(",")}&part=contentDetails`);
+    const dmap = new Map<string, number>();
+    for (const it of details.items || [])
+      dmap.set(it.id, parseIsoDuration(it.contentDetails.duration));
+    for (const v of chunk) v.durationSec = dmap.get(v.videoId);
+  }
+
+  return collected;
+}
+
+/**
  * Channels this channel "features" on its page — peers, network siblings,
  * friends-of-the-show, hand-picked by the host. A very high-signal adjacency
  * signal for finding competitors of an existing channel set. Costs 1 quota
