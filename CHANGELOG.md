@@ -7,6 +7,29 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
+## v0.6.63 · 2026-05-31
+
+### Fixed
+
+- **Cron classify silently stalled — `transcripts.id` doesn't exist.** The
+  scheduled classify stage reported `pendingFound=0` on every run for >24h
+  while 68 transcribed episodes sat ready. Root cause: `runClassify` did
+  `.select("id, …")` / `.order("id")` on the `transcripts` table, whose PK is
+  `episode_id` — there is no `id` column. The query 400'd every run, the error
+  was swallowed (`const { data } =` with no error check), the loop broke, and
+  the empty result read as "queue empty." Broken since v0.6.47 (the "add ORDER
+  BY" fix used the wrong column name); masked because the CLI catchup
+  (`scripts/classify.ts`, episode-first since v0.6.48) did the real draining.
+- **Fix: cron classify is now episode-first, mirroring the CLI.** Query the
+  `episodes` table for `classify_status='pending' AND transcript_status=
+  'fetched'` (cheap — no text), then load each transcript's `text` on demand
+  inside the loop. This eliminates the ≈80MB "pull every transcript" payload
+  that also caused the response-size/timeout fragility, and the pending-episode
+  query now **checks its error and throws** instead of silently reporting an
+  empty queue — so this class of stall fails loud, not silent.
+- Drained the 68-episode backlog (classify + score) so the Index reflects
+  current data.
+
 ## v0.6.62 · 2026-05-30
 
 ### Added

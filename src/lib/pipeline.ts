@@ -376,49 +376,42 @@ export async function runClassify(): Promise<Record<string, unknown>> {
     .eq("active", true);
   const issuesTyped = (issues || []) as IssueDef[];
 
-  // Pull transcript ids + content (paginate to clear 1000-row default cap).
-  // `classify_status` on the episode is the queue key: pending = not yet run
-  // through classify. Crucially this is independent of whether the episode
-  // produced mentions — a 0-mention episode is marked 'processed' below so it
-  // is NOT reprocessed every run (the head-of-line-blocking bug that burned
-  // ~$1/run on the same off-taxonomy episodes; see v0.6.29).
-  const transcripts: any[] = [];
+  // Find pending episodes EPISODE-FIRST: query the episodes table for ones that
+  // are transcribed but not yet classified, then load each transcript's text on
+  // demand inside the loop. The previous approach embedded the full `text` of
+  // EVERY transcript (≈80MB across pages) just to filter for the pending tail —
+  // and worse, selected/ordered by a non-existent `transcripts.id` column, so
+  // the query 400'd every run and the swallowed error surfaced as a silent
+  // pendingFound=0 (cron classify stalled from v0.6.47 until this fix; the CLI
+  // already went episode-first in v0.6.48). `classify_status` is the queue key:
+  // 'pending' until processed, then 'processed' regardless of mention count so
+  // 0-mention episodes aren't reprocessed every run (head-of-line fix, v0.6.29).
+  //
+  // Paginate with a stable order, terminate ONLY on an empty page (a short page
+  // is routine under the response-size cap), and CHECK the error — never let a
+  // failed query masquerade as an empty queue again.
   const pageSize = 1000;
-  for (let from = 0; ; from += pageSize) {
-    const { data } = await db
-      .from("transcripts")
+  const maxPages = 500;
+  const pendingEpisodes: any[] = [];
+  for (let from = 0, pages = 0; pages < maxPages; pages++, from += pageSize) {
+    const { data, error } = await db
+      .from("episodes")
       .select(
-        `id, episode_id, text,
-         episode:episodes!transcripts_episode_id_fkey (
-           title, published_at, classify_status,
-           channel:channels!episodes_channel_id_fkey (
-             name, political_lean
-           )
-         )`,
+        `id, title, published_at,
+         channel:channels!episodes_channel_id_fkey ( name, political_lean )`,
       )
-      // Stable PK order is REQUIRED for .range() once the table grows past 1000
-      // rows — without it PostgREST/Postgres can return inconsistent pages and
-      // a single .range() call may miss the un-processed tail entirely. (v0.6.47
-      // — 08:30 and 12:30 classify runs both reported pendingFound=0 while 564
-      // were actually pending.)
-      .order("id", { ascending: true })
+      .eq("classify_status", "pending")
+      .eq("transcript_status", "fetched")
+      // Newest first (recent backlog has the most editorial value); `id` is the
+      // unique tiebreaker so same-second publishes can't re-cross page bounds.
+      .order("published_at", { ascending: false })
+      .order("id", { ascending: false })
       .range(from, from + pageSize - 1);
+    if (error)
+      throw new Error(`runClassify: load pending episodes: ${error.message}`);
     if (!data || data.length === 0) break;
-    transcripts.push(...data);
-    // Terminate ONLY on an empty page. A short page (length < pageSize but
-    // > 0) does NOT mean we're done — Vercel's edge→Supabase route hits a
-    // response-size cap before the row cap on this deep-join query (each
-    // row carries the full transcript text), so the first page often returns
-    // truncated. The old `length < pageSize` early-out interpreted that as
-    // end-of-data, leaving `transcripts` populated only with the oldest
-    // already-processed rows → JS filter to pending returned [] → silent
-    // `pendingFound=0` on every run after the table crossed the response
-    // threshold. (v0.6.51 — same shape as v0.6.3 fix for the read-side
-    // aggregate path; v0.6.47 added ORDER BY but kept the early-out.)
+    pendingEpisodes.push(...data);
   }
-  const pending = transcripts.filter(
-    (t) => t.episode?.classify_status !== "processed",
-  );
 
   let totalMentions = 0;
   let totalOffTopics = 0;
@@ -428,27 +421,40 @@ export async function runClassify(): Promise<Record<string, unknown>> {
   let failed = 0;
   let timedOut = false;
 
-  for (const t of pending.slice(0, CLASSIFY_LIMIT)) {
+  for (const ep of pendingEpisodes.slice(0, CLASSIFY_LIMIT)) {
     // Stop before the 300s function limit so the stage always finishes cleanly
     // (writes its usage_log row) rather than being killed mid-batch.
     if (Date.now() - stageStart > STAGE_TIME_BUDGET_MS) {
       timedOut = true;
       break;
     }
+
+    // Load just this episode's transcript text on demand — keeps per-iteration
+    // payload small (one transcript, not all of them).
+    const { data: tRow, error: tErr } = await db
+      .from("transcripts")
+      .select("text")
+      .eq("episode_id", ep.id)
+      .maybeSingle();
+    if (tErr || !tRow?.text) {
+      failed++;
+      continue;
+    }
+
     try {
       const result = await classifyTranscript({
-        transcript: t.text,
-        channelName: t.episode?.channel?.name || "(unknown)",
-        politicalLean: t.episode?.channel?.political_lean || "M",
-        episodeTitle: t.episode?.title || "",
-        publishedAt: t.episode?.published_at || new Date().toISOString(),
+        transcript: tRow.text,
+        channelName: ep.channel?.name || "(unknown)",
+        politicalLean: ep.channel?.political_lean || "M",
+        episodeTitle: ep.title || "",
+        publishedAt: ep.published_at || new Date().toISOString(),
         issues: issuesTyped,
       });
       inputTokens += result.inputTokens || 0;
       outputTokens += result.outputTokens || 0;
       if (result.mentions.length > 0) {
         const rows = result.mentions.map((m) => ({
-          episode_id: t.episode_id,
+          episode_id: ep.id,
           issue_slug: m.issue_slug,
           supporting_quote: m.supporting_quote,
         }));
@@ -465,7 +471,7 @@ export async function runClassify(): Promise<Record<string, unknown>> {
       // to classification — a failure here must not fail the episode.
       if (result.offTopics.length > 0) {
         const topicRows = result.offTopics.map((o) => ({
-          episode_id: t.episode_id,
+          episode_id: ep.id,
           label: o.topic,
           quote: o.supporting_quote,
         }));
@@ -478,7 +484,7 @@ export async function runClassify(): Promise<Record<string, unknown>> {
       await db
         .from("episodes")
         .update({ classify_status: "processed" })
-        .eq("id", t.episode_id);
+        .eq("id", ep.id);
       processed++;
     } catch {
       failed++;
@@ -487,7 +493,7 @@ export async function runClassify(): Promise<Record<string, unknown>> {
 
   const estCost = (inputTokens * 3) / 1_000_000 + (outputTokens * 15) / 1_000_000;
   return {
-    pendingFound: pending.length,
+    pendingFound: pendingEpisodes.length,
     processed,
     stoppedAtTimeBudget: timedOut,
     mentions: totalMentions,
