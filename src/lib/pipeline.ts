@@ -15,6 +15,7 @@ import { classifyTranscript, type IssueDef } from "@/modules/classify";
 import { scoreClassification } from "@/modules/score";
 import { MODEL_SCORE } from "@/lib/anthropic";
 import { dedupKey, loadSiblingEpisodeKeys } from "@/lib/dedup";
+import { mapPool } from "@/lib/concurrency";
 
 /** Shared cron auth: returns a NextResponse to short-circuit on failure, else null. */
 export function assertCronAuth(request: NextRequest): NextResponse | null {
@@ -33,14 +34,20 @@ export function assertCronAuth(request: NextRequest): NextResponse | null {
 export const MIN_DURATION_SEC = 180;
 export const INGEST_PER_CHANNEL = 3;
 export const TRANSCRIBE_LIMIT = 40;
-export const CLASSIFY_LIMIT = 15;
-export const SCORE_LIMIT = 80;
+// Classify (Sonnet) and score (Haiku) now process episodes/mentions through a
+// bounded-concurrency pool instead of one-at-a-time, so the per-run LIMITs are
+// higher — the wall-clock budget below is the real cap. Concurrency is sized
+// for an Anthropic Max-tier account; dial down if 429s appear.
+export const CLASSIFY_LIMIT = 60;
+export const CLASSIFY_CONCURRENCY = 10;
+export const SCORE_LIMIT = 240;
+export const SCORE_CONCURRENCY = 15;
 // Wall-clock budget per stage. The per-stage cron has a 300s function limit;
 // classify slows as the taxonomy grows (more issues → more mentions/episode),
-// so a fixed CLASSIFY_LIMIT can overshoot 300s and 504 (no usage_log row).
-// The loop stops when this budget is hit, so it always completes cleanly and
-// processes as many episodes as fit. (2026-05-27 incident: 15 episodes × 23
-// issues ran the full 300s and was killed mid-batch.)
+// so a fixed LIMIT can overshoot 300s and 504 (no usage_log row). The pool
+// stops pulling new work when this budget is hit, so the stage always finishes
+// cleanly and processes as many items as fit. (2026-05-27 incident: 15
+// episodes × 23 issues ran the full 300s serially and was killed mid-batch.)
 export const STAGE_TIME_BUDGET_MS = 240_000;
 
 export interface StageResult {
@@ -419,77 +426,80 @@ export async function runClassify(): Promise<Record<string, unknown>> {
   let outputTokens = 0;
   let processed = 0;
   let failed = 0;
-  let timedOut = false;
 
-  for (const ep of pendingEpisodes.slice(0, CLASSIFY_LIMIT)) {
-    // Stop before the 300s function limit so the stage always finishes cleanly
-    // (writes its usage_log row) rather than being killed mid-batch.
-    if (Date.now() - stageStart > STAGE_TIME_BUDGET_MS) {
-      timedOut = true;
-      break;
-    }
+  // Classify up to CLASSIFY_LIMIT episodes through a bounded-concurrency pool
+  // (was one-at-a-time). The pool stops pulling new episodes once the stage
+  // time budget is hit, so the run still finishes under the 300s function
+  // limit. Shared counters are safe to mutate — JS is single-threaded.
+  const toClassify = pendingEpisodes.slice(0, CLASSIFY_LIMIT);
+  const { completed } = await mapPool(
+    toClassify,
+    CLASSIFY_CONCURRENCY,
+    async (ep) => {
+      // Load just this episode's transcript text on demand — keeps per-item
+      // payload small (one transcript, not all of them).
+      const { data: tRow, error: tErr } = await db
+        .from("transcripts")
+        .select("text")
+        .eq("episode_id", ep.id)
+        .maybeSingle();
+      if (tErr || !tRow?.text) {
+        failed++;
+        return;
+      }
 
-    // Load just this episode's transcript text on demand — keeps per-iteration
-    // payload small (one transcript, not all of them).
-    const { data: tRow, error: tErr } = await db
-      .from("transcripts")
-      .select("text")
-      .eq("episode_id", ep.id)
-      .maybeSingle();
-    if (tErr || !tRow?.text) {
-      failed++;
-      continue;
-    }
-
-    try {
-      const result = await classifyTranscript({
-        transcript: tRow.text,
-        channelName: ep.channel?.name || "(unknown)",
-        politicalLean: ep.channel?.political_lean || "M",
-        episodeTitle: ep.title || "",
-        publishedAt: ep.published_at || new Date().toISOString(),
-        issues: issuesTyped,
-      });
-      inputTokens += result.inputTokens || 0;
-      outputTokens += result.outputTokens || 0;
-      if (result.mentions.length > 0) {
-        const rows = result.mentions.map((m) => ({
-          episode_id: ep.id,
-          issue_slug: m.issue_slug,
-          supporting_quote: m.supporting_quote,
-        }));
-        const { error: insErr } = await db.from("classifications").insert(rows);
-        // Leave classify_status pending on insert failure so it retries; don't
-        // mark processed or we'd lose these mentions permanently.
-        if (insErr) {
-          failed++;
-          continue;
+      try {
+        const result = await classifyTranscript({
+          transcript: tRow.text,
+          channelName: ep.channel?.name || "(unknown)",
+          politicalLean: ep.channel?.political_lean || "M",
+          episodeTitle: ep.title || "",
+          publishedAt: ep.published_at || new Date().toISOString(),
+          issues: issuesTyped,
+        });
+        inputTokens += result.inputTokens || 0;
+        outputTokens += result.outputTokens || 0;
+        if (result.mentions.length > 0) {
+          const rows = result.mentions.map((m) => ({
+            episode_id: ep.id,
+            issue_slug: m.issue_slug,
+            supporting_quote: m.supporting_quote,
+          }));
+          const { error: insErr } = await db.from("classifications").insert(rows);
+          // Leave classify_status pending on insert failure so it retries;
+          // don't mark processed or we'd lose these mentions permanently.
+          if (insErr) {
+            failed++;
+            return;
+          }
+          totalMentions += result.mentions.length;
         }
-        totalMentions += result.mentions.length;
+        // Emerging-issue discovery: store off-taxonomy political topics.
+        // Secondary to classification — a failure here must not fail the ep.
+        if (result.offTopics.length > 0) {
+          const topicRows = result.offTopics.map((o) => ({
+            episode_id: ep.id,
+            label: o.topic,
+            quote: o.supporting_quote,
+          }));
+          const { error: topicErr } = await db.from("discovery_topics").insert(topicRows);
+          if (!topicErr) totalOffTopics += result.offTopics.length;
+        }
+        // Mark processed regardless of mention count — the fix for the
+        // reprocessing loop. 0-mention (off-taxonomy) episodes are recorded
+        // as done and never re-sent to the model.
+        await db
+          .from("episodes")
+          .update({ classify_status: "processed" })
+          .eq("id", ep.id);
+        processed++;
+      } catch {
+        failed++;
       }
-      // Emerging-issue discovery: store off-taxonomy political topics. Secondary
-      // to classification — a failure here must not fail the episode.
-      if (result.offTopics.length > 0) {
-        const topicRows = result.offTopics.map((o) => ({
-          episode_id: ep.id,
-          label: o.topic,
-          quote: o.supporting_quote,
-        }));
-        const { error: topicErr } = await db.from("discovery_topics").insert(topicRows);
-        if (!topicErr) totalOffTopics += result.offTopics.length;
-      }
-      // Mark processed regardless of mention count — this is the fix for the
-      // reprocessing loop. 0-mention (off-taxonomy) episodes are recorded as
-      // done and never re-sent to the model.
-      await db
-        .from("episodes")
-        .update({ classify_status: "processed" })
-        .eq("id", ep.id);
-      processed++;
-    } catch {
-      failed++;
-    }
-  }
+    },
+    stageStart + STAGE_TIME_BUDGET_MS,
+  );
+  const timedOut = completed < toClassify.length;
 
   const estCost = (inputTokens * 3) / 1_000_000 + (outputTokens * 15) / 1_000_000;
   return {
@@ -557,7 +567,10 @@ export async function runScore(): Promise<Record<string, unknown>> {
   let inputTokens = 0;
   let outputTokens = 0;
 
-  for (const c of pending.slice(0, SCORE_LIMIT)) {
+  // Score up to SCORE_LIMIT mentions through a bounded-concurrency pool (was
+  // one-at-a-time). Haiku is fast, so even a large batch finishes well under
+  // the 300s limit; counters are safe to mutate (single-threaded).
+  await mapPool(pending.slice(0, SCORE_LIMIT), SCORE_CONCURRENCY, async (c) => {
     try {
       const result = await scoreClassification({
         quote: c.supporting_quote,
@@ -597,7 +610,7 @@ export async function runScore(): Promise<Record<string, unknown>> {
       console.error(`[score] ${errClass} for classification ${c.id}: ${errMsg}`);
       failed++;
     }
-  }
+  });
 
   const estCost = (inputTokens * 1) / 1_000_000 + (outputTokens * 5) / 1_000_000;
   return {

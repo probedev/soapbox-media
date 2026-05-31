@@ -7,6 +7,25 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
+## v0.6.68 · 2026-05-31
+
+### Performance
+
+- **Parallelized classify + score (cron throughput).** Both stages processed
+  episodes/mentions one-at-a-time; the classify cron's ~90/day capacity was the
+  pipeline bottleneck. They now run through a bounded-concurrency worker pool
+  (`src/lib/concurrency.ts` → `mapPool`): classify at concurrency 10, score at
+  15, sized for an Anthropic Max-tier account. Per-run limits raised
+  accordingly (CLASSIFY_LIMIT 15→60, SCORE_LIMIT 80→240); the per-stage
+  wall-clock budget is still the real cap, so runs finish under the 300s
+  function limit (the pool stops pulling new work at the deadline).
+  - Net: classify throughput ~5–6× per run (~90/day → ~500+/day at the same
+    cron cadence), bounded now by the Anthropic tier rather than the serial
+    loop. Counters are mutated inside the pool, which is safe (single-threaded).
+  - New `npm run drain` (`scripts/drain.ts`): loops the parallelized stages
+    until the backlog clears — used to drain the legacy seed immediately rather
+    than waiting ~1–3 days for the crons.
+
 ## v0.6.67 · 2026-05-31
 
 ### Added (foundation — invisible)
