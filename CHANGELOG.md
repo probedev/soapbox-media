@@ -7,6 +7,17 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
+## v0.6.71 · 2026-06-01
+
+### Added (gated — invisible)
+
+- **Cohort badge** (`<CohortBadge>`): a small icon + hover label marking a
+  channel/episode as independent (mic) or legacy (tv), placed next to the L/M/R
+  lean badge on `/channels` and `/log`. Gated on `PUBLIC_COHORTS.length > 1`, so
+  it renders nothing while the site is independent-only and appears
+  automatically when legacy is exposed at launch. Threaded `cohort` through the
+  channels query and the `EpisodeTableRow` (the view already exposes it).
+
 ## v0.6.70 · 2026-06-01
 
 ### Changed

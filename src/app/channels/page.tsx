@@ -1,5 +1,6 @@
 import { createServiceClient } from "@/lib/db";
 import { PUBLIC_COHORTS } from "@/lib/cohort";
+import { CohortBadge } from "@/components/CohortBadge";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { PanelBalance } from "@/components/PanelBalance";
@@ -28,6 +29,7 @@ interface ChannelRow {
   political_lean: "L" | "M" | "R";
   reach: number | bigint;
   classification_rationale: string | null;
+  cohort: "independent" | "legacy";
 }
 
 interface PlatformRef {
@@ -45,6 +47,7 @@ interface ShowRow {
   platforms: PlatformRef[];
   maxReach: number;
   classification_rationale: string | null;
+  cohort: "independent" | "legacy";
 }
 
 /**
@@ -77,6 +80,7 @@ function groupByShow(rows: ChannelRow[]): ShowRow[] {
       platforms,
       maxReach,
       classification_rationale: canonical.classification_rationale,
+      cohort: canonical.cohort,
     });
   }
   return shows.sort((a, b) => b.maxReach - a.maxReach);
@@ -99,7 +103,7 @@ export default async function ChannelsListPage() {
     const { data, error } = await db
       .from("channels")
       .select(
-        "id, name, platform, platform_id, political_lean, reach, classification_rationale",
+        "id, name, platform, platform_id, political_lean, reach, classification_rationale, cohort",
       )
       .eq("active", true)
       .in("cohort", [...PUBLIC_COHORTS])
@@ -189,6 +193,9 @@ export default async function ChannelsListPage() {
                           >
                             {show.political_lean}
                           </span>
+                          {PUBLIC_COHORTS.length > 1 && (
+                            <CohortBadge cohort={show.cohort} />
+                          )}
                           {show.name}
                         </div>
                       </div>

@@ -36,6 +36,7 @@ export interface EpisodeTableRow {
    *  has mentions but none scored yet; "no-signal" = no mentions to score
    *  because the episode was off-taxonomy; "na" when classify is gated. */
   scored: "done" | "partial" | "pending" | "no-signal" | "na";
+  cohort: "independent" | "legacy";
 }
 
 /** One classified-and-scored issue mention within an episode, for the
@@ -104,7 +105,7 @@ export async function getEpisodeTableRows(
 
 /** Columns selected from episode_pipeline_summary for the table. */
 const EPISODE_SELECT =
-  "id, title, published_at, source_url, duration_sec, channel_id, channel_name, political_lean, platform, transcript_status, classify_status, classification_count, scored_count";
+  "id, title, published_at, source_url, duration_sec, channel_id, channel_name, political_lean, platform, transcript_status, classify_status, classification_count, scored_count, cohort";
 
 /** Derive the flat EpisodeTableRow (incl. cascade stage states) from a raw
  *  episode_pipeline_summary row. Shared by the full-list and paginated reads. */
@@ -161,6 +162,7 @@ function mapEpisodeRow(r: any): EpisodeTableRow {
     transcribed,
     classified,
     scored,
+    cohort: r.cohort,
   };
 }
 

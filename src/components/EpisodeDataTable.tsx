@@ -26,6 +26,8 @@ import {
 
 import type { EpisodeTableRow } from "@/lib/episodes";
 import { EpisodeMentions } from "@/components/EpisodeMentions";
+import { CohortBadge } from "@/components/CohortBadge";
+import { PUBLIC_COHORTS } from "@/lib/cohort";
 import { cn } from "@/lib/utils";
 import {
   Table,
@@ -226,19 +228,22 @@ const columns: ColumnDef<EpisodeTableRow>[] = [
       const lean = row.getValue("political_lean") as string;
       const l = LEAN[lean] ?? LEAN.M;
       return (
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <span
-              className={cn(
-                "inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-semibold",
-                l.cls,
-              )}
-            >
-              {lean}
-            </span>
-          </TooltipTrigger>
-          <TooltipContent>{l.label}</TooltipContent>
-        </Tooltip>
+        <span className="inline-flex items-center gap-1.5">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span
+                className={cn(
+                  "inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-semibold",
+                  l.cls,
+                )}
+              >
+                {lean}
+              </span>
+            </TooltipTrigger>
+            <TooltipContent>{l.label}</TooltipContent>
+          </Tooltip>
+          {PUBLIC_COHORTS.length > 1 && <CohortBadge cohort={row.original.cohort} />}
+        </span>
       );
     },
   },
