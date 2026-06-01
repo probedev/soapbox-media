@@ -4,22 +4,22 @@ import { PostHogProvider } from "@/components/PostHogProvider";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Soapbox · Alternative media discourse, quantified",
+  title: "Soapbox · Online political media, quantified",
   description:
-    "Soapbox is a data platform that uses language models to quantify what major alternative media is saying about US policy issues. We ingest and process new episodes daily.",
+    "Soapbox quantifies what political media on YouTube and podcasts is saying about US policy issues — across independent creators and legacy institutions. Updated daily.",
   openGraph: {
-    title: "Soapbox · Alternative media discourse, quantified",
+    title: "Soapbox · Online political media, quantified",
     description:
-      "Soapbox is a data platform that uses language models to quantify what major alternative media is saying about US policy issues. We ingest and process new episodes daily.",
+      "Soapbox quantifies what political media on YouTube and podcasts is saying about US policy issues — across independent creators and legacy institutions. Updated daily.",
     url: "https://soapbox.media",
     siteName: "Soapbox",
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Soapbox · Alternative media discourse, quantified",
+    title: "Soapbox · Online political media, quantified",
     description:
-      "What major alternative media is saying about US policy issues. Updated daily.",
+      "What political media on YouTube and podcasts is saying about US policy issues. Updated daily.",
   },
   // Favicon is auto-detected from src/app/icon.png (Next.js convention).
   // OG/Twitter image is auto-detected from src/app/opengraph-image.tsx.

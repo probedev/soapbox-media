@@ -62,12 +62,14 @@ export default async function HomePage() {
           The Soapbox Index · updated daily
         </div>
         <h1 className="text-3xl md:text-4xl font-semibold tracking-tight">
-          Where is alternative media leaning right now?
+          Where is online political media leaning right now?
         </h1>
         <p className="text-gray-600 mt-3 max-w-2xl mx-auto leading-relaxed">
-          Soapbox is a data platform that uses language models to quantify what major
-          alternative media is saying about US policy issues. We ingest and process new
-          episodes daily.
+          Soapbox uses language models to quantify what political media on YouTube and
+          podcasts says about US policy issues — and how{" "}
+          <span className="font-medium">independent creators</span> and{" "}
+          <span className="font-medium">legacy institutions</span> differ. New episodes
+          processed daily.
         </p>
 
         <div className="mt-10 flex justify-center">
@@ -82,7 +84,7 @@ export default async function HomePage() {
           <div className="text-sm text-gray-600 mt-3">
             {data.hasData ? (
               <>
-                Alternative media is leaning <span className="font-medium">{directionWord}</span> over the last {data.windowDays} days.{" "}
+                Online political media is leaning <span className="font-medium">{directionWord}</span> over the last {data.windowDays} days.{" "}
                 {Math.abs(data.delta) > 0 && (
                   <>
                     <span
@@ -124,6 +126,9 @@ export default async function HomePage() {
                 hasData={snapshot.cohorts.legacy.hasData}
               />
             </div>
+            <p className="text-xs text-gray-500 mt-3">
+              Independent creators vs legacy institutions — same issues, same scoring.
+            </p>
           </div>
         )}
 

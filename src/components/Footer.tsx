@@ -11,7 +11,7 @@ export function Footer() {
       <div className="max-w-5xl mx-auto px-6 py-8 text-sm text-gray-500">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
           <div className="flex items-baseline gap-3 flex-wrap">
-            <span>Soapbox.media · alternative media discourse, quantified</span>
+            <span>Soapbox.media · online political media, quantified</span>
             <a
               href="/changelog"
               className="text-xs font-mono text-gray-400 hover:text-gray-700 transition"

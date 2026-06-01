@@ -7,6 +7,24 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
+## v0.6.73 · 2026-06-01
+
+### Added — LEGACY COHORT LAUNCH 🚀
+
+- **Legacy media is now live alongside independent.** Flipped
+  `PUBLIC_COHORTS` to `['independent', 'legacy']`, which simultaneously:
+  - **Blends the master Soapbox Index** across both cohorts (≈L+0.1, reach-
+    weighted, volume-capped).
+  - **Reveals the two sub-needles** under the master — Independent (≈L+0.5) vs
+    Legacy (≈R+1.5) — with the caption "same issues, same scoring."
+  - **Shows the cohort icon** (mic = independent, tv = legacy) on `/channels`
+    and `/log`, and surfaces the 9 legacy channels + their episodes.
+- **Copy reframe.** Home headline → "Where is online political media leaning
+  right now?"; subheadline introduces the independent-creators vs legacy-
+  institutions split. Site title, social meta, footer, and OG image updated
+  from "alternative media discourse" → "online political media, quantified."
+- **Methodology** gains a "Cohorts: independent vs legacy" section.
+
 ## v0.6.72 · 2026-06-01
 
 ### Added (gated — invisible)

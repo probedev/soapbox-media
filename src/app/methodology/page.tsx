@@ -76,6 +76,30 @@ export default function MethodologyPage() {
           relevant <a href="/channels" className="underline hover:text-gray-900">channels page</a>.
         </p>
 
+        <h2 className="text-xl font-semibold mt-12">Cohorts: independent vs legacy</h2>
+        <p className="text-gray-700 mt-3 leading-relaxed">
+          We track two cohorts of channel on the same platform (YouTube and podcasts), scored the
+          same way:
+        </p>
+        <ul className="text-gray-700 mt-3 leading-relaxed list-disc pl-5 space-y-2">
+          <li>
+            <strong>Independent</strong> — creator and digital-native outlets (e.g. Breaking Points,
+            The Young Turks, the Shapiro/Walsh shows). The audience is there for the politics.
+          </li>
+          <li>
+            <strong>Legacy</strong> — traditional media institutions&apos; presence on the platform
+            (e.g. Fox News, MSNBC, NPR, PBS). We curate legacy to politics-heavy channels so reach
+            stands in for political audience, not general-news viewership.
+          </li>
+        </ul>
+        <p className="text-gray-700 mt-3 leading-relaxed">
+          The headline Index blends both cohorts, weighted by audience as above; the two
+          sub-needles on the <a href="/" className="underline hover:text-gray-900">home page</a> show
+          each cohort on its own, so the split that the blended number averages over stays visible.
+          Legacy follows the same 3-episodes/day cap as everyone else, so a high-volume newsroom
+          can&apos;t dominate by posting frequency.
+        </p>
+
         <h2 className="text-xl font-semibold mt-12">Issue taxonomy</h2>
         <p className="text-gray-700 mt-3 leading-relaxed">
           A set of 16 issues: Immigration, Inflation, Israel–Gaza, Ukraine, China policy,

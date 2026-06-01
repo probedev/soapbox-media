@@ -12,4 +12,4 @@
  */
 export type Cohort = "independent" | "legacy";
 
-export const PUBLIC_COHORTS: readonly Cohort[] = ["independent"];
+export const PUBLIC_COHORTS: readonly Cohort[] = ["independent", "legacy"];
