@@ -7,6 +7,7 @@ import { Footer } from "@/components/Footer";
 import { PanelBalance } from "@/components/PanelBalance";
 import { PanelScale } from "@/components/PanelScale";
 import { getChannelExternalUrl } from "@/lib/channelLinks";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import { ExternalLink } from "lucide-react";
 
 export const dynamic = "force-dynamic";
@@ -125,6 +126,7 @@ export default async function ChannelsListPage() {
     <main className="min-h-screen">
       <Header activePage="channels" />
 
+      <TooltipProvider delayDuration={150}>
       <section className="px-6 pt-10 pb-16 max-w-5xl mx-auto">
         <div className="text-xs uppercase tracking-wider text-gray-500 mb-1">
           <a href="/" className="hover:text-gray-700">
@@ -251,6 +253,7 @@ export default async function ChannelsListPage() {
           </section>
         ))}
       </section>
+      </TooltipProvider>
 
       <Footer />
     </main>

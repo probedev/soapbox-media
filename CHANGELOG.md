@@ -7,6 +7,16 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
+## v0.6.77 · 2026-06-01
+
+### Changed
+
+- Cohort badge (mic/tv) now uses the same styled shadcn tooltip as the L/M/R
+  lean badge instead of the native browser `title`, so hover tooltips look
+  consistent on /log and /channels. Added a `TooltipProvider` (150ms delay,
+  matching /log) around the /channels list to host it. Also swapped the em
+  dash in the cohort tooltip labels for a middle dot.
+
 ## v0.6.76 · 2026-06-01
 
 ### Changed
