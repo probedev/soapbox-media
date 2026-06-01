@@ -19,10 +19,10 @@ export default function MethodologyPage() {
 
         <h2 className="text-xl font-semibold mt-12">What we measure</h2>
         <p className="text-gray-700 mt-3 leading-relaxed">
-          We track a curated set of high-reach alternative-media political channels
-          (podcasts and YouTube shows) and analyze what they&apos;re saying about a defined set of
-          political issues. We classify each substantive issue mention, then score it on alignment
-          with the left or right position and the intensity of expression.
+          We track a curated set of high-reach political channels on YouTube and podcasts
+          and analyze what they&apos;re saying about a defined set of political issues. We classify
+          each substantive issue mention, then score it on alignment with the left or right
+          position and the intensity of expression.
         </p>
 
         <h2 className="text-xl font-semibold mt-12">The Soapbox Index</h2>
@@ -45,9 +45,19 @@ export default function MethodologyPage() {
           soapbox_index = clip(weighted_lean × 2, -10, +10)
         </div>
         <p className="text-gray-700 mt-4 leading-relaxed">
-          A reading of <span className="font-semibold text-red-600">R+1.2</span> means
-          alt-media voices, weighted by audience reach and intensity of expression, are net 1.2
+          A reading of <span className="font-semibold text-red-600">R+1.2</span> means the
+          channels we track, weighted by audience reach and intensity of expression, are net 1.2
           points right of center on the -10/+10 scale this week.
+        </p>
+        <p className="text-gray-700 mt-4 leading-relaxed">
+          Two deliberate choices keep this honest. First, every voice is weighted by its{" "}
+          <strong>audience reach</strong> (the <code className="text-sm">log10</code> above), so a
+          5M-subscriber show counts for more than a 50K one — the Index reflects what audiences
+          actually hear, not a one-channel-one-vote average. Second, each channel is{" "}
+          <strong>capped at 3 episodes per day</strong>, so a high-frequency publisher can&apos;t
+          flood the Index by sheer posting volume. The result measures <em>stance per unit of
+          audience</em> — where a channel leans and how big its audience is — not who posts most
+          often.
         </p>
 
         <p className="text-gray-700 mt-4 leading-relaxed">
@@ -60,7 +70,7 @@ export default function MethodologyPage() {
         <p className="text-gray-700 mt-3 leading-relaxed">
           Channels are curated by the founding team and balanced across Left, Middle, and Right
           political-publishing posture, <em>not</em> by individual host beliefs. The list reflects
-          share-of-voice in alt-media, which has a structural right-of-center skew in published
+          share-of-voice on the platform, which skews structurally right-of-center in published
           reach. Pretending the split is even would be dishonest measurement; the imbalance is the
           finding, not a bug. Every channel&apos;s classification rationale is available on the
           relevant <a href="/channels" className="underline hover:text-gray-900">channels page</a>.

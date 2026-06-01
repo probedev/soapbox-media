@@ -7,6 +7,27 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
+## v0.6.70 · 2026-06-01
+
+### Changed
+
+- **Taxonomy + methodology copy refresh.** Dropped the "alt-media" abbreviation
+  from the `/issues` taxonomy page (intro + activity-card header) and the
+  `/methodology` page; reframed around the platform (YouTube + podcasts).
+  De-dried the taxonomy intro and removed the "(not yet bucketed)" TODO leaking
+  into the "Political figures & parties" group.
+- **Methodology now documents volume normalization.** The `/methodology` Index
+  section explains the two deliberate choices — audience-reach weighting and the
+  **3-episodes/day per-channel cap** — framing the Index as "stance per unit of
+  audience" rather than who posts most. (Previously only the reach-weighting
+  formula was disclosed; the cap was undocumented.)
+
+### Fixed
+
+- **`scripts/drain.ts` rides out transient blips** — a stage round now retries
+  with backoff (up to 5 consecutive errors) instead of crashing the whole drain
+  on a one-off Supadata/Supabase `fetch failed`.
+
 ## v0.6.69 · 2026-05-31
 
 ### Performance

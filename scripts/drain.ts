@@ -20,9 +20,28 @@ async function drainStage(
   progressKey: string,
   maxRounds = 40,
 ) {
+  let consecutiveErrors = 0;
   for (let round = 1; round <= maxRounds; round++) {
     const t0 = Date.now();
-    const r = await fn();
+    let r: Record<string, unknown>;
+    try {
+      r = await fn();
+      consecutiveErrors = 0;
+    } catch (e: any) {
+      // Transient network blips (Supadata/Supabase fetch failed) shouldn't kill
+      // a long drain — back off and retry the round. Idempotent, so safe.
+      consecutiveErrors++;
+      console.warn(
+        `[${name}] round ${round} error (${consecutiveErrors}/5): ${e?.message || e}`,
+      );
+      if (consecutiveErrors >= 5) {
+        console.error(`[${name}] giving up after 5 consecutive errors`);
+        break;
+      }
+      await new Promise((res) => setTimeout(res, 5000 * consecutiveErrors));
+      round--; // retry this round
+      continue;
+    }
     const did = Number(r[progressKey] ?? 0);
     console.log(
       `[${name}] round ${round} (${((Date.now() - t0) / 1000).toFixed(0)}s): ${progressKey}=${did} ${JSON.stringify(r)}`,

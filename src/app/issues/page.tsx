@@ -60,8 +60,8 @@ export default async function IssuesListPage() {
   if (orphaned && orphaned.length) {
     sections.push({
       slug: null,
-      name: "Other",
-      description: "Political figures & parties (not yet bucketed).",
+      name: "Political figures & parties",
+      description: "Leaders and party institutions, tracked as their own issues.",
       issues: orphaned,
     });
   }
@@ -111,10 +111,11 @@ export default async function IssuesListPage() {
         </div>
         <h1 className="text-3xl md:text-4xl font-semibold tracking-tight">Issue taxonomy</h1>
         <p className="text-gray-600 mt-3 leading-relaxed max-w-3xl">
-          The {issues.length} political issues we classify alt-media discourse against, grouped
-          under {sections.length} broad topics. Each issue has an explicit left- and right-leaning
-          position; every sentiment score is measured against those positions, not US-political
-          stereotypes. Click any issue for the channel-level breakdown.
+          The {issues.length} political issues we track across YouTube and podcasts, grouped under{" "}
+          {sections.length} topics. Each has an explicit left- and right-leaning position, and every
+          mention is scored against those — not US-political stereotypes — then weighted by each
+          channel&apos;s audience and capped at 3 episodes a day, so the signal reflects stance per
+          audience rather than who posts most often. Click any issue for the channel-level breakdown.
         </p>
 
         {topicActivity.length > 0 && (

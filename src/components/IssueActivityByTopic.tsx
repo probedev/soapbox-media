@@ -61,7 +61,7 @@ export function IssueActivityByTopic({
     <div className="border border-gray-200 bg-white rounded-lg p-5">
       <div className="flex items-baseline justify-between mb-1">
         <div className="text-xs uppercase tracking-wider text-gray-500">
-          What alt-media is talking about
+          What&apos;s being talked about
         </div>
         <div className="text-xs text-gray-400">last {windowDays} days</div>
       </div>
