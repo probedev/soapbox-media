@@ -7,6 +7,14 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
+## v0.6.76 · 2026-06-01
+
+### Changed
+
+- /log legend row: lean + cohort legends left-justified, status-dot legend
+  right-justified, to visually separate the category legends from the
+  pipeline-status legend.
+
 ## v0.6.75 · 2026-06-01
 
 ### Changed

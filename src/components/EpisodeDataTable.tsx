@@ -539,10 +539,13 @@ export function EpisodeDataTable({
         </DropdownMenu>
       </div>
 
-      {/* Legends — above the table, right-aligned (category lean + cohort + status) */}
-      <div className="flex flex-wrap items-center justify-end gap-x-4 gap-y-1.5 mb-2">
-        <LeanLegend />
-        {PUBLIC_COHORTS.length > 1 && <CohortLegend />}
+      {/* Legends above the table: category lean + cohort on the left, status
+          dots on the right. */}
+      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1.5 mb-2">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
+          <LeanLegend />
+          {PUBLIC_COHORTS.length > 1 && <CohortLegend />}
+        </div>
         <Legend />
       </div>
 
