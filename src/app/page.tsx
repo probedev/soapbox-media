@@ -7,6 +7,8 @@ import { TrustStrip } from "@/components/TrustStrip";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { getDashboardData, getIndexBreakdown, readHomeSnapshot } from "@/lib/aggregate";
+import { SubNeedle } from "@/components/SubNeedle";
+import { PUBLIC_COHORTS } from "@/lib/cohort";
 
 // The home page reads a precomputed snapshot (written at the end of the score
 // cron) so it serves one light row instead of re-aggregating the full
@@ -104,6 +106,26 @@ export default async function HomePage() {
             )}
           </div>
         </div>
+
+        {PUBLIC_COHORTS.length > 1 && snapshot?.cohorts && (
+          <div className="mt-8">
+            <div className="text-xs uppercase tracking-wider text-gray-400 mb-3">
+              Independent vs Legacy
+            </div>
+            <div className="grid grid-cols-2 gap-6 max-w-sm mx-auto">
+              <SubNeedle
+                label="Independent"
+                value={snapshot.cohorts.independent.index}
+                hasData={snapshot.cohorts.independent.hasData}
+              />
+              <SubNeedle
+                label="Legacy"
+                value={snapshot.cohorts.legacy.index}
+                hasData={snapshot.cohorts.legacy.hasData}
+              />
+            </div>
+          </div>
+        )}
 
         {data.sparkline.length >= 2 && (
           <div className="mt-6 flex flex-col items-center">

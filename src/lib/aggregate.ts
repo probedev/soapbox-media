@@ -899,12 +899,22 @@ export async function getIndexBreakdown(
  * table (one JSON row). The home page reads that single row instead.
  * ------------------------------------------------------------------------- */
 
+/** One cohort's headline Index, for the home sub-needles. */
+export interface CohortNeedle {
+  index: number;
+  hasData: boolean;
+}
+
 /** Everything the home page needs, computed together so the heavy join runs
  *  once. `dashboard` drives the hero/movers/issues; `breakdown` drives the
- *  "Why is the Index where it is?" contribution chart. */
+ *  "Why is the Index where it is?" contribution chart; `cohorts` drives the
+ *  independent-vs-legacy sub-needles. */
 export interface HomeSnapshot {
   dashboard: DashboardData;
   breakdown: IndexBreakdown;
+  /** Per-cohort Index for the sub-needles. Optional so snapshots written
+   *  before this field still deserialize. */
+  cohorts?: { independent: CohortNeedle; legacy: CohortNeedle };
 }
 
 /** Stable per-window key for the home snapshot row (e.g. `home:7`). */
@@ -925,7 +935,20 @@ export async function writeHomeSnapshot(windowDays = 7): Promise<HomeSnapshot> {
   // fetchScoreRows cache and the second reuses it — one DB pass, not two.
   const dashboard = await getDashboardData(windowDays);
   const breakdown = await getIndexBreakdown(windowDays);
-  const snapshot: HomeSnapshot = { dashboard, breakdown };
+  // Per-cohort indices for the sub-needles — computed regardless of the master's
+  // cohort selection so they're ready the moment legacy is exposed.
+  const [indDash, legDash] = [
+    await getDashboardData(windowDays, ["independent"]),
+    await getDashboardData(windowDays, ["legacy"]),
+  ];
+  const snapshot: HomeSnapshot = {
+    dashboard,
+    breakdown,
+    cohorts: {
+      independent: { index: indDash.index, hasData: indDash.hasData },
+      legacy: { index: legDash.index, hasData: legDash.hasData },
+    },
+  };
 
   const db = createServiceClient();
   const { error } = await db.from("dashboard_snapshot").upsert(

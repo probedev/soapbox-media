@@ -7,6 +7,20 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
+## v0.6.72 · 2026-06-01
+
+### Added (gated — invisible)
+
+- **Independent vs Legacy sub-needles** under the master Soapbox Index on the
+  home page. Two compact needles (`<SubNeedle>`, reusing `SoapboxNeedle` at a
+  smaller size) showing each cohort's Index — so the blended master headline
+  arrives with the split that explains it. Gated on `PUBLIC_COHORTS.length > 1`,
+  invisible until the flip.
+- The home snapshot (`writeHomeSnapshot`) now also computes and stores
+  per-cohort indices (`HomeSnapshot.cohorts`), so the sub-needles read from the
+  precomputed row — no extra per-request work. Field is optional for backward
+  compatibility with older snapshots.
+
 ## v0.6.71 · 2026-06-01
 
 ### Added (gated — invisible)
