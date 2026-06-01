@@ -7,6 +7,15 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
+## v0.6.75 · 2026-06-01
+
+### Changed
+
+- Consolidated the /log table legends: the L/M/R lean legend, the cohort
+  (mic=independent / tv=legacy) legend, and the status-dot legend now sit
+  together in one right-aligned row directly above the episode table. The
+  cohort legend moved out of the "Episode receipts" heading.
+
 ## v0.6.74 · 2026-06-01
 
 ### Added

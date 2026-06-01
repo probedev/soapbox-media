@@ -27,6 +27,7 @@ import {
 import type { EpisodeTableRow } from "@/lib/episodes";
 import { EpisodeMentions } from "@/components/EpisodeMentions";
 import { CohortBadge } from "@/components/CohortBadge";
+import { CohortLegend } from "@/components/CohortLegend";
 import { PUBLIC_COHORTS } from "@/lib/cohort";
 import { cn } from "@/lib/utils";
 import {
@@ -133,6 +134,27 @@ function Legend() {
           </span>
         ),
       )}
+    </div>
+  );
+}
+
+/** Category-column legend: the L/M/R lean badges. */
+function LeanLegend() {
+  return (
+    <div className="flex items-center gap-3 text-[10px] text-gray-500">
+      {(["L", "M", "R"] as const).map((l) => (
+        <span key={l} className="flex items-center gap-1">
+          <span
+            className={cn(
+              "inline-flex items-center rounded px-1 text-[9px] font-semibold",
+              LEAN[l].cls,
+            )}
+          >
+            {l}
+          </span>
+          {LEAN[l].label}
+        </span>
+      ))}
     </div>
   );
 }
@@ -517,8 +539,10 @@ export function EpisodeDataTable({
         </DropdownMenu>
       </div>
 
-      {/* Status legend — above the table */}
-      <div className="flex justify-end mb-2">
+      {/* Legends — above the table, right-aligned (category lean + cohort + status) */}
+      <div className="flex flex-wrap items-center justify-end gap-x-4 gap-y-1.5 mb-2">
+        <LeanLegend />
+        {PUBLIC_COHORTS.length > 1 && <CohortLegend />}
         <Legend />
       </div>
 
