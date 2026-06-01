@@ -1,6 +1,7 @@
 import { createServiceClient } from "@/lib/db";
 import { PUBLIC_COHORTS } from "@/lib/cohort";
 import { CohortBadge } from "@/components/CohortBadge";
+import { CohortLegend } from "@/components/CohortLegend";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { PanelBalance } from "@/components/PanelBalance";
@@ -157,6 +158,12 @@ export default async function ChannelsListPage() {
             overlap. */}
         <PanelScale />
         <PanelBalance shows={shows} />
+
+        {PUBLIC_COHORTS.length > 1 && (
+          <div className="flex justify-end mt-6">
+            <CohortLegend />
+          </div>
+        )}
 
         {(["L", "M", "R"] as const).map((bucket) => (
           <section key={bucket} className="mt-10">

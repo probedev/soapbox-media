@@ -1,5 +1,7 @@
 import { EpisodeDataTable } from "@/components/EpisodeDataTable";
 import { SystemStats } from "@/components/SystemStats";
+import { CohortLegend } from "@/components/CohortLegend";
+import { PUBLIC_COHORTS } from "@/lib/cohort";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 
@@ -36,9 +38,12 @@ export default async function LogPage() {
 
         {/* Episode receipts — sortable / searchable table */}
         <div className="mt-10">
-          <h2 className="text-sm font-semibold uppercase tracking-wider text-gray-600 mb-3">
-            Episode receipts
-          </h2>
+          <div className="flex items-baseline justify-between gap-3 flex-wrap mb-3">
+            <h2 className="text-sm font-semibold uppercase tracking-wider text-gray-600">
+              Episode receipts
+            </h2>
+            {PUBLIC_COHORTS.length > 1 && <CohortLegend />}
+          </div>
           <EpisodeDataTable serverSide />
         </div>
       </section>

@@ -66,9 +66,9 @@ export default async function HomePage() {
         </h1>
         <p className="text-gray-600 mt-3 max-w-2xl mx-auto leading-relaxed">
           Soapbox uses language models to quantify what political media on YouTube and
-          podcasts says about US policy issues — and how{" "}
+          podcasts says about US policy issues, and how{" "}
           <span className="font-medium">independent creators</span> and{" "}
-          <span className="font-medium">legacy institutions</span> differ. New episodes
+          <span className="font-medium">legacy media</span> differ. New episodes
           processed daily.
         </p>
 
@@ -127,7 +127,7 @@ export default async function HomePage() {
               />
             </div>
             <p className="text-xs text-gray-500 mt-3">
-              Independent creators vs legacy institutions — same issues, same scoring.
+              Independent creators vs legacy media, same issues, same scoring.
             </p>
           </div>
         )}

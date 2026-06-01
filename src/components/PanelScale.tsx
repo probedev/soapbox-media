@@ -11,6 +11,7 @@
  * numbers) before distribution (stacked bars). Both surfaces use the same
  * unique-show reach methodology.
  */
+import { Mic, Tv } from "lucide-react";
 import { getPanelStats } from "@/lib/aggregate";
 
 function relativeTime(iso: string | null): string {
@@ -104,6 +105,32 @@ export async function PanelScale() {
           />
         )}
       </div>
+
+      {stats.channelsByCohort.legacy > 0 && (
+        <div className="mt-5 pt-4 border-t border-gray-100 flex flex-wrap items-center gap-x-6 gap-y-2 text-xs text-gray-600">
+          <span className="text-[10px] uppercase tracking-wider text-gray-500">
+            By cohort
+          </span>
+          <span className="flex items-center gap-1.5">
+            <Mic className="h-3.5 w-3.5 text-emerald-600" />
+            <span className="tabular-nums">{stats.channelsByCohort.independent}</span>{" "}
+            independent ·{" "}
+            <span className="tabular-nums">
+              {compactNumber(stats.audienceReachByCohort.independent)}
+            </span>{" "}
+            reach
+          </span>
+          <span className="flex items-center gap-1.5">
+            <Tv className="h-3.5 w-3.5 text-amber-500" />
+            <span className="tabular-nums">{stats.channelsByCohort.legacy}</span> legacy
+            ·{" "}
+            <span className="tabular-nums">
+              {compactNumber(stats.audienceReachByCohort.legacy)}
+            </span>{" "}
+            reach
+          </span>
+        </div>
+      )}
     </div>
   );
 }

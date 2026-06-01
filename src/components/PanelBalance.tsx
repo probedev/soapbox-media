@@ -17,6 +17,7 @@ import { cn } from "@/lib/utils";
 interface ShowLike {
   political_lean: "L" | "M" | "R";
   maxReach: number;
+  cohort: "independent" | "legacy";
 }
 
 interface PanelBalanceProps {
@@ -36,10 +37,16 @@ const LEAN_BG: Record<"L" | "M" | "R", string> = {
   R: "bg-red-500",
 };
 
+const COHORT_BG: Record<"independent" | "legacy", string> = {
+  independent: "bg-emerald-600",
+  legacy: "bg-amber-500",
+};
+
 interface Segment {
-  lean: "L" | "M" | "R";
+  key: string;
   value: number;
   label: string;
+  colorClass: string;
 }
 
 function StackedBar({ segments }: { segments: Segment[] }) {
@@ -50,13 +57,13 @@ function StackedBar({ segments }: { segments: Segment[] }) {
         const pct = (seg.value / total) * 100;
         return (
           <div
-            key={seg.lean}
+            key={seg.key}
             className={cn(
               "flex items-center justify-center min-w-0 px-1.5",
-              LEAN_BG[seg.lean],
+              seg.colorClass,
             )}
             style={{ flexBasis: `${pct}%` }}
-            title={`${seg.lean}: ${seg.label} (${pct.toFixed(0)}%)`}
+            title={`${seg.label} (${pct.toFixed(0)}%)`}
           >
             <span className="truncate tabular-nums">{seg.label}</span>
           </div>
@@ -69,10 +76,16 @@ function StackedBar({ segments }: { segments: Segment[] }) {
 export function PanelBalance({ shows }: PanelBalanceProps) {
   const counts = { L: 0, M: 0, R: 0 };
   const reach = { L: 0, M: 0, R: 0 };
+  const cohortCounts = { independent: 0, legacy: 0 };
+  const cohortReach = { independent: 0, legacy: 0 };
   for (const s of shows) {
     counts[s.political_lean] += 1;
     reach[s.political_lean] += s.maxReach;
+    cohortCounts[s.cohort] += 1;
+    cohortReach[s.cohort] += s.maxReach;
   }
+  // Only show the cohort split once legacy channels are actually in the panel.
+  const hasCohortSplit = cohortCounts.legacy > 0 && cohortCounts.independent > 0;
   const totalShows = counts.L + counts.M + counts.R;
   const totalReach = reach.L + reach.M + reach.R;
 
@@ -92,14 +105,31 @@ export function PanelBalance({ shows }: PanelBalanceProps) {
     l === "L" ? "left-leaning" : l === "R" ? "right-leaning" : "middle";
 
   const showSegments: Segment[] = sides.map((lean) => ({
-    lean,
+    key: lean,
     value: counts[lean],
     label: `${lean} ${counts[lean]}`,
+    colorClass: LEAN_BG[lean],
   }));
   const reachSegments: Segment[] = sides.map((lean) => ({
-    lean,
+    key: lean,
     value: reach[lean],
     label: `${lean} ${compactReach(reach[lean])}`,
+    colorClass: LEAN_BG[lean],
+  }));
+
+  const cohortLabel = { independent: "Independent", legacy: "Legacy" } as const;
+  const cohortKeys = ["independent", "legacy"] as const;
+  const cohortShowSegments: Segment[] = cohortKeys.map((c) => ({
+    key: c,
+    value: cohortCounts[c],
+    label: `${cohortLabel[c]} ${cohortCounts[c]}`,
+    colorClass: COHORT_BG[c],
+  }));
+  const cohortReachSegments: Segment[] = cohortKeys.map((c) => ({
+    key: c,
+    value: cohortReach[c],
+    label: `${cohortLabel[c]} ${compactReach(cohortReach[c])}`,
+    colorClass: COHORT_BG[c],
   }));
 
   // Only render the asymmetry sentence when the ratio is meaningfully off
@@ -142,6 +172,27 @@ export function PanelBalance({ shows }: PanelBalanceProps) {
           </div>
           <StackedBar segments={reachSegments} />
         </div>
+
+        {hasCohortSplit && (
+          <>
+            <div className="pt-2 border-t border-gray-100">
+              <div className="flex items-baseline justify-between mb-1.5">
+                <span className="text-[10px] uppercase tracking-wider text-gray-500">
+                  Shows by cohort
+                </span>
+              </div>
+              <StackedBar segments={cohortShowSegments} />
+            </div>
+            <div>
+              <div className="flex items-baseline justify-between mb-1.5">
+                <span className="text-[10px] uppercase tracking-wider text-gray-500">
+                  Reach by cohort
+                </span>
+              </div>
+              <StackedBar segments={cohortReachSegments} />
+            </div>
+          </>
+        )}
       </div>
 
       <p className="text-xs text-gray-600 mt-4 leading-relaxed">

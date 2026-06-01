@@ -7,6 +7,26 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
+## v0.6.74 · 2026-06-01
+
+### Added
+
+- **Cohort legend** (`<CohortLegend>`) on `/channels` and `/log` — defines the
+  mic = independent / tv = legacy icons next to the channel list + episode
+  table.
+- **Cohort breakdown on the panel cards:**
+  - **Panel balance** gains two stacked bars — shows-by-cohort and reach-by-
+    cohort (independent vs legacy) — alongside the existing L/M/R bars.
+    `StackedBar` generalized to per-segment colors.
+  - **Panel scale** gains a "By cohort" line with the icons + each cohort's show
+    count and combined reach (`getPanelStats` now returns `channelsByCohort` /
+    `audienceReachByCohort`).
+  - Both gated on legacy actually being present.
+
+### Changed
+
+- Home subheadline: "legacy institutions" → "legacy media"; em dash → comma.
+
 ## v0.6.73 · 2026-06-01
 
 ### Added — LEGACY COHORT LAUNCH 🚀

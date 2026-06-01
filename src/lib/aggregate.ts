@@ -587,6 +587,8 @@ export interface PanelStats {
   /** Sum of unique-show reach (max per show across platform rows). */
   audienceReach: number;
   audienceReachByLean: { L: number; M: number; R: number };
+  channelsByCohort: { independent: number; legacy: number };
+  audienceReachByCohort: { independent: number; legacy: number };
   /** Raw active channel rows — each (show, platform) is its own row. */
   platformRows: number;
   /** Per-platform breakdown of `platformRows`. */
@@ -606,7 +608,7 @@ export async function getPanelStats(): Promise<PanelStats> {
   const db = createServiceClient();
   const { data: channelRows } = await db
     .from("channels")
-    .select("name, political_lean, reach, platform, reach_updated_at")
+    .select("name, political_lean, reach, platform, reach_updated_at, cohort")
     .eq("active", true)
     .in("cohort", [...PUBLIC_COHORTS])
     .limit(2000);
@@ -616,26 +618,34 @@ export async function getPanelStats(): Promise<PanelStats> {
     reach: number | string | null;
     platform: "youtube" | "podcast";
     reach_updated_at: string | null;
+    cohort: "independent" | "legacy";
   }[];
 
   // Unique-show map keyed by name; lean is consistent across a show's rows,
   // reach is the MAX across platform rows (same audience often follows both).
-  const showRows = new Map<string, { lean: "L" | "M" | "R"; reach: number }>();
+  const showRows = new Map<
+    string,
+    { lean: "L" | "M" | "R"; reach: number; cohort: "independent" | "legacy" }
+  >();
   const platformSplit = { youtube: 0, podcast: 0 };
   for (const c of rows) {
     const r = Number(c.reach || 0);
     const prev = showRows.get(c.name);
     if (!prev || r > prev.reach) {
-      showRows.set(c.name, { lean: c.political_lean, reach: r });
+      showRows.set(c.name, { lean: c.political_lean, reach: r, cohort: c.cohort });
     }
     platformSplit[c.platform] += 1;
   }
   const channelsByLean = { L: 0, M: 0, R: 0 };
   const audienceReachByLean = { L: 0, M: 0, R: 0 };
+  const channelsByCohort = { independent: 0, legacy: 0 };
+  const audienceReachByCohort = { independent: 0, legacy: 0 };
   let largest: { name: string; reach: number } | null = null;
   for (const [name, v] of showRows) {
     channelsByLean[v.lean] += 1;
     audienceReachByLean[v.lean] += v.reach;
+    channelsByCohort[v.cohort] += 1;
+    audienceReachByCohort[v.cohort] += v.reach;
     if (!largest || v.reach > largest.reach) largest = { name, reach: v.reach };
   }
   // Reach-freshness bookends: most-recent and oldest refresh timestamps
@@ -655,6 +665,8 @@ export async function getPanelStats(): Promise<PanelStats> {
     audienceReach:
       audienceReachByLean.L + audienceReachByLean.M + audienceReachByLean.R,
     audienceReachByLean,
+    channelsByCohort,
+    audienceReachByCohort,
     platformRows: rows.length,
     platformSplit,
     largestShow: largest,
