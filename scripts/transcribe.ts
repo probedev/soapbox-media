@@ -58,19 +58,24 @@ async function transcribeYouTube(
     return { ok: false, detail: `could not extract video ID from ${episode.source_url}` };
   }
 
-  const transcript = await getVideoTranscript(videoId);
-  if (!transcript || transcript.trim().length === 0) {
+  const result = await getVideoTranscript(videoId);
+  if (!result.ok) {
+    if (result.retriable) {
+      // Transient (5xx/429/network) — leave `pending` so a re-run retries it
+      // rather than stranding it as failed (the 2026-06-02 incident).
+      return { ok: false, detail: `transient (${result.reason}) — left pending for retry` };
+    }
     await db
       .from("episodes")
       .update({ transcript_status: "failed" })
       .eq("id", episode.id);
-    return { ok: false, detail: `no captions available for ${videoId}` };
+    return { ok: false, detail: `no captions / terminal (${result.reason}) for ${videoId}` };
   }
 
   const { error: txErr } = await db.from("transcripts").upsert(
     {
       episode_id: episode.id,
-      text: transcript,
+      text: result.text,
       provider: "youtube_captions",
     },
     { onConflict: "episode_id", ignoreDuplicates: false },
@@ -84,7 +89,7 @@ async function transcribeYouTube(
     .update({ transcript_status: "fetched" })
     .eq("id", episode.id);
 
-  const wordCount = transcript.trim().split(/\s+/).length;
+  const wordCount = result.text.trim().split(/\s+/).length;
   return { ok: true, detail: `${wordCount.toLocaleString()} words` };
 }
 

@@ -272,15 +272,31 @@ export async function getChannelDetailsBatch(
  * rather just skip videos without captions than pay to generate
  * potentially-inaccurate ones.
  *
- * Returns null if no captions exist, the video is private, or the API
- * call fails. Logs the failure mode so we can distinguish "no captions
- * available" from genuine errors.
+ * Returns a discriminated result so the caller can tell the two failure
+ * modes apart — they must NOT be handled identically:
+ *   - { ok: true, text }                    captions fetched
+ *   - { ok: false, retriable: false }       definitively no captions / bad
+ *                                           video → terminal, don't retry
+ *   - { ok: false, retriable: true }        transient (5xx / 429 / network)
+ *                                           → leave pending and retry later
+ *
+ * The old version collapsed all three into `string | null`, so a one-off
+ * Supadata blip (2026-06-02) marked ~95 episodes permanently `failed` even
+ * though their captions were perfectly fetchable. See [[transcribe-retry-bug]].
  *
  * Pricing: 1 credit per request regardless of result (success, 206
- * unavailable, or 404 video-not-found). At 100 episodes/day this is
- * ~3000 credits/month — fits the $17/mo Pro plan.
+ * unavailable, or 404 video-not-found).
  */
-export async function getVideoTranscript(videoId: string): Promise<string | null> {
+export type TranscriptFetch =
+  | { ok: true; text: string }
+  | { ok: false; retriable: boolean; reason: string };
+
+/** HTTP statuses worth retrying: rate-limit, timeout, quota, server errors. */
+function isRetriableStatus(status: number): boolean {
+  return status === 408 || status === 429 || status === 402 || status >= 500;
+}
+
+export async function getVideoTranscript(videoId: string): Promise<TranscriptFetch> {
   const videoUrl = `https://www.youtube.com/watch?v=${videoId}`;
   const apiUrl =
     `https://api.supadata.ai/v1/transcript?` +
@@ -292,35 +308,36 @@ export async function getVideoTranscript(videoId: string): Promise<string | null
     });
 
     // 206 = transcript unavailable for this video (still costs 1 credit
-    // and is a legitimate "no captions" answer, not an error)
+    // and is a legitimate "no captions" answer, not an error) → terminal.
     if (res.status === 206) {
       console.warn(`[YT transcript] no captions available for ${videoId}`);
-      return null;
+      return { ok: false, retriable: false, reason: "no-captions" };
     }
 
     if (!res.ok) {
       const text = await res.text().catch(() => "");
+      const retriable = isRetriableStatus(res.status);
       console.error(
-        `[YT transcript] supadata ${res.status} for ${videoId}: ${text.slice(0, 200)}`,
+        `[YT transcript] supadata ${res.status} for ${videoId} ` +
+          `(${retriable ? "transient, will retry" : "terminal"}): ${text.slice(0, 200)}`,
       );
-      return null;
+      return { ok: false, retriable, reason: `http-${res.status}` };
     }
 
-    const data = (await res.json()) as {
-      content?: string;
-      lang?: string;
-    };
+    const data = (await res.json()) as { content?: string; lang?: string };
 
     if (!data.content || data.content.trim().length === 0) {
+      // 200 with no content is a "no captions" answer, not a transient error.
       console.warn(`[YT transcript] supadata empty content for ${videoId}`);
-      return null;
+      return { ok: false, retriable: false, reason: "empty" };
     }
 
-    return data.content;
+    return { ok: true, text: data.content };
   } catch (e: any) {
+    // Network-level failure (DNS, connection reset, timeout) — transient.
     const errClass = e?.constructor?.name || "Error";
     const errMsg = e?.message || String(e);
-    console.error(`[YT transcript] ${errClass} for ${videoId}: ${errMsg}`);
-    return null;
+    console.error(`[YT transcript] ${errClass} for ${videoId} (transient): ${errMsg}`);
+    return { ok: false, retriable: true, reason: errMsg.slice(0, 80) };
   }
 }

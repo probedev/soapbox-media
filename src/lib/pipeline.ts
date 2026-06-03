@@ -38,6 +38,13 @@ export const INGEST_PER_CHANNEL = 3;
 // 10/s Supadata limit. Higher per-run limit since it's no longer serial.
 export const TRANSCRIBE_LIMIT = 100;
 export const TRANSCRIBE_CONCURRENCY = 8;
+// A transient transcript fetch (5xx/429/network) leaves the episode `pending`
+// and bumps `transcript_attempts`; only after this many tries do we give up and
+// mark it `failed`. Prevents a one-off Supadata blip from permanently stranding
+// episodes (the 2026-06-02 incident) while still bounding wasted credits on a
+// video that errors every time. A "no captions" answer is terminal immediately,
+// regardless of attempt count.
+export const MAX_TRANSCRIPT_ATTEMPTS = 3;
 // Classify (Sonnet) and score (Haiku) now process episodes/mentions through a
 // bounded-concurrency pool instead of one-at-a-time, so the per-run LIMITs are
 // higher — the wall-clock budget below is the real cap. Concurrency is sized
@@ -290,7 +297,7 @@ export async function runTranscribe(): Promise<Record<string, unknown>> {
   const db = createServiceClient();
   const { data: pending, error: pendingErr } = await db
     .from("episodes")
-    .select("id, source_url, channel_id")
+    .select("id, source_url, channel_id, transcript_attempts")
     .eq("transcript_status", "pending")
     // Oldest-pending-first: YouTube auto-captions take hours-to-a-day to
     // generate for fresh uploads. If we attack newest-first we burn through
@@ -320,7 +327,29 @@ export async function runTranscribe(): Promise<Record<string, unknown>> {
 
   let ok = 0;
   let failed = 0;
+  let retrying = 0;
   const stageStart = Date.now();
+
+  // Transient failure: bump the attempt counter and leave the episode `pending`
+  // so the next run retries it — unless it has now exhausted its attempts, in
+  // which case give up and mark `failed`.
+  const handleTransient = async (row: any, reason: string) => {
+    const attempts = (row.transcript_attempts ?? 0) + 1;
+    if (attempts >= MAX_TRANSCRIPT_ATTEMPTS) {
+      await db
+        .from("episodes")
+        .update({ transcript_status: "failed", transcript_attempts: attempts })
+        .eq("id", row.id);
+      failed++;
+      console.error(`[transcribe] ${row.id}: giving up after ${attempts} attempts (${reason})`);
+    } else {
+      await db
+        .from("episodes")
+        .update({ transcript_attempts: attempts })
+        .eq("id", row.id);
+      retrying++;
+    }
+  };
 
   // Fetch transcripts through a bounded-concurrency pool (was serial). Each
   // Supadata call is multi-second, so concurrency 8 stays ~2 req/s — under the
@@ -348,23 +377,30 @@ export async function runTranscribe(): Promise<Record<string, unknown>> {
             ? u.pathname.replace(/^\//, "")
             : u.searchParams.get("v");
         if (!videoId) {
+          // Malformed URL is terminal — no amount of retrying fixes it.
           await db.from("episodes").update({ transcript_status: "failed" }).eq("id", row.id);
           failed++;
           return;
         }
-        const transcript = await getVideoTranscript(videoId);
-        if (!transcript || transcript.trim().length === 0) {
-          await db.from("episodes").update({ transcript_status: "failed" }).eq("id", row.id);
-          failed++;
+        const result = await getVideoTranscript(videoId);
+        if (!result.ok) {
+          if (result.retriable) {
+            await handleTransient(row, result.reason);
+          } else {
+            // No captions / bad video → terminal, stop here.
+            await db.from("episodes").update({ transcript_status: "failed" }).eq("id", row.id);
+            failed++;
+          }
           return;
         }
         const { error: txErr } = await db.from("transcripts").upsert(
-          { episode_id: row.id, text: transcript, provider: "youtube_captions" },
+          { episode_id: row.id, text: result.text, provider: "youtube_captions" },
           { onConflict: "episode_id", ignoreDuplicates: false },
         );
         if (txErr) {
+          // DB write hiccup is transient — retry rather than strand the episode.
           console.error(`[transcribe] upsert failed for ${row.id}: ${txErr.message}`);
-          failed++;
+          await handleTransient(row, `upsert: ${txErr.message}`);
           return;
         }
         await db
@@ -373,16 +409,15 @@ export async function runTranscribe(): Promise<Record<string, unknown>> {
           .eq("id", row.id);
         ok++;
       } catch (e: any) {
-        // Don't swallow silently — a missing env var or a Supadata outage
-        // should be visible in logs, not hidden behind a bare catch.
+        // Unexpected exception (network, etc.) — treat as transient/retriable.
         console.error(`[transcribe] ${row.id}: ${e?.message || String(e)}`);
-        failed++;
+        await handleTransient(row, e?.message || String(e));
       }
     },
     stageStart + STAGE_TIME_BUDGET_MS,
   );
 
-  return { processed: (pending || []).length, succeeded: ok, failed };
+  return { processed: (pending || []).length, succeeded: ok, failed, retrying };
 }
 
 // ─── Classify ───────────────────────────────────────────────────────────

@@ -7,6 +7,21 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
+## v0.6.78 · 2026-06-03
+
+### Fixed
+
+- **Transcribe no longer strands episodes on a transient blip.** `runTranscribe`
+  previously marked *every* failure `transcript_status='failed'` and only ever
+  re-queried `'pending'`, so a one-off Supadata outage (2026-06-02, ~95 episodes
+  failed in a single run) permanently abandoned episodes whose captions were
+  perfectly fetchable. `getVideoTranscript` now returns a discriminated result
+  distinguishing a terminal "no captions" (206 / empty / bad video) from a
+  transient error (5xx / 429 / network). Transient failures leave the episode
+  `pending` and bump a new `episodes.transcript_attempts` counter, retrying up
+  to `MAX_TRANSCRIPT_ATTEMPTS` (3) before giving up — so blips self-heal while a
+  genuinely-broken video still terminates. Backfilled the 89 stranded episodes.
+
 ## v0.6.77 · 2026-06-01
 
 ### Changed
