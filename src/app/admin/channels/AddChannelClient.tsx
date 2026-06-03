@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { addChannelAction } from "./actions";
+import { addChannelAction, previewChannelAction } from "./actions";
 
 const inputClass =
   "w-full border border-gray-300 rounded-md px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-300";
@@ -16,14 +16,44 @@ interface SuccessNote {
   upserted: number;
 }
 
+interface PreviewNote {
+  name: string;
+  subs: number;
+  alreadyInPanel: boolean;
+  belowFloor: boolean;
+}
+
 export function AddChannelClient() {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
+  const [drafting, startDrafting] = useTransition();
   const [handle, setHandle] = useState("");
   const [lean, setLean] = useState<"L" | "M" | "R" | "">("");
   const [rationale, setRationale] = useState("");
+  const [preview, setPreview] = useState<PreviewNote | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [ok, setOk] = useState<SuccessNote | null>(null);
+
+  function draft() {
+    setErr(null);
+    setOk(null);
+    startDrafting(async () => {
+      const r = await previewChannelAction(handle, lean as "L" | "M" | "R");
+      if (!r.ok) {
+        setErr(r.error);
+        setPreview(null);
+        return;
+      }
+      // Auto-fill the editable rationale with the generated draft.
+      setRationale(r.preview.draftRationale);
+      setPreview({
+        name: r.preview.name,
+        subs: r.preview.subscriberCount,
+        alreadyInPanel: r.preview.alreadyInPanel,
+        belowFloor: r.preview.belowFloor,
+      });
+    });
+  }
 
   function submit() {
     setErr(null);
@@ -48,11 +78,14 @@ export function AddChannelClient() {
       setHandle("");
       setLean("");
       setRationale("");
+      setPreview(null);
       router.refresh();
     });
   }
 
-  const disabled = pending || !handle.trim() || !lean || !rationale.trim();
+  const busy = pending || drafting;
+  const canDraft = !busy && !!handle.trim() && !!lean;
+  const canSubmit = !busy && !!handle.trim() && !!lean && !!rationale.trim();
 
   return (
     <div className="border border-gray-200 rounded-lg bg-white p-5">
@@ -66,7 +99,7 @@ export function AddChannelClient() {
             placeholder="@channelname or https://youtube.com/@channelname"
             value={handle}
             onChange={(e) => setHandle(e.target.value)}
-            disabled={pending}
+            disabled={busy}
           />
         </label>
         <label className="text-xs text-gray-600 block">
@@ -75,7 +108,7 @@ export function AddChannelClient() {
             className={inputClass}
             value={lean}
             onChange={(e) => setLean(e.target.value as "L" | "M" | "R" | "")}
-            disabled={pending}
+            disabled={busy}
           >
             <option value="">L / M / R</option>
             <option value="L">L (Left)</option>
@@ -83,26 +116,42 @@ export function AddChannelClient() {
             <option value="R">R (Right)</option>
           </select>
         </label>
-        <div /> {/* spacer */}
+        <Button variant="outline" onClick={draft} disabled={!canDraft}>
+          {drafting ? "Drafting…" : "Resolve & draft"}
+        </Button>
       </div>
+
+      {preview && (
+        <div className="mt-3 text-xs bg-gray-50 border border-gray-200 rounded-md px-3 py-2 text-gray-700">
+          Resolved <strong>{preview.name}</strong> ({preview.subs.toLocaleString()} subs).
+          {preview.alreadyInPanel && (
+            <span className="text-amber-700"> ⚠ Already in the panel — adding will be rejected.</span>
+          )}
+          {preview.belowFloor && (
+            <span className="text-amber-700"> ⚠ Below the 300K subscriber floor.</span>
+          )}
+        </div>
+      )}
+
       <label className="text-xs text-gray-600 block mt-2.5">
-        Lean rationale (one sentence — appears on /channels)
+        Lean rationale — auto-drafted, edit before adding (appears on /channels)
         <textarea
           rows={2}
           className={inputClass}
-          placeholder='e.g. "Daily Wire host; social-conservative, Catholic-traditionalist culture commentary"'
+          placeholder='Click "Resolve & draft" to auto-generate, or write your own…'
           value={rationale}
           onChange={(e) => setRationale(e.target.value)}
-          disabled={pending}
+          disabled={busy}
         />
       </label>
       <div className="flex items-center gap-3 mt-2">
-        <Button onClick={submit} disabled={disabled}>
+        <Button onClick={submit} disabled={!canSubmit}>
           {pending ? "Adding…" : "Add channel"}
         </Button>
       </div>
       <div className="text-[11px] text-gray-500 mt-2">
-        Resolves via YT API. Requires ≥300K subscribers. Deep-ingests 30 recent
+        Resolves via YT API. Requires ≥300K subscribers. &ldquo;Resolve &amp; draft&rdquo;
+        auto-generates the description (Haiku) for you to edit. Deep-ingests 30 recent
         episodes; the cron processes them automatically.
       </div>
       {err && (

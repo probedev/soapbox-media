@@ -7,6 +7,19 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
+## v0.6.79 · 2026-06-03
+
+### Added
+
+- **Admin add-channel now auto-drafts the description.** A new "Resolve & draft"
+  step on `/admin/channels` resolves the handle, reports floor/dup status, and
+  generates a one-sentence rationale in the site's house voice (Haiku, grounded
+  on the channel's own YouTube description + recent video titles + assigned
+  lean) — pre-filling the editable field so the admin *edits* rather than
+  *writes from scratch*. `previewYouTubeChannel()` / `generateChannelRationale()`
+  in `src/lib/channels.ts`; generation never blocks the add (falls back to a
+  template on error).
+
 ## v0.6.78 · 2026-06-03
 
 ### Fixed

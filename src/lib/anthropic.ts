@@ -17,6 +17,9 @@ export function getAnthropicClient(): Anthropic {
  */
 export const MODEL_CLASSIFY = "claude-sonnet-4-6";
 export const MODEL_SCORE = "claude-haiku-4-5-20251001";
+// Haiku for short one-off generations like the admin channel-rationale draft —
+// fast, cheap, and a single sentence doesn't need Sonnet.
+export const MODEL_RATIONALE = "claude-haiku-4-5-20251001";
 
 /**
  * Extract a JSON array or object from a Claude text response.

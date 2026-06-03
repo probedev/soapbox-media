@@ -10,9 +10,127 @@
  */
 import { createServiceClient } from "./db";
 import { resolveChannelByHandle, getRecentUploads } from "./youtube";
+import { getAnthropicClient, MODEL_RATIONALE } from "./anthropic";
 
 const MIN_DURATION_SEC = 180;
 const SUB_FLOOR = 300_000;
+
+const LEAN_LABEL = { L: "Left", M: "Middle / cross-cutting", R: "Right" } as const;
+
+/**
+ * Draft a one-sentence channel description in the site's house voice, given the
+ * channel's own metadata + the editorially-assigned lean. The admin EDITS this
+ * draft rather than writing from scratch — see [[admin-channel-autodescribe]].
+ *
+ * House style (from the existing panel): one line, ~12-25 words, concrete,
+ * posture-first; semicolon-separated clauses; names the host/network and the
+ * format; describes political character, never hypes. No markdown, no quotes.
+ * Falls back to a minimal template if the model call fails — generation must
+ * never block adding a channel.
+ */
+export async function generateChannelRationale(opts: {
+  title: string;
+  description: string;
+  lean: "L" | "M" | "R";
+  recentTitles?: string[];
+}): Promise<string> {
+  const { title, description, lean, recentTitles = [] } = opts;
+  const examples = [
+    "Flagship Democratic-adjacent podcast; ex-Obama staffers.",
+    "Long-form interviews; broadly non-partisan, contrarian-friendly.",
+    "Krystal Ball (L) + Saagar Enjeti (R-populist); explicit heterodox bridge show.",
+    "Hard-right cultural commentary; trans/gender focus.",
+    "CBS News' flagship Sunday newsmagazine; long-running investigative reports and profiles. Institutional, center-of-the-dial posture.",
+  ];
+  const prompt =
+    `Write ONE sentence (max ~25 words) describing this political show for a ` +
+    `media-bias tracker, matching the house style of these examples:\n` +
+    examples.map((e) => `- ${e}`).join("\n") +
+    `\n\nChannel: ${title}\nEditorial lean: ${LEAN_LABEL[lean]}\n` +
+    `Their own description: ${(description || "(none)").slice(0, 800)}\n` +
+    (recentTitles.length
+      ? `Recent video titles: ${recentTitles.slice(0, 8).join(" | ").slice(0, 600)}\n`
+      : "") +
+    `\nReturn ONLY the sentence — no preamble, no quotes, no markdown. Describe ` +
+    `the host/network, format, and political posture. Do not invent facts not ` +
+    `supported by the inputs.`;
+
+  try {
+    const res = await getAnthropicClient().messages.create({
+      model: MODEL_RATIONALE,
+      max_tokens: 120,
+      messages: [{ role: "user", content: prompt }],
+    });
+    const text = res.content
+      .map((b) => (b.type === "text" ? b.text : ""))
+      .join("")
+      .trim()
+      .replace(/^["'\s]+|["'\s]+$/g, "");
+    if (text) return text;
+  } catch {
+    // fall through to template
+  }
+  return `${title}; ${LEAN_LABEL[lean]} posture. (Auto-draft failed — please edit.)`;
+}
+
+export interface ChannelPreview {
+  name: string;
+  subscriberCount: number;
+  videoCount: number;
+  draftRationale: string;
+  alreadyInPanel: boolean;
+  belowFloor: boolean;
+}
+
+/**
+ * Read-only resolve + draft step for the admin add-channel form: resolves the
+ * handle, reports floor/dup status, and auto-drafts a rationale the admin can
+ * edit before committing via addYouTubeChannel. Never writes.
+ */
+export async function previewYouTubeChannel(
+  handleOrUrl: string,
+  lean: "L" | "M" | "R",
+): Promise<ChannelPreview> {
+  const handle = extractYouTubeHandle(handleOrUrl);
+  if (!handle) {
+    throw new Error("Couldn't parse a YouTube handle. Try `@channelname` or a youtube.com/@... URL.");
+  }
+  const yt = await resolveChannelByHandle(handle);
+  if (!yt) throw new Error(`YouTube channel @${handle} not found.`);
+
+  const db = createServiceClient();
+  const { data: existing } = await db
+    .from("channels")
+    .select("id")
+    .eq("platform", "youtube")
+    .eq("platform_id", yt.id)
+    .maybeSingle();
+
+  // Pull a few recent titles for richer grounding (best-effort).
+  let recentTitles: string[] = [];
+  try {
+    const vids = await getRecentUploads(yt.uploadsPlaylistId, 8);
+    recentTitles = vids.map((v) => v.title).filter(Boolean);
+  } catch {
+    /* non-fatal */
+  }
+
+  const draftRationale = await generateChannelRationale({
+    title: yt.title,
+    description: yt.description,
+    lean,
+    recentTitles,
+  });
+
+  return {
+    name: yt.title,
+    subscriberCount: yt.subscriberCount,
+    videoCount: yt.videoCount,
+    draftRationale,
+    alreadyInPanel: !!existing,
+    belowFloor: yt.subscriberCount < SUB_FLOOR,
+  };
+}
 
 /** Pull a YT handle out of a raw input (handle, @handle, or full URL). */
 export function extractYouTubeHandle(input: string): string | null {
