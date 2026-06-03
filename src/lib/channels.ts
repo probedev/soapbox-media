@@ -11,6 +11,7 @@
 import { createServiceClient } from "./db";
 import { resolveChannelByHandle, getRecentUploads } from "./youtube";
 import { getAnthropicClient, MODEL_RATIONALE } from "./anthropic";
+import type { Cohort } from "./cohort";
 
 const MIN_DURATION_SEC = 180;
 const SUB_FLOOR = 300_000;
@@ -150,6 +151,9 @@ export interface AddChannelInput {
   /** One-sentence rationale for the lean assignment — shown on /channels.
    *  Required so the panel surface stays informative. */
   rationale: string;
+  /** Cohort placement: independent (creator/native) vs legacy (traditional
+   *  institution). Defaults to independent — most additions are creators. */
+  cohort?: Cohort;
   nameOverride?: string;
   /** Max episodes to deep-ingest after adding. Default 30. */
   backfillCount?: number;
@@ -204,6 +208,7 @@ export async function addYouTubeChannel(input: AddChannelInput): Promise<AddChan
       platform: "youtube",
       platform_id: yt.id,
       political_lean: input.lean,
+      cohort: input.cohort ?? "independent",
       reach: yt.subscriberCount,
       classification_rationale: input.rationale.trim(),
       active: true,

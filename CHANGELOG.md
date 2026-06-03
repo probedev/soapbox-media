@@ -7,6 +7,16 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
+## v0.6.80 · 2026-06-03
+
+### Added
+
+- **Cohort dropdown on admin add-channel.** The `/admin/channels` form now has
+  an Independent / Legacy selector (defaults to Independent), so a channel's
+  cohort is set at add-time instead of defaulting to independent and being
+  fixed up afterward (as 60 Minutes + Real Time had to be). Threaded through
+  `AddChannelInput.cohort` → the insert in `addYouTubeChannel`.
+
 ## v0.6.79 · 2026-06-03
 
 ### Added

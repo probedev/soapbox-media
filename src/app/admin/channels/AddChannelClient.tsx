@@ -29,6 +29,7 @@ export function AddChannelClient() {
   const [drafting, startDrafting] = useTransition();
   const [handle, setHandle] = useState("");
   const [lean, setLean] = useState<"L" | "M" | "R" | "">("");
+  const [cohort, setCohort] = useState<"independent" | "legacy">("independent");
   const [rationale, setRationale] = useState("");
   const [preview, setPreview] = useState<PreviewNote | null>(null);
   const [err, setErr] = useState<string | null>(null);
@@ -62,6 +63,7 @@ export function AddChannelClient() {
       const r = await addChannelAction({
         handleOrUrl: handle,
         lean: lean as "L" | "M" | "R",
+        cohort,
         rationale,
       });
       if (!r.ok) {
@@ -77,6 +79,7 @@ export function AddChannelClient() {
       });
       setHandle("");
       setLean("");
+      setCohort("independent");
       setRationale("");
       setPreview(null);
       router.refresh();
@@ -90,7 +93,7 @@ export function AddChannelClient() {
   return (
     <div className="border border-gray-200 rounded-lg bg-white p-5">
       <div className="text-sm font-semibold mb-3">Add a YouTube channel</div>
-      <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto_auto] gap-2.5 items-end">
+      <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto_auto_auto] gap-2.5 items-end">
         <label className="text-xs text-gray-600 block">
           Handle or URL
           <input
@@ -114,6 +117,18 @@ export function AddChannelClient() {
             <option value="L">L (Left)</option>
             <option value="M">M (Middle)</option>
             <option value="R">R (Right)</option>
+          </select>
+        </label>
+        <label className="text-xs text-gray-600 block">
+          Cohort
+          <select
+            className={inputClass}
+            value={cohort}
+            onChange={(e) => setCohort(e.target.value as "independent" | "legacy")}
+            disabled={busy}
+          >
+            <option value="independent">Independent</option>
+            <option value="legacy">Legacy</option>
           </select>
         </label>
         <Button variant="outline" onClick={draft} disabled={!canDraft}>
