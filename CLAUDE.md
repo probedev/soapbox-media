@@ -58,9 +58,14 @@ swappable. Aggregation (`src/lib/aggregate.ts`) is read-only.
 ## Infra facts
 
 - Cron: Vercel, per-stage jobs with throughput-tuned cadences (set in
-  `vercel.json`). Ingest 1×/day (10:00 UTC). Transcribe + classify every 4h
-  (6×/day), classify offset +30 min. Score every 6h. Discover weekly (Mon
-  11:00 UTC). Each stage has a 300s function limit; classify's per-run wall-
+  `vercel.json`). Ingest 1×/day (10:00 UTC). Transcribe + classify every 2h
+  (12×/day), classify offset +30 min. Score every 3h (also refreshes the home
+  snapshot). Cadence tightened v0.6.81 now stages are parallelized — frequency
+  doesn't change cost (episode *volume* does), it just cuts processing latency.
+  Ingest stays 1×/day on purpose: its 3-episode cap is enforced per-RUN, so
+  running it more often would over-sample high-volume channels past the 3/day
+  "stance per audience" cap (would need a per-day cap first). Discover weekly
+  (Mon 11:00 UTC). Each stage has a 300s function limit; classify's per-run wall-
   clock is bounded by `STAGE_TIME_BUDGET_MS = 240s` in `src/lib/pipeline.ts`
   (v0.6.43) so it always completes cleanly as the taxonomy grows. Stage logic
   is in `src/lib/pipeline.ts`; `/api/cron/pipeline` kept for manual full runs.

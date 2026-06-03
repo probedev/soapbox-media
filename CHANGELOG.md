@@ -7,6 +7,20 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
+## v0.6.81 · 2026-06-03
+
+### Changed
+
+- **Tighter pipeline cadence for a fresher site.** Now that transcribe/classify/
+  score run through concurrency pools, processing latency — not cost — is the
+  thing to cut (cost tracks episode *volume*, which is unchanged). Transcribe +
+  classify go from every 4h → **every 2h**; score from every 6h → **every 3h**
+  (score also refreshes the home snapshot, so the needle now updates 8×/day
+  instead of 4×). Capacity check: score 8×240=1,920 mentions/day vs ~1,400
+  steady-state; classify 12×60=720 episodes/day vs ~230. Ingest stays 1×/day —
+  its 3-episode cap is per-run, so more frequent ingest would over-sample
+  high-volume channels past the 3/day "stance per audience" cap.
+
 ## v0.6.80 · 2026-06-03
 
 ### Added
