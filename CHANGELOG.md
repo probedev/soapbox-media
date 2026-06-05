@@ -7,6 +7,19 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
+## v0.6.82 · 2026-06-05
+
+### Changed
+
+- **Score throughput resized for the expanded panel: `SCORE_LIMIT` 240 → 720.**
+  The channel expansion tripled episode intake (~470 eps/day, ~10 mentions/ep
+  ≈ 4,700 mentions/day) while score capacity stayed at 8×240 = 1,920/day —
+  every cron run saturated its cap and ~2,000 unscored classifications piled
+  up, showing as partially-scored episodes in /log. 240 mentions took ~35s per
+  run, so 720 (~105s) fits comfortably inside the 240s stage time budget; new
+  capacity is 8×720 = 5,760/day. Cost impact is negligible (score is Haiku,
+  ~$0.65 per 1,000 mentions).
+
 ## v0.6.81 · 2026-06-03
 
 ### Changed

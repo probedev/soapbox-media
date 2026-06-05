@@ -51,7 +51,12 @@ export const MAX_TRANSCRIPT_ATTEMPTS = 3;
 // for an Anthropic Max-tier account; dial down if 429s appear.
 export const CLASSIFY_LIMIT = 60;
 export const CLASSIFY_CONCURRENCY = 10;
-export const SCORE_LIMIT = 240;
+// SCORE_LIMIT 240 → 720 (v0.6.82): the channel expansion tripled episode
+// intake (~470 eps/day × ~10 mentions/ep ≈ 4,700 mentions/day) and 8×240 =
+// 1,920/day fell ~2.5× short — every run saturated and partial-scored
+// episodes piled up in /log. 240 mentions took ~35s, so 720 fits the 240s
+// budget with margin; the time-budget guard below is the real backstop.
+export const SCORE_LIMIT = 720;
 export const SCORE_CONCURRENCY = 15;
 // Wall-clock budget per stage. The per-stage cron has a 300s function limit;
 // classify slows as the taxonomy grows (more issues → more mentions/episode),
