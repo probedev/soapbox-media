@@ -7,6 +7,20 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
+## v0.7.1 · 2026-06-06
+
+### Added
+
+- **/mcp page — public walkthrough of the MCP server.** Who it's for
+  (campaign teams, media buyers, consultants, pollsters, comms shops,
+  journalists), eight persona-mapped example questions the dataset answers
+  today, the nine-tool reference table, the data boundaries (excerpts +
+  source links, never full transcripts), and copy-paste connect configs for
+  Claude Code, Claude Desktop (mcp-remote bridge), Cursor, and VS Code —
+  with an honest note that claude.ai/ChatGPT web connectors need OAuth
+  (roadmap). Beta keys are free, requested via access@soapbox.media.
+  Footer now links the page as "For AI Agents".
+
 ## v0.7.0 · 2026-06-06
 
 ### Added
