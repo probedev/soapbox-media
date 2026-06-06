@@ -76,6 +76,43 @@ export default function MethodologyPage() {
           relevant <a href="/channels" className="underline hover:text-gray-900">channels page</a>.
         </p>
 
+        <h2 className="text-xl font-semibold mt-12">Audience reach: how we measure it</h2>
+        <p className="text-gray-700 mt-3 leading-relaxed">
+          Reach is the weighting input in the Index formula above, so it deserves its own
+          disclosure. The two platforms are measured differently, because the data available for
+          them is fundamentally different.
+        </p>
+        <p className="text-gray-700 mt-4 leading-relaxed">
+          <strong>YouTube channels</strong> use subscriber counts from the YouTube Data API,
+          refreshed automatically every day during the ingest pass. These are measured values
+          straight from the platform — current, consistent, and not subject to our judgment.
+        </p>
+        <p className="text-gray-700 mt-4 leading-relaxed">
+          <strong>Podcasts</strong> have no equivalent. No public per-show audience measurement
+          exists at panel scale: the professional sources (Edison, Triton) are enterprise-gated
+          and cover only top-chart shows, and when we tested commercial aggregators&apos; audience
+          fields against shows with publicly corroborated numbers, the values were unusable —
+          one put a 7M-listener show at 100 listeners. So podcast reach is{" "}
+          <strong>editorial</strong>: an estimated weekly US audience, set by hand and bracketed
+          to coarse tiers (150k, 300k, 500k, 1M, …) rather than presented with false precision.
+        </p>
+        <p className="text-gray-700 mt-4 leading-relaxed">
+          Estimates are anchored to the ~28 shows whose audiences are publicly corroborated
+          (Edison rankings, publisher announcements), and the remaining panel is placed on that
+          scale using multiple signals: chart positions, ratings volume, public rankers,
+          YouTube presence for video-native shows, and a commercial popularity score we
+          calibrated against the anchors and use only as a weak prior. Values are reviewed at
+          panel-add time and recalibrated periodically; the most recent full-panel pass was
+          June&nbsp;2026.
+        </p>
+        <p className="text-gray-700 mt-4 leading-relaxed">
+          Why this is tolerable: the Index weights by <code className="text-sm">log10(reach)</code>,
+          which compresses estimation error. If we&apos;re wrong about a show&apos;s audience by 2×,
+          its weight moves by about 0.3 (log10 of 2), or roughly 5% of a typical weight — not 2×.
+          The ordering across tiers matters far more than precision within a tier, and the
+          ordering is what the anchoring protects.
+        </p>
+
         <h2 className="text-xl font-semibold mt-12">Cohorts: independent vs legacy</h2>
         <p className="text-gray-700 mt-3 leading-relaxed">
           We track two cohorts of channel on the same platform (YouTube and podcasts), scored the

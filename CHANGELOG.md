@@ -7,6 +7,30 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
+## v0.7.2 · 2026-06-06
+
+### Changed
+
+- **Editorial reach calibration for 77 placeholder podcasts.** 72% of the
+  podcast panel carried the seeder's 300k default (the PodScan fields the
+  seeders read are never populated, so the "fallback" was really the
+  default). Replaced with researched editorial estimates anchored to the ~28
+  publicly-corroborated shows, using chart positions, publisher
+  announcements, public rankers, YouTube presence, and a Podchaser
+  powerScore prior (calibrated: ρ=0.57 — useful as prior, not as truth).
+  Values bracketed to coarse tiers (50k–5M); biggest corrections: Theo Von
+  300k → 5M, Up First 300k → 4M, Benny Show/Piers Morgan 300k → 2M. Total
+  podcast panel reach 23.1M → 39.7M. Apply script
+  (`scripts/apply-reach-estimates.ts`) only touches exact-300k rows, so
+  anchors are untouchable and re-runs are no-ops.
+- **Methodology page: "Audience reach: how we measure it."** New section
+  disclosing the split measurement model — YouTube subscriber counts from
+  the YouTube Data API (auto-refreshed daily at ingest) vs editorial
+  weekly-listener estimates for podcasts (no public per-show measurement
+  exists at panel scale; commercial aggregator audience fields verified
+  unusable). Documents the anchoring approach, tier bracketing, review
+  cadence, and why log10 weighting compresses estimation error.
+
 ## v0.7.1 · 2026-06-06
 
 ### Added
