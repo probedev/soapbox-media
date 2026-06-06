@@ -1,0 +1,173 @@
+/**
+ * Public MCP server — lets external AI agents (campaign managers, media
+ * buyers, consultants) query Soapbox data: the Index, issue trends, channel
+ * stances, and mention-level quotes with sources.
+ *
+ * Transport: Streamable HTTP at POST /api/mcp/mcp (SSE transport is not
+ * enabled — it would need Redis; modern MCP clients use streamable HTTP).
+ *
+ * Auth: Bearer key (or x-api-key) checked against MCP_ACCESS_KEYS — a
+ * comma-separated list so demo keys can be issued/revoked per-customer
+ * without code changes. FAILS CLOSED when the env var is unset. OAuth +
+ * billing deliberately deferred until demo interest proves out.
+ *
+ * Data policy: full transcripts are NEVER exposed (licensing + house rule) —
+ * mention-level supporting quotes with episode source links only. All tools
+ * are read-only via the service client; RLS posture unchanged.
+ */
+import { createMcpHandler } from "mcp-handler";
+import { z } from "zod";
+
+import { getDashboardData, getIssueDrillDown, getChannelDrillDown, getPanelStats } from "@/lib/aggregate";
+import { searchMentions, issueTrend, listIssues, listChannels } from "@/lib/mcp-data";
+import { VERSION } from "@/lib/version";
+
+export const maxDuration = 60;
+
+const json = (data: unknown) => ({
+  content: [{ type: "text" as const, text: JSON.stringify(data, null, 1) }],
+});
+
+const handler = createMcpHandler(
+  (server) => {
+    server.tool(
+      "get_index",
+      "The Soapbox Index: a reach- and intensity-weighted left/right needle (-10 = fully left-aligned, +10 = fully right-aligned) summarizing what tracked alt-media political channels are saying, over a trailing window. Returns the index, delta vs the prior same-length window, a daily-rolling sparkline, and top issues by mention volume.",
+      { window_days: z.number().int().min(1).max(90).default(7).describe("Trailing window in days (7 = site default)") },
+      async ({ window_days }) => {
+        const d = await getDashboardData(window_days);
+        return json({
+          as_of: d.asOfDate, window_days: d.windowDays, index: d.index, delta: d.delta,
+          sparkline: d.sparkline, sparkline_dates: d.sparklineDates,
+          top_issues: d.issues, panel: { channels: d.numChannels, episodes: d.numEpisodes, scored_mentions: d.numClassifications },
+        });
+      },
+    );
+
+    server.tool(
+      "get_movers",
+      "Issues with the biggest period-over-period change — either lean swing (which direction the conversation moved) or mention-volume swing (what got loud/quiet). Eligibility floors filter out thin-sample noise.",
+      { window_days: z.number().int().min(1).max(90).default(7).describe("Trailing window in days; compared against the same-length window immediately prior") },
+      async ({ window_days }) => {
+        const d = await getDashboardData(window_days);
+        return json({ as_of: d.asOfDate, window_days: d.windowDays, movers: d.movers });
+      },
+    );
+
+    server.tool(
+      "list_issues",
+      "The issue taxonomy: every tracked issue with its slug, definition, and the canonical left/right positions used for scoring, grouped under locked topic slugs. Call this first to get valid issue_slug values for other tools.",
+      {},
+      async () => json(await listIssues()),
+    );
+
+    server.tool(
+      "list_channels",
+      "The channel panel: every tracked show (YouTube + podcast) with id, editorial lean (L/M/R), cohort (independent alt-media vs legacy mainstream), and estimated audience reach. Call this to get channel_id values for other tools.",
+      {},
+      async () => json(await listChannels()),
+    );
+
+    server.tool(
+      "get_issue_detail",
+      "Drill into one issue: per-channel contribution ranking for the current week — which shows are driving the conversation on this issue and from which side.",
+      { issue_slug: z.string().describe("Issue slug from list_issues") },
+      async ({ issue_slug }) => {
+        const d = await getIssueDrillDown(issue_slug);
+        return json(d ?? { error: `unknown issue_slug: ${issue_slug}` });
+      },
+    );
+
+    server.tool(
+      "get_channel_detail",
+      "Drill into one channel: its issue mix and stance profile — what this show talks about and how it leans per issue.",
+      { channel_id: z.string().uuid().describe("Channel UUID from list_channels") },
+      async ({ channel_id }) => {
+        const d = await getChannelDrillDown(channel_id);
+        return json(d ?? { error: `unknown channel_id: ${channel_id}` });
+      },
+    );
+
+    server.tool(
+      "search_mentions",
+      "Search scored issue mentions — each result is a verbatim quote (excerpt) from an episode with its sentiment score (-5 = left-aligned framing, +5 = right-aligned framing), intensity (1-5), issue, channel, and a source link to the full episode. Filter by issue, channel, lean, cohort, platform, date range, sentiment range, or keyword within the quote. Results are ordered by scoring recency, NOT publish date — use published_after/published_before to control the time window. Full transcripts are not available through this API; quotes + source links only.",
+      {
+        issue_slug: z.string().optional().describe("Filter to one issue (from list_issues)"),
+        channel_id: z.string().uuid().optional().describe("Filter to one channel (from list_channels)"),
+        lean: z.array(z.enum(["L", "M", "R"])).optional().describe("Filter by channel editorial lean"),
+        cohort: z.enum(["independent", "legacy"]).optional().describe("independent = alt-media panel (drives the public Index); legacy = mainstream comparison set"),
+        platform: z.enum(["youtube", "podcast"]).optional(),
+        published_after: z.string().optional().describe("ISO date — episodes published on/after"),
+        published_before: z.string().optional().describe("ISO date — episodes published on/before"),
+        sentiment_min: z.number().min(-5).max(5).optional(),
+        sentiment_max: z.number().min(-5).max(5).optional(),
+        quote_contains: z.string().optional().describe("Case-insensitive substring match within the quote text"),
+        limit: z.number().int().min(1).max(50).default(20),
+        offset: z.number().int().min(0).default(0).describe("Pagination offset"),
+      },
+      async (args) => json(await searchMentions(args)),
+    );
+
+    server.tool(
+      "get_issue_trend",
+      "Weekly time series for one issue: mention volume, average sentiment (-5 left to +5 right), and average intensity per UTC week. Use for trajectory questions ('how has the conversation on X moved?').",
+      {
+        issue_slug: z.string().describe("Issue slug from list_issues"),
+        window_days: z.number().int().min(7).max(365).default(90),
+        cohort: z.enum(["independent", "legacy"]).optional().describe("Omit for both cohorts"),
+      },
+      async ({ issue_slug, window_days, cohort }) => json(await issueTrend(issue_slug, window_days, cohort)),
+    );
+
+    server.tool(
+      "get_methodology",
+      "How Soapbox works: pipeline, scoring scale, weighting, calibration, and current panel statistics. Cite this when presenting numbers to stakeholders.",
+      {},
+      async () => {
+        const stats = await getPanelStats();
+        return json({
+          version: VERSION,
+          pipeline: "Episodes from tracked YouTube channels and podcasts are transcribed, classified against a two-level issue taxonomy (locked topics over living issues) by Claude Sonnet with verbatim supporting quotes, then each mention is scored by Claude Haiku.",
+          sentiment_scale: "Per-mention sentiment: -5.0 (strongly left-aligned framing) to +5.0 (strongly right-aligned framing), with intensity 1-5 for how forcefully the position is held.",
+          index: "The Soapbox Index (-10..+10) aggregates mention sentiment weighted by log10(channel reach) x intensity over a trailing window. The public Index uses the independent (alt-media) cohort only; the legacy cohort is tracked for comparison.",
+          calibration: "Scores are validated against a human-labeled gold set; humans calibrate and validate, the model measures at scale. Sentiment distribution is bimodal by design (positions cluster left/right).",
+          reach_caveat: "Podcast audience estimates are editorial (reviewed at panel-add time); YouTube subscriber counts refresh daily.",
+          transcript_policy: "Full transcripts are never republished or exposed via this API - verbatim excerpts with episode source links only.",
+          panel: stats,
+        });
+      },
+    );
+  },
+  {
+    serverInfo: { name: "soapbox-media", version: VERSION },
+  },
+  {
+    basePath: "/api/mcp",
+    maxDuration: 60,
+    disableSse: true,
+  },
+);
+
+/** Constant-time-ish key check against the comma-separated allowlist. Fails closed. */
+function authorized(req: Request): boolean {
+  const raw = process.env.MCP_ACCESS_KEYS || "";
+  const keys = raw.split(",").map((k) => k.trim()).filter(Boolean);
+  if (keys.length === 0) return false;
+  const auth = req.headers.get("authorization") || "";
+  const presented = auth.toLowerCase().startsWith("bearer ")
+    ? auth.slice(7).trim()
+    : req.headers.get("x-api-key")?.trim() || "";
+  return presented.length > 0 && keys.includes(presented);
+}
+
+const withAuth = (req: Request) => {
+  if (!authorized(req)) {
+    return new Response(
+      JSON.stringify({ error: "unauthorized", hint: "Pass your Soapbox access key as 'Authorization: Bearer <key>'" }),
+      { status: 401, headers: { "content-type": "application/json" } },
+    );
+  }
+  return handler(req);
+};
+
+export { withAuth as GET, withAuth as POST, withAuth as DELETE };

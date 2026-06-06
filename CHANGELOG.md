@@ -7,6 +7,26 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
+## v0.7.0 · 2026-06-06
+
+### Added
+
+- **Public MCP server** (`/api/mcp/mcp`, Streamable HTTP) — external AI agents
+  can now query Soapbox data directly: campaign managers / media buyers /
+  consultants connect their own agents and ask arbitrary questions instead of
+  being limited to our charts. Nine read-only tools: `get_index`,
+  `get_movers`, `list_issues`, `list_channels`, `get_issue_detail`,
+  `get_channel_detail`, `search_mentions` (the workhorse — filtered
+  quote-level search with sentiment, source links, pagination),
+  `get_issue_trend` (weekly volume/sentiment series), and `get_methodology`
+  (scoring scale + live panel stats, for citation). Auth via
+  `MCP_ACCESS_KEYS` (comma-separated bearer keys, fails closed) so demo keys
+  can be issued per-customer; OAuth/Stripe deferred until demo interest
+  proves out. Transcript policy enforced at the data layer: mention-level
+  verbatim quotes + episode source links only — full transcripts are never
+  exposed (PodScan/Supadata license them to us, not through us). New deps:
+  `mcp-handler`, `@modelcontextprotocol/sdk`, `zod`.
+
 ## v0.6.82 · 2026-06-05
 
 ### Changed
