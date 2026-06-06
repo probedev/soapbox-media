@@ -7,6 +7,19 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
+## v0.7.3 · 2026-06-06
+
+### Added
+
+- **/admin/homelab — home-page redesign lab.** All 14 candidate cards for
+  the home-page overhaul rendered against live data (90-day pull), grouped
+  by proposed zone, so the v1 cut and ordering can be chosen by looking:
+  Pulse, Battlefield, Heat Grid, Ownership Map, The Gap, Two Conversations,
+  Risers & Faders, Megaphone treemap, Lit Fuses, Strips, Receipts,
+  Cross-Talk (string-match v1 over scored quotes), Polarization Strip, and
+  Audio-vs-Video. Deliberately heavy/unoptimized — it's a decision tool;
+  chosen cards get snapshot-backed production implementations.
+
 ## v0.7.2 · 2026-06-06
 
 ### Changed
