@@ -7,6 +7,29 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
+## v0.8.0 · 2026-06-08
+
+### Added
+
+- **MCP access monetization — $300/mo Stripe subscription (workstream 2).**
+  Full subscribe → entitlement → gating chain on top of the OAuth identity:
+  - `/pricing` (subscribe) → `/api/stripe/checkout` (Checkout, subscription
+    mode, `client_reference_id` = Supabase user) → `/api/stripe/webhook`
+    (signature-verified; `checkout.session.completed` +
+    `customer.subscription.*` → upserts the `subscriptions` entitlement row) →
+    `/account` (status + post-checkout landing) via `/api/stripe/status`.
+  - **Gating:** MCP tools now require the `mcp` scope, which `verifyMcpToken`
+    grants only to active subscribers — OR everyone while `MCP_OPEN_BETA` is on
+    (default), so current testers aren't locked out. Flip `MCP_OPEN_BETA=false`
+    to enforce paid-only; static `MCP_ACCESS_KEYS` stay exempt (comped/demo).
+    Entitlement reads are DB-only (`lib/entitlements.ts`), no Stripe SDK in the
+    MCP hot path.
+  - New `subscriptions` table (RLS-on, service-role only). `setup-stripe-product.ts`
+    creates the idempotent $300/mo product+price. New dep: `stripe`.
+  - **Config still needed before live transacting:** `STRIPE_SECRET_KEY` (test
+    in dev), `STRIPE_PRICE_ID` (set), `STRIPE_WEBHOOK_SECRET` (from `stripe
+    listen` / dashboard webhook).
+
 ## v0.7.9 · 2026-06-08
 
 ### Changed

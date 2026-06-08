@@ -39,4 +39,12 @@ export const env = {
   get supadataApiKey() {
     return required("SUPADATA_API_KEY");
   },
+  // Stripe (workstream 2). Lazy getters — only throw when actually read at
+  // request time, so the app builds/runs fine before keys are configured.
+  get stripeSecretKey() {
+    return required("STRIPE_SECRET_KEY");
+  },
+  get stripeWebhookSecret() {
+    return required("STRIPE_WEBHOOK_SECRET");
+  },
 };

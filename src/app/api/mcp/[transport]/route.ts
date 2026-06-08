@@ -173,6 +173,9 @@ const handler = createMcpHandler(
 const authedHandler = withMcpAuth(handler, verifyMcpToken, {
   required: true,
   resourceMetadataPath: RESOURCE_METADATA_PATH,
+  // Entitlement gate: verifyMcpToken grants `mcp` only to subscribers (or
+  // everyone while MCP_OPEN_BETA is on). Non-entitled users → 403.
+  requiredScopes: ["mcp"],
 });
 
 // Legacy x-api-key callers bypass the OAuth challenge (they have no bearer

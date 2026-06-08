@@ -19,6 +19,7 @@ import { createRemoteJWKSet, jwtVerify } from "jose";
 import type { AuthInfo } from "@modelcontextprotocol/sdk/server/auth/types.js";
 
 import { env } from "@/lib/env";
+import { hasToolAccess } from "@/lib/entitlements";
 
 /** Canonical resource identifier for this MCP server (RFC 8707). Must match
  *  the `audience` the Supabase access-token hook stamps onto tokens. */
@@ -72,19 +73,22 @@ export async function verifyMcpToken(
       issuer: SUPABASE_ISSUER,
       audience: MCP_RESOURCE_URL,
     });
-    const scopes =
-      typeof payload.scope === "string" ? payload.scope.split(" ").filter(Boolean) : ["mcp"];
+    // Entitlement gating: grant the `mcp` scope (which the route requires) only
+    // to paid subscribers — OR everyone while MCP_OPEN_BETA is on. Non-entitled
+    // authenticated users get []  → withMcpAuth returns 403 insufficient_scope
+    // (a clean "subscription required", not an auth failure).
+    const access = await hasToolAccess(payload.sub as string);
     return {
       token,
       clientId: (payload.client_id as string) || (payload.azp as string) || "oauth-client",
-      scopes,
+      scopes: access ? ["mcp"] : [],
       expiresAt: payload.exp,
       resource: new URL(MCP_RESOURCE_URL),
       extra: {
         auth: "oauth",
         userId: payload.sub,
         email: (payload.email as string) ?? null,
-        // Subscription gating (workstream 2) will read entitlement here.
+        entitled: access,
       },
     };
   } catch {
