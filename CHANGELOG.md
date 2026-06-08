@@ -7,6 +7,21 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
+## v0.9.0 · 2026-06-08
+
+### Added
+
+- **Support donations (workstream 3).** Wikipedia-style "fund the referee"
+  contributions to Soapbox — pay-what-you-want one-time (Stripe `payment` mode
+  + `submit_type: donate`) or monthly (ad-hoc recurring price), no account
+  required (`/api/stripe/donate`, `DonationWidget`). New `/support` page plus
+  **L/M/R persuasion variants** (`/support/left|middle|right`) reframing the ask
+  for donors who already give to candidates across the map, sharing one
+  `SupportLanding` + copy map. `/support/thanks` confirmation. Clearly labeled
+  **not a political contribution and not tax-deductible** (for-profit LLC) —
+  goes to Soapbox/Breakfastball operations, never to candidates. Footer now
+  links **Support**.
+
 ## v0.8.6 · 2026-06-08
 
 ### Changed

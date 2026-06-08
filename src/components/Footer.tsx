@@ -25,7 +25,8 @@ export function Footer() {
             <a href="/channels" className="underline hover:text-gray-900">Channels</a>
             <a href="/log" className="underline hover:text-gray-900">Activity</a>
             <a href="/methodology" className="underline hover:text-gray-900">Methodology</a>
-            <a href="/mcp" className="underline hover:text-gray-900" title="Connect your AI agent to Soapbox data — request an access key">For AI Agents</a>
+            <a href="/mcp" className="underline hover:text-gray-900" title="Connect your AI agent to Soapbox data">For AI Agents</a>
+            <a href="/support" className="underline hover:text-gray-900" title="Support independent media transparency">Support</a>
           </div>
         </div>
         <div className="mt-4 pt-4 border-t border-gray-100 text-xs text-gray-400">
