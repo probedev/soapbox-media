@@ -7,6 +7,27 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
+## v0.7.9 · 2026-06-08
+
+### Changed
+
+- **Charting standardized on Recharts v3 + the shadcn chart component.**
+  Upgraded `recharts` 2.15.4 → 3.8.1 and re-pulled the v3 shadcn `chart.tsx`
+  (now ships `ChartTooltipContent`/`ChartLegendContent` + `initialDimension`).
+  Our code used none of v3's removed APIs, so the bump is clean — typecheck +
+  build green, home/issue/homelab chart pages render without errors. CLAUDE.md
+  now mandates the shadcn chart pattern (`ChartContainer` + `ChartConfig` +
+  `ChartTooltipContent`) for every new/touched chart, for consistent tooltips,
+  animations, theming, and a11y.
+- **shadcn MCP server configured** (`.mcp.json`) so components/charts are added
+  via the registry MCP (`npx shadcn@latest add …`) instead of hand-copying.
+  (Loads on next Claude session.)
+- Note: existing chart components (IndexAreaChart, VolumeAreaChart, homelab
+  cards) now run on v3 but keep their current custom tooltips; they adopt the
+  full shadcn `ChartTooltipContent` pattern as they're rebuilt in the home-page
+  redesign. Visual QA of the multi-axis Composed chart on /admin/homelab
+  recommended.
+
 ## v0.7.8 · 2026-06-08
 
 ### Fixed

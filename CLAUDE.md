@@ -89,8 +89,18 @@ with the user first.
 
 - Secrets live only in gitignored `.env.local` — never commit them.
 - Clean, type-safe, scalable code over MVP shortcuts. Cost-conscious
-  (~$1k/mo budget). UI is shadcn/ui + Tailwind; charts via Recharts; tables via
-  TanStack Table.
+  (~$1k/mo budget). UI is shadcn/ui + Tailwind; tables via TanStack Table.
+- **Charts: standardize on Recharts v3 + the shadcn chart component.** Every
+  chart (new or touched) uses `ChartContainer` + `ChartConfig` +
+  `ChartTooltip`/`ChartTooltipContent` (+ `ChartLegendContent` where useful)
+  from `src/components/ui/chart.tsx` — not bare Recharts elements or hand-rolled
+  tooltips. This buys consistent tooltips, animations, theming, and a11y across
+  the site. Give `ChartContainer` an explicit `min-h-*`/`aspect-*` (v3 needs a
+  measurable size). Reference chart colors via the `--chart-*` CSS tokens /
+  `ChartConfig.color`, never `hsl(var(...))`. Keep the house lean palette
+  (red = right `#dc2626`, blue = left `#2563eb`) and the L+x/R+x labels.
+  To add components/charts, use the **shadcn MCP** (configured in `.mcp.json`)
+  rather than hand-copying — `npx shadcn@latest add <component>`.
 - Scoring changes must be validated against the gold set (`/eval/label`) before
   shipping — the sentiment scale is bimodal and under active calibration.
 - Never republish full transcripts; excerpts + source links only.
