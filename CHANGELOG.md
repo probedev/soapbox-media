@@ -7,6 +7,26 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
+## v0.7.7 · 2026-06-08
+
+### Added
+
+- **MCP OAuth — consent screen + end-user accounts (part 2).** The app now has
+  end-user authentication (it was service-role-only before). New
+  `/oauth/consent` screen handles Supabase's OAuth authorization handoff:
+  reads `authorization_id`, requires a logged-in session, shows the requesting
+  client + scopes, and Approve/Deny via
+  `supabase.auth.oauth.{getAuthorizationDetails,approveAuthorization,denyAuthorization}`.
+  Login uses the shadcn **login-03** block wired to Supabase Auth
+  (email/password + Google/Apple social OAuth, password reset), reused on a
+  standalone `/login`. New browser Supabase client (`supabase-browser.ts`,
+  session-persisting) kept separate from the server data client. Added shadcn
+  `card` + `label` primitives.
+  - **Remaining dashboard step:** set Authentication → OAuth Server →
+    Authorization Path = `/oauth/consent` and confirm Site URL, then the
+    claude.ai/ChatGPT connect flow is end-to-end. Enable Google/Apple
+    providers if you want the social buttons live.
+
 ## v0.7.6 · 2026-06-08
 
 ### Added
