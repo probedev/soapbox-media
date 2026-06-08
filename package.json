@@ -1,6 +1,6 @@
 {
   "name": "soapbox",
-  "version": "0.7.3",
+  "version": "0.7.4",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -14,6 +14,7 @@
     "classify": "tsx scripts/classify.ts",
     "score": "tsx scripts/score.ts",
     "refresh:snapshot": "tsx scripts/refresh-snapshot.ts",
+    "refresh:trending": "tsx scripts/refresh-trending.ts",
     "drain": "tsx scripts/drain.ts",
     "discover": "tsx scripts/discover.ts",
     "discover:backfill": "tsx scripts/backfill-discovery.ts",

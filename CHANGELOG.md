@@ -7,6 +7,25 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
+## v0.7.4 · 2026-06-08
+
+### Added
+
+- **Trending Names (BETA) on the home page.** A named-entity burst tracker:
+  people, orgs, and places surging across the tracked panel this week, ranked
+  by how many shows picked them up, each linking back to the channels
+  discussing them. Validated via two probes (n-gram → entity) before build;
+  entities self-canonicalize the story (no clustering/LLM needed) and the
+  baseline auto-suppresses ad reads. Extraction is cheap & deterministic
+  (Title-Case runs over transcripts, ~$0) with edit-distance variant merging
+  (folds ASR misspellings like Platner/Plattner), a sentence-initial-ratio
+  filter + stopword/first-name blocklists to strip capitalized non-entities,
+  and breadth-gated rising rank. Persisted to `dashboard_snapshot`
+  (`trending_v1`), refreshed daily by `/api/cron/trending` (10:30 UTC, after
+  ingest). Labelled experimental — canonicalization is still maturing. Roadmap
+  path: PERSON/ORG/PLACE typing (ORG opens a corporate-comms cohort) and an
+  MCP tool.
+
 ## v0.7.3 · 2026-06-06
 
 ### Added
