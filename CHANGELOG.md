@@ -7,6 +7,16 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
+## v0.8.2 · 2026-06-08
+
+### Fixed
+
+- **Checkout `STRIPE_PRICE_ID not configured` in prod** — the price id was read
+  at module load (`export const PRICE_ID = process.env…`), which can be inlined
+  at build / survive build-cache and miss a runtime env var. Now read at
+  request time via `priceId()`. (If it still reports unset after this, the var
+  genuinely isn't in the Production environment scope.)
+
 ## v0.8.1 · 2026-06-08
 
 ### Changed

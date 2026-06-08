@@ -7,12 +7,13 @@ import { type NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
 import { env } from "@/lib/env";
-import { stripe, PRICE_ID, getOrCreateCustomer } from "@/lib/stripe";
+import { stripe, priceId, getOrCreateCustomer } from "@/lib/stripe";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest) {
-  if (!PRICE_ID) return NextResponse.json({ error: "STRIPE_PRICE_ID not configured" }, { status: 500 });
+  const PRICE = priceId();
+  if (!PRICE) return NextResponse.json({ error: "STRIPE_PRICE_ID not configured" }, { status: 500 });
 
   const token = (req.headers.get("authorization") || "").replace(/^Bearer\s+/i, "").trim();
   if (!token) return NextResponse.json({ error: "not authenticated" }, { status: 401 });
@@ -28,7 +29,7 @@ export async function POST(req: NextRequest) {
   const session = await stripe().checkout.sessions.create({
     mode: "subscription",
     customer: customerId,
-    line_items: [{ price: PRICE_ID, quantity: 1 }],
+    line_items: [{ price: PRICE, quantity: 1 }],
     client_reference_id: user.id,
     subscription_data: { metadata: { user_id: user.id } },
     success_url: `${origin}/account?checkout=success`,

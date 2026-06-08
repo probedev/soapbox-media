@@ -15,9 +15,12 @@ export function stripe(): Stripe {
   return _stripe;
 }
 
-/** The $300/mo recurring price. Created in Stripe (dashboard / MCP / script);
- *  set STRIPE_PRICE_ID in env. */
-export const PRICE_ID = process.env.STRIPE_PRICE_ID || "";
+/** The $300/mo recurring price (set STRIPE_PRICE_ID in env). Read at REQUEST
+ *  time, not module load — a module-level `process.env` const can be inlined
+ *  at build / survive build-cache and miss a later-added runtime var. */
+export function priceId(): string {
+  return process.env.STRIPE_PRICE_ID || "";
+}
 
 /** Find-or-create the Stripe customer for a Supabase user, persisting the id. */
 export async function getOrCreateCustomer(userId: string, email: string): Promise<string> {
