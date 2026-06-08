@@ -7,6 +7,14 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
+## v0.8.1 · 2026-06-08
+
+### Changed
+
+- Deploy bump to pick up the production Stripe env vars (`STRIPE_SECRET_KEY`,
+  `STRIPE_PRICE_ID`, `STRIPE_WEBHOOK_SECRET`) — Vercel only injects env on a
+  fresh deployment, and the v0.8.0 build predated them. No code change.
+
 ## v0.8.0 · 2026-06-08
 
 ### Added
