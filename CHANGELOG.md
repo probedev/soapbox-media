@@ -7,6 +7,17 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
+## v0.8.3 · 2026-06-08
+
+### Fixed
+
+- **Checkout hung with "No such customer" after going live.** A test-mode
+  Stripe customer id (from local test-mode checkout) was stored in the shared
+  `subscriptions` table and reused in live mode, where it doesn't exist.
+  `getOrCreateCustomer` now verifies the stored customer exists in the current
+  Stripe mode and recreates it if stale (handles test↔live and deleted
+  customers). The stale test row was also cleared.
+
 ## v0.8.2 · 2026-06-08
 
 ### Fixed

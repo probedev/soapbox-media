@@ -30,7 +30,17 @@ export async function getOrCreateCustomer(userId: string, email: string): Promis
     .select("stripe_customer_id")
     .eq("user_id", userId)
     .maybeSingle();
-  if (data?.stripe_customer_id) return data.stripe_customer_id;
+  if (data?.stripe_customer_id) {
+    // Verify the stored customer exists in the CURRENT Stripe mode/account.
+    // A test-mode id used in live mode (or a deleted customer) would otherwise
+    // 500 with "No such customer" — so recreate if it's stale.
+    try {
+      const existing = await stripe().customers.retrieve(data.stripe_customer_id);
+      if (existing && !(existing as { deleted?: boolean }).deleted) return data.stripe_customer_id;
+    } catch {
+      /* stale id — fall through and create a fresh customer */
+    }
+  }
 
   const customer = await stripe().customers.create({ email, metadata: { user_id: userId } });
   await db.from("subscriptions").upsert(
