@@ -7,6 +7,17 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
+## v0.9.1 · 2026-06-08
+
+### Changed
+
+- **Support page copy rewritten in a warmer, Wikipedia-style appeal** —
+  reflective and second-person ("think back over this past year of politics…
+  what is political media actually saying?"), with the "$5, $20, $50, or
+  whatever feels right" ask, an independence/threat framing, and a closing
+  thank-you. L/M/R headlines kept as the targeted hook over a shared appeal
+  body; widget made sticky. Footer link now reads "Support our work."
+
 ## v0.9.0 · 2026-06-08
 
 ### Added
