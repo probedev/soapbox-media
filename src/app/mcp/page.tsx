@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 
 import { Footer } from "@/components/Footer";
 import { Header } from "@/components/Header";
+import { SubscribeButton } from "@/components/SubscribeButton";
 
 export const dynamic = "force-dynamic";
 
@@ -97,15 +98,15 @@ export default function McpPage() {
           with verbatim quotes and source links.
         </p>
 
-        <div className="mt-6 p-4 border border-gray-300 bg-gray-50 rounded-md text-sm text-gray-700">
-          <span className="font-semibold">Beta access is free.</span> Keys are issued per
-          organization while we learn what people ask.{" "}
-          <a
-            href="mailto:access@soapbox.media?subject=Soapbox%20MCP%20access%20key&body=Name%3A%0AOrganization%3A%0AWhat%20you%20want%20to%20ask%20the%20data%3A"
-            className="underline font-semibold hover:text-gray-900"
-          >
-            Request an access key →
-          </a>
+        <div className="mt-6 p-5 border border-gray-300 bg-gray-50 rounded-lg">
+          <div className="flex items-baseline gap-2">
+            <span className="text-2xl font-semibold text-gray-900">$300</span>
+            <span className="text-gray-500 text-sm">/month · full MCP access</span>
+          </div>
+          <p className="text-sm text-gray-600 mt-1 mb-3">
+            Subscribe and we&apos;ll email you a link to set your password and connect your agent. Cancel anytime.
+          </p>
+          <SubscribeButton />
         </div>
 
         <h2 className="text-xl font-semibold mt-12">Who this is for</h2>
@@ -166,14 +167,14 @@ export default function McpPage() {
         <h2 className="text-xl font-semibold mt-12">Connect your agent</h2>
         <p className="text-gray-700 mt-3 leading-relaxed">
           The server speaks streamable-HTTP MCP at{" "}
-          <code className="text-sm break-all">{ENDPOINT}</code> and authenticates with your access
-          key as a bearer token.
+          <code className="text-sm break-all">{ENDPOINT}</code>. You authenticate by signing in with
+          your Soapbox subscription account (OAuth) — your client opens a browser to log in and
+          approve; there&apos;s no key to paste.
         </p>
 
         <h3 className="text-base font-semibold mt-8">Claude Code</h3>
         <CodeBlock>
-          {`claude mcp add --transport http soapbox ${ENDPOINT} \\
-  --header "Authorization: Bearer YOUR_ACCESS_KEY"`}
+          {`claude mcp add --transport http soapbox ${ENDPOINT}`}
         </CodeBlock>
 
         <h3 className="text-base font-semibold mt-8">Claude Desktop</h3>
@@ -186,10 +187,7 @@ export default function McpPage() {
   "mcpServers": {
     "soapbox": {
       "command": "npx",
-      "args": [
-        "mcp-remote", "${ENDPOINT}",
-        "--header", "Authorization: Bearer YOUR_ACCESS_KEY"
-      ]
+      "args": ["mcp-remote", "${ENDPOINT}"]
     }
   }
 }`}
@@ -203,10 +201,7 @@ export default function McpPage() {
         <CodeBlock>
           {`{
   "mcpServers": {
-    "soapbox": {
-      "url": "${ENDPOINT}",
-      "headers": { "Authorization": "Bearer YOUR_ACCESS_KEY" }
-    }
+    "soapbox": { "url": "${ENDPOINT}" }
   }
 }`}
         </CodeBlock>
@@ -216,35 +211,30 @@ export default function McpPage() {
           {`// .vscode/mcp.json
 {
   "servers": {
-    "soapbox": {
-      "type": "http",
-      "url": "${ENDPOINT}",
-      "headers": { "Authorization": "Bearer YOUR_ACCESS_KEY" }
-    }
+    "soapbox": { "type": "http", "url": "${ENDPOINT}" }
   }
 }`}
         </CodeBlock>
 
         <h3 className="text-base font-semibold mt-8">claude.ai and ChatGPT connectors</h3>
         <p className="text-gray-700 mt-2 text-sm leading-relaxed">
-          Web-app connectors on claude.ai and ChatGPT currently require OAuth rather than static
-          keys. OAuth support is on our roadmap; until then, use one of the configurations above —
-          they cover the same models.
+          Add a custom connector with the URL above. The connector runs the OAuth sign-in in your
+          browser — log in with your subscription account and approve, and it&apos;s connected.
         </p>
 
-        <h2 className="text-xl font-semibold mt-12">Get a key</h2>
+        <h2 className="text-xl font-semibold mt-12">Get access</h2>
         <p className="text-gray-700 mt-3 leading-relaxed">
-          Email{" "}
-          <a
-            href="mailto:access@soapbox.media?subject=Soapbox%20MCP%20access%20key&body=Name%3A%0AOrganization%3A%0AWhat%20you%20want%20to%20ask%20the%20data%3A"
-            className="underline font-semibold hover:text-gray-900"
-          >
-            access@soapbox.media
-          </a>{" "}
-          with your name, organization, and a sentence on what you want to ask the data. Beta keys
-          are free, issued per organization, and revocable. Tell us what you asked that didn&apos;t
-          work — that&apos;s the roadmap.
+          $300/month for full MCP access. Subscribe below — no account needed up front; after
+          payment we email you a link to set your password, then connect your agent with the steps
+          above. Cancel anytime.
         </p>
+        <div className="mt-4 p-5 border border-gray-300 bg-gray-50 rounded-lg flex items-center justify-between gap-4 flex-wrap">
+          <div>
+            <span className="text-2xl font-semibold text-gray-900">$300</span>
+            <span className="text-gray-500 text-sm">/month</span>
+          </div>
+          <SubscribeButton />
+        </div>
       </section>
 
       <Footer />

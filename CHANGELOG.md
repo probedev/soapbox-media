@@ -7,6 +7,17 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
+## v0.8.6 · 2026-06-08
+
+### Changed
+
+- **/mcp page: subscribe in, beta-access out.** Replaced the "request a beta
+  access key" CTA (and the bottom "Get a key" section) with the $300/mo
+  pay-first **Subscribe** card (new reusable `SubscribeButton`). Connect
+  instructions updated to the OAuth sign-in path — no `YOUR_ACCESS_KEY` headers;
+  just the server URL + browser login. claude.ai/ChatGPT note updated from
+  "OAuth on roadmap" to "supported."
+
 ## v0.8.5 · 2026-06-08
 
 ### Changed
