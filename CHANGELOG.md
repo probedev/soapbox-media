@@ -7,6 +7,17 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
+## v0.8.4 · 2026-06-08
+
+### Fixed
+
+- **Checkout now fails gracefully instead of hanging.** An unhandled Stripe
+  error (e.g. account/mode mismatch) returned a generic 500 with no JSON, so
+  the Subscribe button hung. Wrapped customer + session creation in a
+  try/catch that returns the error message (502) and logs the key *mode*
+  (`sk_live_`/`sk_test_` prefix only, never the secret) for diagnosis. Also a
+  fresh deploy to snapshot the current production Stripe key.
+
 ## v0.8.3 · 2026-06-08
 
 ### Fixed

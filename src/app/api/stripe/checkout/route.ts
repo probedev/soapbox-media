@@ -24,18 +24,23 @@ export async function POST(req: NextRequest) {
   if (error || !user?.email) return NextResponse.json({ error: "invalid session" }, { status: 401 });
 
   const origin = req.headers.get("origin") || "https://www.soapbox.media";
-  const customerId = await getOrCreateCustomer(user.id, user.email);
-
-  const session = await stripe().checkout.sessions.create({
-    mode: "subscription",
-    customer: customerId,
-    line_items: [{ price: PRICE, quantity: 1 }],
-    client_reference_id: user.id,
-    subscription_data: { metadata: { user_id: user.id } },
-    success_url: `${origin}/account?checkout=success`,
-    cancel_url: `${origin}/pricing?checkout=cancelled`,
-    allow_promotion_codes: true,
-  });
-
-  return NextResponse.json({ url: session.url });
+  try {
+    const customerId = await getOrCreateCustomer(user.id, user.email);
+    const session = await stripe().checkout.sessions.create({
+      mode: "subscription",
+      customer: customerId,
+      line_items: [{ price: PRICE, quantity: 1 }],
+      client_reference_id: user.id,
+      subscription_data: { metadata: { user_id: user.id } },
+      success_url: `${origin}/account?checkout=success`,
+      cancel_url: `${origin}/pricing?checkout=cancelled`,
+      allow_promotion_codes: true,
+    });
+    return NextResponse.json({ url: session.url });
+  } catch (e: any) {
+    // Graceful error (was an unhandled throw → generic 500 → hung button) +
+    // a diagnostic on the key MODE only (sk_live_/sk_test_, not the secret).
+    console.error(`CHECKOUT_ERR keyMode=${(process.env.STRIPE_SECRET_KEY ?? "").slice(0, 8)} price=${PRICE} msg=${e?.message}`);
+    return NextResponse.json({ error: e?.message ?? "stripe error" }, { status: 502 });
+  }
 }
