@@ -7,6 +7,22 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
+## v0.7.6 · 2026-06-08
+
+### Added
+
+- **MCP OAuth 2.1 — resource-server half (part 1 of real MCP auth).** The MCP
+  endpoint now validates Supabase-issued JWTs as an OAuth resource server
+  (RFC 9728): new `/.well-known/oauth-protected-resource` metadata route
+  advertising Supabase as the authorization server, JWKS token validation
+  (`jose`) with RFC 8707 audience binding, and the spec-compliant 401 +
+  `WWW-Authenticate` challenge that lets claude.ai / ChatGPT web connectors
+  discover the auth flow. **Dual-auth during migration**: existing
+  `MCP_ACCESS_KEYS` static keys (Bearer or x-api-key) keep working unchanged,
+  so no demo customer breaks. JWT path fails closed until the Supabase OAuth
+  Server + access-token-hook (audience) are configured. Part 2 (consent page +
+  end-user login) and subscription gating land next. New dep: `jose`.
+
 ## v0.7.5 · 2026-06-08
 
 ### Changed

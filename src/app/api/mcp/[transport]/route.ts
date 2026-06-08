@@ -6,20 +6,25 @@
  * Transport: Streamable HTTP at POST /api/mcp/mcp (SSE transport is not
  * enabled — it would need Redis; modern MCP clients use streamable HTTP).
  *
- * Auth: Bearer key (or x-api-key) checked against MCP_ACCESS_KEYS — a
- * comma-separated list so demo keys can be issued/revoked per-customer
- * without code changes. FAILS CLOSED when the env var is unset. OAuth +
- * billing deliberately deferred until demo interest proves out.
+ * Auth: DUAL-MODE during the OAuth migration —
+ *   1. OAuth 2.1 (real): Supabase-issued JWTs validated as a resource server
+ *      (RFC 9728 discovery via /.well-known/oauth-protected-resource → PKCE →
+ *      bearer JWT). This is the claude.ai / ChatGPT web-connector path.
+ *   2. Static keys (legacy): MCP_ACCESS_KEYS bearer/x-api-key allowlist still
+ *      works so existing demo customers aren't broken. Both flow through
+ *      verifyMcpToken; the static fast-path below skips the OAuth challenge
+ *      for x-api-key callers.
  *
  * Data policy: full transcripts are NEVER exposed (licensing + house rule) —
  * mention-level supporting quotes with episode source links only. All tools
  * are read-only via the service client; RLS posture unchanged.
  */
-import { createMcpHandler } from "mcp-handler";
+import { createMcpHandler, withMcpAuth } from "mcp-handler";
 import { z } from "zod";
 
 import { getDashboardData, getIssueDrillDown, getChannelDrillDown, getPanelStats } from "@/lib/aggregate";
 import { searchMentions, issueTrend, listIssues, listChannels } from "@/lib/mcp-data";
+import { verifyMcpToken, isStaticKey, RESOURCE_METADATA_PATH } from "@/lib/mcp-auth";
 import { VERSION } from "@/lib/version";
 
 export const maxDuration = 60;
@@ -148,26 +153,22 @@ const handler = createMcpHandler(
   },
 );
 
-/** Constant-time-ish key check against the comma-separated allowlist. Fails closed. */
-function authorized(req: Request): boolean {
-  const raw = process.env.MCP_ACCESS_KEYS || "";
-  const keys = raw.split(",").map((k) => k.trim()).filter(Boolean);
-  if (keys.length === 0) return false;
-  const auth = req.headers.get("authorization") || "";
-  const presented = auth.toLowerCase().startsWith("bearer ")
-    ? auth.slice(7).trim()
-    : req.headers.get("x-api-key")?.trim() || "";
-  return presented.length > 0 && keys.includes(presented);
-}
+// Spec-compliant OAuth wrapper: validates Supabase JWTs (and static keys) via
+// verifyMcpToken, and on failure emits the RFC 9728 401 challenge pointing at
+// the protected-resource metadata so MCP clients can discover Supabase and run
+// the OAuth flow.
+const authedHandler = withMcpAuth(handler, verifyMcpToken, {
+  required: true,
+  resourceMetadataPath: RESOURCE_METADATA_PATH,
+});
 
-const withAuth = (req: Request) => {
-  if (!authorized(req)) {
-    return new Response(
-      JSON.stringify({ error: "unauthorized", hint: "Pass your Soapbox access key as 'Authorization: Bearer <key>'" }),
-      { status: 401, headers: { "content-type": "application/json" } },
-    );
-  }
-  return handler(req);
+// Legacy x-api-key callers bypass the OAuth challenge (they have no bearer
+// token to trigger discovery); everything else — Bearer JWT or Bearer static
+// key — goes through the spec path. Once all demo users migrate to OAuth this
+// fast-path and the static-key branch in verifyMcpToken can be deleted.
+const route = (req: Request) => {
+  if (isStaticKey(req.headers.get("x-api-key"))) return handler(req);
+  return authedHandler(req);
 };
 
-export { withAuth as GET, withAuth as POST, withAuth as DELETE };
+export { route as GET, route as POST, route as DELETE };
