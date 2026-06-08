@@ -23,9 +23,28 @@ const DAY = 86_400_000;
 const RECENT_DAYS = 7;
 const BASELINE_DAYS = 14; // days 8..21
 const SPARK_DAYS = 14;
-const MIN_CHANNELS = 6; // cross-panel breadth floor
-const MIN_BURST = 1.4; // rising vs its own baseline (excludes flat perennials)
+const MIN_CHANNELS = 8; // cross-panel breadth floor
+const MIN_MENTIONS = 40; // volume floor — kills niche 15-mention spikes
+// Burst floor raised 1.4 → 1.7 (2026-06-08): excludes omnipresent institutions
+// (NYT, CNN, Trump) that are cited every week at ~1.5× — broad but not actually
+// trending. We rank by BREADTH among entities that clear this floor: breadth
+// ranking implicitly suppresses the extraction noise floor (ASR fragments /
+// common-word leaks rarely reach wide breadth), while the burst floor strips
+// the perennials. Burst ranking was tried and rejected — it surfaced the junk.
+const MIN_BURST = 1.7;
 const MAX_ENTITIES = 12;
+
+// Major media outlets are cited across the whole panel every week, so their
+// baseline is structurally huge and a normal burst floor lets them headline
+// "trending" on ubiquity (NYT topped the list at only 1.9×). Require them to
+// REALLY spike (2.5×) to qualify — a media org genuinely becoming the story.
+const MEDIA_FLOOR = 2.5;
+const MEDIA_ORGS = new Set(
+  ("new york times,the new york times,washington post,the washington post,wall street journal," +
+   "cnn,fox news,msnbc,nbc news,cbs news,abc news,npr,pbs,bbc,bbc news,reuters,associated press," +
+   "bloomberg,bloomberg television,politico,axios,the atlantic,the economist,vox,vice,newsmax," +
+   "the hill,the daily wire,daily wire,new york post,los angeles times,usa today,the guardian," +
+   "breitbart,huffpost,the daily beast,cnbc,fox business,real clear politics").split(","));
 const SNAPSHOT_KEY = "trending_v1";
 
 // Sentence-initial caps / filler that aren't entities. Trimmed from run edges
@@ -67,6 +86,7 @@ const SINGLE_BLOCK = new Set(
    "great good big small huge tiny massive amazing incredible terrible awful crazy wild nuts insane " +
    "another other others several various certain particular specific general overall total whole entire " +
    "yes no nope yep yeah uh um hmm wow oh ah eh ok new many much quote unquote nazi nazis " +
+   "minutes legal talks lane seconds hours days weeks months years moments times learn " +
    // common verbs/nouns that lead sentences and aren't entities
    "bring start stop keep let put move turn show tell ask call try come go get give take make made " +
    "women men kids children guys folks people money power world country state nation government congress " +
@@ -275,7 +295,15 @@ export async function computeTrending(): Promise<TrendingPayload> {
         spark: c.acc.spark, topChannels,
       };
     })
-    .filter((e) => e.channels >= MIN_CHANNELS && e.burst >= MIN_BURST)
+    .filter((e) => {
+      if (e.channels < MIN_CHANNELS || e.recentMentions < MIN_MENTIONS) return false;
+      const floor = MEDIA_ORGS.has(e.name.toLowerCase()) ? MEDIA_FLOOR : MIN_BURST;
+      return e.burst >= floor;
+    })
+    // Rank by breadth (burst tiebreak) among entities that cleared the rising
+    // floor — clean (junk lacks breadth) and not perennial-dominated (floor
+    // strips NYT-likes). Fresh breakouts (Welker) still lag a day under 1×/day
+    // ingest as reaction accumulates — an accepted property, not a bug.
     .sort((a, b) => b.channels - a.channels || b.burst - a.burst)
     .slice(0, MAX_ENTITIES);
 

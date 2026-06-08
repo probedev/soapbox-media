@@ -7,6 +7,26 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
+## v0.7.5 · 2026-06-08
+
+### Changed
+
+- **Trending Names ranking, after an accuracy investigation.** The v0.7.4
+  breadth-only ranking crowned "New York Times" (#1 on 119 shows) — but a
+  context probe showed NYT runs at only ~1.5–1.9× its baseline: omnipresent,
+  not trending. Inversely, the genuine breaking event (the Meet-the-Press /
+  Kristen Welker walkout) was absent — real (0→10 shows, accelerating) but too
+  fresh to clear the breadth bar under 1×/day ingest. Findings: (1) burst floor
+  raised 1.4→1.7 to strip flat perennials; (2) a higher bar (2.5×) for major
+  media outlets, which are structurally always-cited, so they only headline if
+  genuinely the story; (3) volume floor (≥40 mentions, ≥8 shows) + extended
+  stoplist to kill niche/common-word leaks. Ranking stays breadth-led (it
+  implicitly suppresses the extraction noise floor) among entities that clear
+  the rising bar. Result: an all-real, coherent leaderboard (Maine Senate race,
+  California politics, Hamas/Lebanon) instead of NYT on ubiquity. Known beta
+  limits unchanged: ASR-misspelled canonicals (e.g. "Plattner") and a 1–2 day
+  lag on breaking events — both await entity-linking/NER on the roadmap.
+
 ## v0.7.4 · 2026-06-08
 
 ### Added
