@@ -7,6 +7,18 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
+## v0.7.8 · 2026-06-08
+
+### Fixed
+
+- **MCP `get_index` / `get_movers` were very slow** — they called
+  `getDashboardData()` live on every request (full paginated deep-join +
+  rolling-sparkline recompute, ~10s). Now they read the precomputed
+  `dashboard_snapshot` for the default 7-day window (indexed single-row read,
+  ~sub-100ms), matching what the website home page already does. Non-default
+  windows still compute live. Confirmed working end-to-end via a real
+  claude.ai connector (OAuth + audience hook validated).
+
 ## v0.7.7 · 2026-06-08
 
 ### Added

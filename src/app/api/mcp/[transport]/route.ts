@@ -22,7 +22,7 @@
 import { createMcpHandler, withMcpAuth } from "mcp-handler";
 import { z } from "zod";
 
-import { getDashboardData, getIssueDrillDown, getChannelDrillDown, getPanelStats } from "@/lib/aggregate";
+import { getDashboardData, getIssueDrillDown, getChannelDrillDown, getPanelStats, readHomeSnapshot } from "@/lib/aggregate";
 import { searchMentions, issueTrend, listIssues, listChannels } from "@/lib/mcp-data";
 import { verifyMcpToken, isStaticKey, RESOURCE_METADATA_PATH } from "@/lib/mcp-auth";
 import { VERSION } from "@/lib/version";
@@ -33,6 +33,19 @@ const json = (data: unknown) => ({
   content: [{ type: "text" as const, text: JSON.stringify(data, null, 1) }],
 });
 
+// Prefer the precomputed dashboard_snapshot for the default 7-day window — an
+// indexed single-row read (~sub-100ms) instead of getDashboardData's full
+// paginated deep-join + rolling-sparkline recompute (~10s, the cause of the
+// slow get_index/get_movers tool calls). The website home page already does
+// this; the MCP tools now match it. Non-default windows still compute live.
+async function dashboardFor(windowDays: number) {
+  if (windowDays === 7) {
+    const snap = await readHomeSnapshot(7).catch(() => null);
+    if (snap?.dashboard) return snap.dashboard;
+  }
+  return getDashboardData(windowDays);
+}
+
 const handler = createMcpHandler(
   (server) => {
     server.tool(
@@ -40,7 +53,7 @@ const handler = createMcpHandler(
       "The Soapbox Index: a reach- and intensity-weighted left/right needle (-10 = fully left-aligned, +10 = fully right-aligned) summarizing what tracked alt-media political channels are saying, over a trailing window. Returns the index, delta vs the prior same-length window, a daily-rolling sparkline, and top issues by mention volume.",
       { window_days: z.number().int().min(1).max(90).default(7).describe("Trailing window in days (7 = site default)") },
       async ({ window_days }) => {
-        const d = await getDashboardData(window_days);
+        const d = await dashboardFor(window_days);
         return json({
           as_of: d.asOfDate, window_days: d.windowDays, index: d.index, delta: d.delta,
           sparkline: d.sparkline, sparkline_dates: d.sparklineDates,
@@ -54,7 +67,7 @@ const handler = createMcpHandler(
       "Issues with the biggest period-over-period change — either lean swing (which direction the conversation moved) or mention-volume swing (what got loud/quiet). Eligibility floors filter out thin-sample noise.",
       { window_days: z.number().int().min(1).max(90).default(7).describe("Trailing window in days; compared against the same-length window immediately prior") },
       async ({ window_days }) => {
-        const d = await getDashboardData(window_days);
+        const d = await dashboardFor(window_days);
         return json({ as_of: d.asOfDate, window_days: d.windowDays, movers: d.movers });
       },
     );
