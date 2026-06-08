@@ -7,6 +7,26 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
+## v0.8.5 · 2026-06-08
+
+### Changed
+
+- **Subscription flow switched to pay-first (Model B).** No account needed to
+  subscribe — the friction of "sign up before you can pay" is gone. Flow:
+  `/pricing` → Subscribe (anonymous) → Stripe Checkout collects email + card →
+  webhook `checkout.session.completed` **provisions a Supabase user** from the
+  email (`provisionUserByEmail` — finds existing or creates + sends a Supabase
+  invite/set-password email), links the subscription, and grants entitlement →
+  new `/welcome` page handles the set-password landing and shows the
+  connect-your-agent instructions. Stripe's hosted checkout can't create a
+  login in our system, so provisioning happens server-side in the webhook
+  keyed by email. Removed the account-first checkout (no more login gate on
+  `/pricing`); `getOrCreateCustomer`/`syncSubscription` replaced by
+  `provisionUserByEmail` + `linkSubscription` + `syncSubscriptionByCustomer`.
+  - **Supabase config needed:** add `https://www.soapbox.media/welcome` to the
+    Auth redirect-URL allowlist (invite link lands there). Invite emails use
+    Supabase Auth's email — fine for testing; custom SMTP for scale.
+
 ## v0.8.4 · 2026-06-08
 
 ### Fixed

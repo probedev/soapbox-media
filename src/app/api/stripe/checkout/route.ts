@@ -1,45 +1,37 @@
 /**
- * Creates a Stripe Checkout session (subscription mode) for the logged-in
- * Supabase user. Called from /pricing with the user's access token in the
- * Authorization header. Returns the hosted Checkout URL to redirect to.
+ * Pay-first Checkout: no account required. Creates a Stripe Checkout session
+ * (subscription mode) that collects the email and creates the customer; the
+ * webhook then provisions the Supabase user from that email. Returns the
+ * hosted Checkout URL to redirect to.
  */
 import { type NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
 
-import { env } from "@/lib/env";
-import { stripe, priceId, getOrCreateCustomer } from "@/lib/stripe";
+import { stripe, priceId } from "@/lib/stripe";
 
 export const dynamic = "force-dynamic";
+
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://www.soapbox.media";
 
 export async function POST(req: NextRequest) {
   const PRICE = priceId();
   if (!PRICE) return NextResponse.json({ error: "STRIPE_PRICE_ID not configured" }, { status: 500 });
 
-  const token = (req.headers.get("authorization") || "").replace(/^Bearer\s+/i, "").trim();
-  if (!token) return NextResponse.json({ error: "not authenticated" }, { status: 401 });
+  const origin = req.headers.get("origin") || SITE_URL;
+  // Optional: prefill the email if the caller passes one (e.g. a logged-in user).
+  let email: string | undefined;
+  try { email = (await req.json())?.email; } catch { /* no body */ }
 
-  // Validate the Supabase session token → user.
-  const supa = createClient(env.supabaseUrl, env.supabaseAnonKey);
-  const { data: { user }, error } = await supa.auth.getUser(token);
-  if (error || !user?.email) return NextResponse.json({ error: "invalid session" }, { status: 401 });
-
-  const origin = req.headers.get("origin") || "https://www.soapbox.media";
   try {
-    const customerId = await getOrCreateCustomer(user.id, user.email);
     const session = await stripe().checkout.sessions.create({
-      mode: "subscription",
-      customer: customerId,
+      mode: "subscription", // subscription mode always creates a customer + collects email
       line_items: [{ price: PRICE, quantity: 1 }],
-      client_reference_id: user.id,
-      subscription_data: { metadata: { user_id: user.id } },
-      success_url: `${origin}/account?checkout=success`,
+      ...(email ? { customer_email: email } : {}),
+      success_url: `${origin}/welcome?paid=1`,
       cancel_url: `${origin}/pricing?checkout=cancelled`,
       allow_promotion_codes: true,
     });
     return NextResponse.json({ url: session.url });
   } catch (e: any) {
-    // Graceful error (was an unhandled throw → generic 500 → hung button) +
-    // a diagnostic on the key MODE only (sk_live_/sk_test_, not the secret).
     console.error(`CHECKOUT_ERR keyMode=${(process.env.STRIPE_SECRET_KEY ?? "").slice(0, 8)} price=${PRICE} msg=${e?.message}`);
     return NextResponse.json({ error: e?.message ?? "stripe error" }, { status: 502 });
   }

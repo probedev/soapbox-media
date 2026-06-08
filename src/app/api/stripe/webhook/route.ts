@@ -6,7 +6,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 
 import { env } from "@/lib/env";
-import { stripe, syncSubscription } from "@/lib/stripe";
+import { stripe, provisionUserByEmail, linkSubscription, syncSubscriptionByCustomer } from "@/lib/stripe";
 
 export const dynamic = "force-dynamic";
 
@@ -25,19 +25,26 @@ export async function POST(req: NextRequest) {
   try {
     switch (event.type) {
       case "checkout.session.completed": {
+        // Pay-first provisioning: create/find the Supabase user from the
+        // checkout email, then link the subscription + grant entitlement.
         const session = event.data.object;
-        if (session.subscription) {
+        const email = session.customer_details?.email || session.customer_email;
+        if (session.subscription && email) {
+          const userId = await provisionUserByEmail(email);
           const sub = await stripe().subscriptions.retrieve(
             typeof session.subscription === "string" ? session.subscription : session.subscription.id,
           );
-          await syncSubscription(sub);
+          await linkSubscription(userId, sub);
+        } else {
+          console.error(`checkout.session.completed missing ${!email ? "email" : "subscription"}`);
         }
         break;
       }
       case "customer.subscription.created":
       case "customer.subscription.updated":
       case "customer.subscription.deleted":
-        await syncSubscription(event.data.object);
+        // Resolve the user via the customer mapping written at completion.
+        await syncSubscriptionByCustomer(event.data.object);
         break;
       default:
         break; // ignore other events

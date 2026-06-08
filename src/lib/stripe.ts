@@ -1,13 +1,16 @@
 /**
- * Stripe integration (workstream 2): $300/mo MCP-access subscription.
- * Server-side only. The Checkout route creates sessions; the webhook route
- * writes the `subscriptions` entitlement row that gates MCP tool access
- * (read via lib/entitlements.ts).
+ * Stripe integration (workstream 2): $300/mo MCP-access subscription,
+ * PAY-FIRST model. Anyone can check out without an account; Stripe collects
+ * the email; the webhook provisions a Supabase user from that email (sending a
+ * set-password invite), links the subscription, and grants entitlement.
+ * Server-side only. Entitlement gates MCP access via lib/entitlements.ts.
  */
 import Stripe from "stripe";
 
 import { createServiceClient } from "@/lib/db";
 import { env } from "@/lib/env";
+
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://www.soapbox.media";
 
 let _stripe: Stripe | null = null;
 export function stripe(): Stripe {
@@ -16,55 +19,38 @@ export function stripe(): Stripe {
 }
 
 /** The $300/mo recurring price (set STRIPE_PRICE_ID in env). Read at REQUEST
- *  time, not module load — a module-level `process.env` const can be inlined
- *  at build / survive build-cache and miss a later-added runtime var. */
+ *  time, not module load — a module-level const can be build-inlined / survive
+ *  build-cache and miss a later-added runtime var. */
 export function priceId(): string {
   return process.env.STRIPE_PRICE_ID || "";
 }
 
-/** Find-or-create the Stripe customer for a Supabase user, persisting the id. */
-export async function getOrCreateCustomer(userId: string, email: string): Promise<string> {
-  const db = createServiceClient();
-  const { data } = await db
-    .from("subscriptions")
-    .select("stripe_customer_id")
-    .eq("user_id", userId)
-    .maybeSingle();
-  if (data?.stripe_customer_id) {
-    // Verify the stored customer exists in the CURRENT Stripe mode/account.
-    // A test-mode id used in live mode (or a deleted customer) would otherwise
-    // 500 with "No such customer" — so recreate if it's stale.
-    try {
-      const existing = await stripe().customers.retrieve(data.stripe_customer_id);
-      if (existing && !(existing as { deleted?: boolean }).deleted) return data.stripe_customer_id;
-    } catch {
-      /* stale id — fall through and create a fresh customer */
-    }
-  }
-
-  const customer = await stripe().customers.create({ email, metadata: { user_id: userId } });
-  await db.from("subscriptions").upsert(
-    { user_id: userId, stripe_customer_id: customer.id, status: "inactive", updated_at: new Date().toISOString() },
-    { onConflict: "user_id" },
-  );
-  return customer.id;
+/**
+ * Pay-first provisioning: return the Supabase user id for this email, creating
+ * the user (and emailing a set-password invite that lands on /welcome) if they
+ * don't exist yet. Idempotent — an existing account is reused, not duplicated.
+ */
+export async function provisionUserByEmail(email: string): Promise<string> {
+  const admin = createServiceClient();
+  const lower = email.trim().toLowerCase();
+  // Existing user? (panel is small; listUsers is fine for now — revisit with a
+  // direct lookup if the user base grows past a page.)
+  const { data: list } = await admin.auth.admin.listUsers({ page: 1, perPage: 1000 });
+  const existing = list?.users?.find((u) => u.email?.toLowerCase() === lower);
+  if (existing) return existing.id;
+  // New user → create + send invite (set-password) email landing on /welcome.
+  const { data, error } = await admin.auth.admin.inviteUserByEmail(email, {
+    redirectTo: `${SITE_URL}/welcome`,
+  });
+  if (error || !data?.user) throw new Error(`provisionUserByEmail: ${error?.message}`);
+  return data.user.id;
 }
 
-/** Upsert entitlement from a Stripe Subscription object (webhook path). */
-export async function syncSubscription(sub: Stripe.Subscription): Promise<void> {
+/** Upsert the entitlement row for a user from a Stripe subscription object. */
+export async function linkSubscription(userId: string, sub: Stripe.Subscription): Promise<void> {
   const db = createServiceClient();
   const customerId = typeof sub.customer === "string" ? sub.customer : sub.customer.id;
-  // Resolve user_id: prefer customer metadata, fall back to our stored mapping.
-  let userId = (sub.metadata?.user_id as string) || "";
-  if (!userId) {
-    const { data } = await db.from("subscriptions").select("user_id").eq("stripe_customer_id", customerId).maybeSingle();
-    userId = data?.user_id ?? "";
-  }
-  if (!userId) {
-    console.error(`syncSubscription: no user for customer ${customerId}`);
-    return;
-  }
-  const periodEnd = (sub as any).current_period_end as number | undefined;
+  const periodEnd = (sub as { current_period_end?: number }).current_period_end;
   await db.from("subscriptions").upsert(
     {
       user_id: userId,
@@ -77,4 +63,25 @@ export async function syncSubscription(sub: Stripe.Subscription): Promise<void> 
     },
     { onConflict: "user_id" },
   );
+}
+
+/**
+ * For subscription.updated/deleted events (no email on the object): resolve the
+ * user via the stored customer→user mapping written at checkout completion.
+ */
+export async function syncSubscriptionByCustomer(sub: Stripe.Subscription): Promise<void> {
+  const db = createServiceClient();
+  const customerId = typeof sub.customer === "string" ? sub.customer : sub.customer.id;
+  const { data } = await db
+    .from("subscriptions")
+    .select("user_id")
+    .eq("stripe_customer_id", customerId)
+    .maybeSingle();
+  if (!data?.user_id) {
+    // Likely an event that arrived before checkout.session.completed created the
+    // row — harmless; completion will link it.
+    console.warn(`syncSubscriptionByCustomer: no user yet for ${customerId}`);
+    return;
+  }
+  await linkSubscription(data.user_id, sub);
 }

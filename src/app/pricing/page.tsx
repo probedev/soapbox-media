@@ -21,23 +21,21 @@ const FEATURES = [
 
 export default function PricingPage() {
   const supabase = getBrowserSupabase();
-  const [authed, setAuthed] = useState<boolean | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => setAuthed(!!data.session));
-  }, [supabase]);
-
+  // Pay-first: no account required to subscribe. Stripe collects the email and
+  // the webhook provisions the account afterward. If the visitor happens to be
+  // logged in, we prefill their email so it links to their existing account.
   const subscribe = async () => {
     setBusy(true); setError(null);
     const { data: { session } } = await supabase.auth.getSession();
-    if (!session) { window.location.href = "/login?redirect=/pricing"; return; }
     const res = await fetch("/api/stripe/checkout", {
       method: "POST",
-      headers: { Authorization: `Bearer ${session.access_token}` },
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: session?.user?.email }),
     });
-    const json = await res.json();
+    const json = await res.json().catch(() => ({}));
     setBusy(false);
     if (json.url) window.location.href = json.url;
     else setError(json.error || "Could not start checkout.");
@@ -67,11 +65,11 @@ export default function PricingPage() {
               ))}
             </ul>
             {error && <p className="text-sm text-red-600 mb-3">{error}</p>}
-            <Button className="w-full" onClick={subscribe} disabled={busy || authed === null}>
-              {busy ? "…" : authed ? "Subscribe" : "Sign in to subscribe"}
+            <Button className="w-full" onClick={subscribe} disabled={busy}>
+              {busy ? "…" : "Subscribe"}
             </Button>
             <p className="text-[11px] text-muted-foreground mt-4 text-center">
-              Full transcripts are never exposed — verbatim excerpts with source links only. Cancel anytime.
+              Pay, then we email you a link to set your password and connect your agent. Full transcripts are never exposed — excerpts + source links only. Cancel anytime.
             </p>
           </CardContent>
         </Card>
