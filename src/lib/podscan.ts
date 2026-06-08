@@ -6,9 +6,9 @@
  * Auth: Bearer token in Authorization header
  *
  * Confirmed endpoints:
- *  - GET /podcasts/search?query=<terms>  — search podcasts by name
- *  - GET /episodes/search?query=<terms>  — full-text search across episode transcripts
- *  - GET /mentions/search?terms=...      — brand/topic mentions
+ *  - GET /podcasts/search?query=<terms>  - search podcasts by name
+ *  - GET /episodes/search?query=<terms>  - full-text search across episode transcripts
+ *  - GET /mentions/search?terms=...      - brand/topic mentions
  *
  * Episode-list and transcript endpoints below are best-guess; will be
  * verified and corrected when ingest runs (not exercised by seed-channels).
@@ -23,7 +23,7 @@ const PODSCAN_API = "https://podscan.fm/api/v1";
  * optional and let the caller normalize with fallback logic.
  */
 export interface PodscanPodcast {
-  // ID field variants — exactly one should be populated
+  // ID field variants - exactly one should be populated
   id?: string;
   podcast_id?: string;
   uuid?: string;
@@ -78,7 +78,7 @@ export interface PodscanEpisode {
   topics?: any;
   sponsor_segments?: any[];
   listener_engagement?: any;
-  // Legacy/alt variants — kept for defensive parsing
+  // Legacy/alt variants - kept for defensive parsing
   id?: string;
   uuid?: string;
   title?: string;
@@ -119,13 +119,13 @@ export async function searchPodcasts(query: string): Promise<PodscanPodcast[]> {
     data?: PodscanPodcast[];
     results?: PodscanPodcast[];
   }>(`/podcasts/search?query=${encodeURIComponent(query)}`);
-  // PodScan response keys vary — try the common shapes
+  // PodScan response keys vary - try the common shapes
   return data.podcasts || data.data || data.results || [];
 }
 
 /**
  * Fetch a single podcast by its PodScan id. Used by the daily reach-refresh
- * pass (v0.6.57) — every channel iteration already has the stored
+ * pass (v0.6.57) - every channel iteration already has the stored
  * platform_id, so we can hit the canonical podcast record and pull
  * whatever reach metric PodScan currently exposes via the same pickReach
  * fallback used at seed time. Returns null on 404 or any error so the
@@ -147,7 +147,7 @@ export async function getPodcastById(podcastId: string): Promise<PodscanPodcast 
 /**
  * List recent episodes for a podcast.
  * Best-guess endpoint: /podcasts/{id}/episodes (REST convention).
- * Falls back to flexible response parsing — caller normalizes field names.
+ * Falls back to flexible response parsing - caller normalizes field names.
  */
 export async function getPodcastEpisodes(
   podcastId: string,

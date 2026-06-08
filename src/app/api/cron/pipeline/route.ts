@@ -1,6 +1,6 @@
 /**
  * Manual full-pipeline run (ingest → transcribe → classify → score in one
- * request). NOT the scheduled cron anymore — the daily schedule is split into
+ * request). NOT the scheduled cron anymore - the daily schedule is split into
  * four per-stage endpoints (see vercel.json + the sibling /api/cron/* routes)
  * so each stage gets its own 300s budget. Kept for ad-hoc full runs:
  *

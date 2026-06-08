@@ -9,7 +9,7 @@ function compactNumber(n: number): string {
 }
 
 function hoursLabel(h: number): string {
-  // Show the full number for hours — "1,433" reads as concrete data, where
+  // Show the full number for hours - "1,433" reads as concrete data, where
   // the previous compact "1.4K" was easy to mistake for an unwired placeholder.
   // (v0.6.54.) Sub-hour values are unlikely on a daily-ingested pipeline.
   if (h >= 100) return Math.round(h).toLocaleString();
@@ -24,7 +24,7 @@ function daysContinuous(h: number): string {
 }
 
 function relativeTime(iso: string | null): string {
-  if (!iso) return "—";
+  if (!iso) return "-";
   const diffMs = Date.now() - new Date(iso).getTime();
   const diffMin = Math.floor(diffMs / 60_000);
   const diffH = Math.floor(diffMin / 60);
@@ -59,7 +59,7 @@ export async function SystemStats() {
   const stats = await getSystemStats();
   const leanSplit = `${stats.channelsByLean.L} L · ${stats.channelsByLean.M} M · ${stats.channelsByLean.R} R`;
 
-  // /log SystemStats is *pipeline-scale* only — what the system has been
+  // /log SystemStats is *pipeline-scale* only - what the system has been
   // doing. Panel-composition numbers (combined audience reach, platform
   // split, largest show) moved to <PanelScale> on /channels in v0.6.56,
   // where they answer the reader question "is this panel representative?"

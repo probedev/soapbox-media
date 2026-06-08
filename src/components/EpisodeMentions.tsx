@@ -1,13 +1,13 @@
 "use client";
 
 /**
- * EpisodeMentions — the expandable "receipts" panel under an activity-log row.
+ * EpisodeMentions - the expandable "receipts" panel under an activity-log row.
  *
  * Lazy-loads one episode's classified-and-scored issue mentions on expand
  * (GET /api/episodes/[id]/mentions) so the /log table never eager-loads the
  * full classifications join. Each mention shows the issue, its sentiment chip
  * (L+/R+, the same convention as the home Index), an intensity meter, and the
- * exact supporting quote the model flagged — the transparency payoff the page
+ * exact supporting quote the model flagged - the transparency payoff the page
  * promises ("receipts, in the open"), and the operator's lens for spotting
  * mis-scores before scaling channels.
  */
@@ -74,7 +74,7 @@ export function EpisodeMentions({ episodeId }: { episodeId: string }) {
   if (mentions.length === 0) {
     return (
       <div className="px-4 py-3 text-xs text-gray-500 italic">
-        No taxonomy issues detected — this episode was off-topic for the issue set.
+        No taxonomy issues detected - this episode was off-topic for the issue set.
       </div>
     );
   }

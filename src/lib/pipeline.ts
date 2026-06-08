@@ -4,7 +4,7 @@
  * The combined run hit the 300s timeout once classify started doing real work
  * (v0.6.29), which starved `score` and skipped the usage_log write (504s,
  * 2026-05-26). Each stage reads inputs from the DB and writes outputs to the DB
- * and never calls another stage (see ARCHITECTURE.md) — which is exactly what
+ * and never calls another stage (see ARCHITECTURE.md) - which is exactly what
  * lets them split cleanly.
  */
 import { type NextRequest, NextResponse } from "next/server";
@@ -34,7 +34,7 @@ export function assertCronAuth(request: NextRequest): NextResponse | null {
 export const MIN_DURATION_SEC = 180;
 export const INGEST_PER_CHANNEL = 3;
 // Transcribe runs through a concurrency pool too. Each Supadata call takes a
-// few seconds, so concurrency 8 keeps the request rate ~2/s — well under the
+// few seconds, so concurrency 8 keeps the request rate ~2/s - well under the
 // 10/s Supadata limit. Higher per-run limit since it's no longer serial.
 export const TRANSCRIBE_LIMIT = 100;
 export const TRANSCRIBE_CONCURRENCY = 8;
@@ -47,13 +47,13 @@ export const TRANSCRIBE_CONCURRENCY = 8;
 export const MAX_TRANSCRIPT_ATTEMPTS = 3;
 // Classify (Sonnet) and score (Haiku) now process episodes/mentions through a
 // bounded-concurrency pool instead of one-at-a-time, so the per-run LIMITs are
-// higher — the wall-clock budget below is the real cap. Concurrency is sized
+// higher - the wall-clock budget below is the real cap. Concurrency is sized
 // for an Anthropic Max-tier account; dial down if 429s appear.
 export const CLASSIFY_LIMIT = 60;
 export const CLASSIFY_CONCURRENCY = 10;
 // SCORE_LIMIT 240 → 720 (v0.6.82): the channel expansion tripled episode
 // intake (~470 eps/day × ~10 mentions/ep ≈ 4,700 mentions/day) and 8×240 =
-// 1,920/day fell ~2.5× short — every run saturated and partial-scored
+// 1,920/day fell ~2.5× short - every run saturated and partial-scored
 // episodes piled up in /log. 240 mentions took ~35s, so 720 fits the 240s
 // budget with margin; the time-budget guard below is the real backstop.
 export const SCORE_LIMIT = 720;
@@ -100,10 +100,10 @@ export async function runIngest(): Promise<Record<string, unknown>> {
   if (error) throw new Error(`load channels: ${error.message}`);
 
   // Reach refresh: piggyback on the ingest's per-channel iteration. YT is
-  // batched via getChannelDetailsBatch (up to 50 channels per API call) —
+  // batched via getChannelDetailsBatch (up to 50 channels per API call) -
   // works perfectly, refreshes all YT subscriber counts daily.
   //
-  // PODCAST REACH IS EDITORIAL — NOT REFRESHED. v0.6.57 attempted to refresh
+  // PODCAST REACH IS EDITORIAL - NOT REFRESHED. v0.6.57 attempted to refresh
   // podcasts via PodScan's /podcasts/{id} endpoint, but the only top-level
   // audience field PodScan exposes (`reach.audience_size`) returns numbers
   // wildly inconsistent with publicly-reported listener estimates: Joe Rogan
@@ -114,7 +114,7 @@ export async function runIngest(): Promise<Record<string, unknown>> {
   // real numbers, so we skip podcasts entirely. See v0.6.58 CHANGELOG +
   // [[podcast-reach-editorial]] memory.
   //
-  // Failures here are logged-and-skipped — ingest must not fail just because
+  // Failures here are logged-and-skipped - ingest must not fail just because
   // YT's stats endpoint blipped.
   const ytChannelIds = (channels || [])
     .filter((c) => c.platform === "youtube")
@@ -139,7 +139,7 @@ export async function runIngest(): Promise<Record<string, unknown>> {
   let totalFailures = 0;
 
   for (const ch of channels || []) {
-    // YouTube only — podcast reach is editorial (see top-of-function note).
+    // YouTube only - podcast reach is editorial (see top-of-function note).
     // Writing a 0/falsy value would zero out a valid reach (a transient
     // lookup miss shouldn't trash the stored stat), so we only update on
     // positive values.
@@ -336,7 +336,7 @@ export async function runTranscribe(): Promise<Record<string, unknown>> {
   const stageStart = Date.now();
 
   // Transient failure: bump the attempt counter and leave the episode `pending`
-  // so the next run retries it — unless it has now exhausted its attempts, in
+  // so the next run retries it - unless it has now exhausted its attempts, in
   // which case give up and mark `failed`.
   const handleTransient = async (row: any, reason: string) => {
     const attempts = (row.transcript_attempts ?? 0) + 1;
@@ -357,7 +357,7 @@ export async function runTranscribe(): Promise<Record<string, unknown>> {
   };
 
   // Fetch transcripts through a bounded-concurrency pool (was serial). Each
-  // Supadata call is multi-second, so concurrency 8 stays ~2 req/s — under the
+  // Supadata call is multi-second, so concurrency 8 stays ~2 req/s - under the
   // 10/s limit. Pool stops pulling new rows at the time budget so the cron
   // finishes under 300s. Counters are safe to mutate (single-threaded).
   await mapPool(
@@ -367,7 +367,7 @@ export async function runTranscribe(): Promise<Record<string, unknown>> {
       const platform = platformById.get(row.channel_id);
       if (platform !== "youtube") {
         // Podcast still pending after ingest means PodScan didn't have the
-        // transcript yet — mark failed; retried on subsequent ingest runs.
+        // transcript yet - mark failed; retried on subsequent ingest runs.
         await db
           .from("episodes")
           .update({ transcript_status: "failed" })
@@ -382,7 +382,7 @@ export async function runTranscribe(): Promise<Record<string, unknown>> {
             ? u.pathname.replace(/^\//, "")
             : u.searchParams.get("v");
         if (!videoId) {
-          // Malformed URL is terminal — no amount of retrying fixes it.
+          // Malformed URL is terminal - no amount of retrying fixes it.
           await db.from("episodes").update({ transcript_status: "failed" }).eq("id", row.id);
           failed++;
           return;
@@ -403,7 +403,7 @@ export async function runTranscribe(): Promise<Record<string, unknown>> {
           { onConflict: "episode_id", ignoreDuplicates: false },
         );
         if (txErr) {
-          // DB write hiccup is transient — retry rather than strand the episode.
+          // DB write hiccup is transient - retry rather than strand the episode.
           console.error(`[transcribe] upsert failed for ${row.id}: ${txErr.message}`);
           await handleTransient(row, `upsert: ${txErr.message}`);
           return;
@@ -414,7 +414,7 @@ export async function runTranscribe(): Promise<Record<string, unknown>> {
           .eq("id", row.id);
         ok++;
       } catch (e: any) {
-        // Unexpected exception (network, etc.) — treat as transient/retriable.
+        // Unexpected exception (network, etc.) - treat as transient/retriable.
         console.error(`[transcribe] ${row.id}: ${e?.message || String(e)}`);
         await handleTransient(row, e?.message || String(e));
       }
@@ -439,7 +439,7 @@ export async function runClassify(): Promise<Record<string, unknown>> {
   // Find pending episodes EPISODE-FIRST: query the episodes table for ones that
   // are transcribed but not yet classified, then load each transcript's text on
   // demand inside the loop. The previous approach embedded the full `text` of
-  // EVERY transcript (≈80MB across pages) just to filter for the pending tail —
+  // EVERY transcript (≈80MB across pages) just to filter for the pending tail -
   // and worse, selected/ordered by a non-existent `transcripts.id` column, so
   // the query 400'd every run and the swallowed error surfaced as a silent
   // pendingFound=0 (cron classify stalled from v0.6.47 until this fix; the CLI
@@ -448,7 +448,7 @@ export async function runClassify(): Promise<Record<string, unknown>> {
   // 0-mention episodes aren't reprocessed every run (head-of-line fix, v0.6.29).
   //
   // Paginate with a stable order, terminate ONLY on an empty page (a short page
-  // is routine under the response-size cap), and CHECK the error — never let a
+  // is routine under the response-size cap), and CHECK the error - never let a
   // failed query masquerade as an empty queue again.
   const pageSize = 1000;
   const maxPages = 500;
@@ -483,13 +483,13 @@ export async function runClassify(): Promise<Record<string, unknown>> {
   // Classify up to CLASSIFY_LIMIT episodes through a bounded-concurrency pool
   // (was one-at-a-time). The pool stops pulling new episodes once the stage
   // time budget is hit, so the run still finishes under the 300s function
-  // limit. Shared counters are safe to mutate — JS is single-threaded.
+  // limit. Shared counters are safe to mutate - JS is single-threaded.
   const toClassify = pendingEpisodes.slice(0, CLASSIFY_LIMIT);
   const { completed } = await mapPool(
     toClassify,
     CLASSIFY_CONCURRENCY,
     async (ep) => {
-      // Load just this episode's transcript text on demand — keeps per-item
+      // Load just this episode's transcript text on demand - keeps per-item
       // payload small (one transcript, not all of them).
       const { data: tRow, error: tErr } = await db
         .from("transcripts")
@@ -528,7 +528,7 @@ export async function runClassify(): Promise<Record<string, unknown>> {
           totalMentions += result.mentions.length;
         }
         // Emerging-issue discovery: store off-taxonomy political topics.
-        // Secondary to classification — a failure here must not fail the ep.
+        // Secondary to classification - a failure here must not fail the ep.
         if (result.offTopics.length > 0) {
           const topicRows = result.offTopics.map((o) => ({
             episode_id: ep.id,
@@ -538,7 +538,7 @@ export async function runClassify(): Promise<Record<string, unknown>> {
           const { error: topicErr } = await db.from("discovery_topics").insert(topicRows);
           if (!topicErr) totalOffTopics += result.offTopics.length;
         }
-        // Mark processed regardless of mention count — the fix for the
+        // Mark processed regardless of mention count - the fix for the
         // reprocessing loop. 0-mention (off-taxonomy) episodes are recorded
         // as done and never re-sent to the model.
         await db
@@ -590,12 +590,12 @@ export async function runScore(): Promise<Record<string, unknown>> {
            )
          )`,
       )
-      // Stable PK order — same gotcha as runClassify above (v0.6.47).
+      // Stable PK order - same gotcha as runClassify above (v0.6.47).
       .order("id", { ascending: true })
       .range(from, from + pageSize - 1);
     if (!data || data.length === 0) break;
     classifications.push(...data);
-    // Empty-page-only termination — short pages on deep joins are routine
+    // Empty-page-only termination - short pages on deep joins are routine
     // on Vercel's edge→Supabase route. See runClassify above (v0.6.51).
   }
   const scored: { classification_id: string }[] = [];
@@ -608,7 +608,7 @@ export async function runScore(): Promise<Record<string, unknown>> {
       .range(from, from + pageSize - 1);
     if (!data || data.length === 0) break;
     scored.push(...(data as any));
-    // Empty-page-only termination — see runClassify above (v0.6.51). This
+    // Empty-page-only termination - see runClassify above (v0.6.51). This
     // query is narrow (just classification_id) so a short page is less
     // likely, but the response-size threshold isn't worth gambling on.
   }

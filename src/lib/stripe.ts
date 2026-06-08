@@ -19,7 +19,7 @@ export function stripe(): Stripe {
 }
 
 /** The $300/mo recurring price (set STRIPE_PRICE_ID in env). Read at REQUEST
- *  time, not module load — a module-level const can be build-inlined / survive
+ *  time, not module load - a module-level const can be build-inlined / survive
  *  build-cache and miss a later-added runtime var. */
 export function priceId(): string {
   return process.env.STRIPE_PRICE_ID || "";
@@ -28,12 +28,12 @@ export function priceId(): string {
 /**
  * Pay-first provisioning: return the Supabase user id for this email, creating
  * the user (and emailing a set-password invite that lands on /welcome) if they
- * don't exist yet. Idempotent — an existing account is reused, not duplicated.
+ * don't exist yet. Idempotent - an existing account is reused, not duplicated.
  */
 export async function provisionUserByEmail(email: string): Promise<string> {
   const admin = createServiceClient();
   const lower = email.trim().toLowerCase();
-  // Existing user? (panel is small; listUsers is fine for now — revisit with a
+  // Existing user? (panel is small; listUsers is fine for now - revisit with a
   // direct lookup if the user base grows past a page.)
   const { data: list } = await admin.auth.admin.listUsers({ page: 1, perPage: 1000 });
   const existing = list?.users?.find((u) => u.email?.toLowerCase() === lower);
@@ -79,7 +79,7 @@ export async function syncSubscriptionByCustomer(sub: Stripe.Subscription): Prom
     .maybeSingle();
   if (!data?.user_id) {
     // Likely an event that arrived before checkout.session.completed created the
-    // row — harmless; completion will link it.
+    // row - harmless; completion will link it.
     console.warn(`syncSubscriptionByCustomer: no user yet for ${customerId}`);
     return;
   }

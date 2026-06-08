@@ -2,7 +2,7 @@
  * Admin auth shared between the edge middleware and the (node) login action.
  * A correct password sets an httpOnly cookie holding a SHA-256 hash of
  * ADMIN_PASSWORD (not the password itself); middleware re-derives the hash and
- * compares. Stateless — no session store. Uses Web Crypto so it runs in both
+ * compares. Stateless - no session store. Uses Web Crypto so it runs in both
  * the edge and node runtimes.
  */
 export const ADMIN_COOKIE = "sb_admin";

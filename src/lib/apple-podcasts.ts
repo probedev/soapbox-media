@@ -1,5 +1,5 @@
 /**
- * Apple iTunes Search API wrapper — used to find alt-media political podcast
+ * Apple iTunes Search API wrapper - used to find alt-media political podcast
  * candidates for the panel. The "legacy" iTunes RSS top-charts endpoints are
  * effectively dead (return junk regardless of genre ID), so we use the still-
  * working Search API which is documented, free, no key required.

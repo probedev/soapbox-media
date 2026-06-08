@@ -1,15 +1,15 @@
 /**
- * PanelBalance — honest cohort badge for /channels.
+ * PanelBalance - honest cohort badge for /channels.
  *
  * Two stacked horizontal bars (count, reach) make the asymmetry between
  * "how many shows on each side" and "how big each side's audience is"
  * visible at a glance. Counts are roughly balanced by editorial intent
- * but reach skews — that's a fact about the alt-media landscape (the
+ * but reach skews - that's a fact about the alt-media landscape (the
  * largest right-leaning shows are bigger than the largest left-leaning
  * ones), not a panel-curation bias, and the badge says so explicitly.
  *
  * Reach is unique-show (max across platform rows), same methodology as
- * SystemStats.audienceReach — one human who follows Ben Shapiro on YT
+ * SystemStats.audienceReach - one human who follows Ben Shapiro on YT
  * AND podcast is one audience unit, not two.
  */
 import { cn } from "@/lib/utils";
@@ -200,7 +200,7 @@ export function PanelBalance({ shows }: PanelBalanceProps) {
         {showAsymmetryNote && (
           <>
             {" "}
-            Reach is not — {sideLabel(biggest)} shows carry larger average
+            Reach is not - {sideLabel(biggest)} shows carry larger average
             audiences (
             <span className="tabular-nums">{compactReach(avg[biggest])}</span>{" "}
             avg vs{" "}
@@ -208,7 +208,7 @@ export function PanelBalance({ shows }: PanelBalanceProps) {
             for {sideLabel(smallest)}), so total reach skews {biggest}. The
             Soapbox Index weights every mention by{" "}
             <code className="text-[11px] bg-gray-100 px-1 rounded">log10(reach)</code>,
-            which dampens this asymmetry but doesn&apos;t erase it — worth
+            which dampens this asymmetry but doesn&apos;t erase it - worth
             knowing when reading the Index number.
           </>
         )}

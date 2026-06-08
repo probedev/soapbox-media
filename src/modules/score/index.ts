@@ -1,5 +1,5 @@
 /**
- * Score module — assign sentiment + intensity to a single classification.
+ * Score module - assign sentiment + intensity to a single classification.
  *
  * Uses Claude Haiku 4.5 for cost efficiency. Output is two numbers per quote:
  *   - sentiment: −5 .. +5  (negative = left-aligned, positive = right-aligned)
@@ -34,19 +34,19 @@ ISSUE DEFINITION: ${input.issueDefinition}
 THE LEFT-LEANING POSITION on this issue is: ${input.leftPosition}
 THE RIGHT-LEANING POSITION on this issue is: ${input.rightPosition}
 
-QUOTE — spoken on ${input.channelName} (editorial lean: ${input.politicalLean}):
+QUOTE - spoken on ${input.channelName} (editorial lean: ${input.politicalLean}):
 "${input.quote}"
 
 SCORING DEFINITIONS:
 
-sentiment — a number from -5.0 to +5.0:
+sentiment - a number from -5.0 to +5.0:
   -5.0 = strongly aligned with the LEFT-LEANING position
   -2.5 = mildly aligned with the LEFT-LEANING position
    0.0 = neutral, balanced, descriptive, or unclear
   +2.5 = mildly aligned with the RIGHT-LEANING position
   +5.0 = strongly aligned with the RIGHT-LEANING position
 
-intensity — a number from 1 to 5:
+intensity - a number from 1 to 5:
   1 = passing remark, casual mention
   2 = clear but brief statement
   3 = deliberate well-formed statement of view
@@ -59,7 +59,7 @@ IMPORTANT:
 - Use the LEFT/RIGHT positions defined above as your reference, not US-political-stereotypes.
 
 Return ONLY a JSON object with two numeric fields. No prose, no code fences,
-no leading "+" on positive numbers (write 4.2 not +4.2 — JSON does not allow
+no leading "+" on positive numbers (write 4.2 not +4.2 - JSON does not allow
 a leading "+").
 
 Examples:

@@ -11,7 +11,7 @@ interface Mover {
   currentMentions: number;
   /** Raw mention count in the prior (parallel) window. */
   prevMentions: number;
-  /** currentMentions / prevMentions — >1 = attention rising, <1 = falling. */
+  /** currentMentions / prevMentions - >1 = attention rising, <1 = falling. */
   volumeRatio: number;
 }
 
@@ -33,7 +33,7 @@ function leanColor(v: number): string {
 
 /**
  * Volume ratio reads naturally as "↑ 2.3×" when rising and "↓ 0.6×" when
- * falling — the arrow tells direction; the number is always the raw ratio
+ * falling - the arrow tells direction; the number is always the raw ratio
  * (60% of last week = "↓ 0.6×", not "1.7× lower"). A row with a sub-threshold
  * ratio (it earned its spot on the lean axis instead) gets a neutral dot.
  */
@@ -45,7 +45,7 @@ function formatVolumeRatio(r: number): string {
 }
 
 function volumeColor(r: number): string {
-  // Volume change is ideologically neutral — same gray either way. Slightly
+  // Volume change is ideologically neutral - same gray either way. Slightly
   // dimmer when the ratio is unremarkable so the eye skips it.
   if (r >= 1.05 || r <= 0.95) return "text-gray-700";
   return "text-gray-400";

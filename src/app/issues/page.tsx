@@ -67,7 +67,7 @@ export default async function IssuesListPage() {
   }
 
   // Activity rollup: read per-issue volume/lean from the precomputed home
-  // snapshot (fast — one row, no heavy join), fall back to a live compute only
+  // snapshot (fast - one row, no heavy join), fall back to a live compute only
   // if the snapshot is missing. Then aggregate to the same topic groups the
   // list uses below: mentions = Σ raw classification count, lean = volume-
   // weighted so the tint matches the Index basis.
@@ -113,7 +113,7 @@ export default async function IssuesListPage() {
         <p className="text-gray-600 mt-3 leading-relaxed max-w-3xl">
           The {issues.length} political issues we track across YouTube and podcasts, grouped under{" "}
           {sections.length} topics. Each has an explicit left- and right-leaning position, and every
-          mention is scored against those — not US-political stereotypes — then weighted by each
+          mention is scored against those - not US-political stereotypes - then weighted by each
           channel&apos;s audience and capped at 3 episodes a day, so the signal reflects stance per
           audience rather than who posts most often. Click any issue for the channel-level breakdown.
         </p>

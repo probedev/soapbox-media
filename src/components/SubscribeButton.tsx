@@ -9,7 +9,7 @@ import { useState } from "react";
 
 import { getBrowserSupabase } from "@/lib/supabase-browser";
 
-export function SubscribeButton({ className = "", label = "Subscribe — $300/mo" }: { className?: string; label?: string }) {
+export function SubscribeButton({ className = "", label = "Subscribe - $300/mo" }: { className?: string; label?: string }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 

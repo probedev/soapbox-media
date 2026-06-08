@@ -3,7 +3,7 @@
 /**
  * Pricing / subscribe page for MCP access ($300/mo). Logged-in users start a
  * Stripe Checkout session (subscription mode); logged-out users are sent to
- * /login first. Hosted Checkout — we just redirect to the returned URL.
+ * /login first. Hosted Checkout - we just redirect to the returned URL.
  */
 import { useEffect, useState } from "react";
 
@@ -14,7 +14,7 @@ import { getBrowserSupabase } from "@/lib/supabase-browser";
 const FEATURES = [
   "Connect your own AI agent (Claude, ChatGPT, Cursor) over MCP",
   "Nine tools: index, movers, issue trends, channel stances, quote-level mention search",
-  "Filtered, source-linked verbatim quotes — ask the dataset anything",
+  "Filtered, source-linked verbatim quotes - ask the dataset anything",
   "Daily-fresh data across the full tracked panel",
   "Methodology endpoint for citable, defensible numbers",
 ];
@@ -69,7 +69,7 @@ export default function PricingPage() {
               {busy ? "…" : "Subscribe"}
             </Button>
             <p className="text-[11px] text-muted-foreground mt-4 text-center">
-              Pay, then we email you a link to set your password and connect your agent. Full transcripts are never exposed — excerpts + source links only. Cancel anytime.
+              Pay, then we email you a link to set your password and connect your agent. Full transcripts are never exposed - excerpts + source links only. Cancel anytime.
             </p>
           </CardContent>
         </Card>

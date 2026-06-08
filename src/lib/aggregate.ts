@@ -28,7 +28,7 @@ import { type Cohort, PUBLIC_COHORTS } from "./cohort";
  * Per-request memoization wrapper. React's `cache()` only exists inside the
  * Next.js server runtime; in a plain Node/tsx CLI context (e.g.
  * `npm run refresh:snapshot`) the import resolves to `undefined`. Fall back to
- * an identity wrapper there — the CLI just runs without cross-call dedup, which
+ * an identity wrapper there - the CLI just runs without cross-call dedup, which
  * is correct (it's a single short-lived process), while server requests keep
  * the real per-render memoization that makes the double home-page call share
  * one DB pass.
@@ -55,7 +55,7 @@ export interface IssueAggregate {
   name: string;
   /** weighted-avg sentiment, normalized to -10..+10 */
   lean: number;
-  /** Σ (intensity × reach_factor) — total "share of voice" weight */
+  /** Σ (intensity × reach_factor) - total "share of voice" weight */
   volume: number;
   numClassifications: number;
   /** lean values across last N weeks (oldest first), for mini-sparklines */
@@ -72,7 +72,7 @@ export interface IssueMover {
   currentMentions: number;
   /** Raw mention count in the parallel prior window. */
   prevMentions: number;
-  /** currentMentions / prevMentions — week-over-week volume ratio.
+  /** currentMentions / prevMentions - week-over-week volume ratio.
    *  >1 = attention rising, <1 = falling. Paired with `delta` so a row can
    *  earn its spot on either axis: a lean swing, a volume swing, or both. */
   volumeRatio: number;
@@ -83,7 +83,7 @@ export interface DashboardData {
   asOfDate: string;
   /** Days in the trailing window (default 7) */
   windowDays: number;
-  /** -10..+10 — Soapbox Index over the trailing window */
+  /** -10..+10 - Soapbox Index over the trailing window */
   index: number;
   /** index - previous_period_index (same-length window immediately prior) */
   delta: number;
@@ -91,7 +91,7 @@ export interface DashboardData {
    *  Each value is the Index for a trailing windowDays-long period
    *  ending on that day. Days with no data are skipped. */
   sparkline: number[];
-  /** ISO date (YYYY-MM-DD) for each sparkline point — same length and
+  /** ISO date (YYYY-MM-DD) for each sparkline point - same length and
    *  order as `sparkline`. Used by the chart to label the time range. */
   sparklineDates: string[];
   /** Top issues within the trailing window, sorted by volume desc */
@@ -174,7 +174,7 @@ function rollingLeanTrend(
  * last `points` days, each the trailing `windowDays`-day raw mention count.
  *
  * Unlike `rollingLeanTrend`, which skips days where the window is empty
- * (lean is undefined at 0/0), this *keeps* mid-series zero days — a stretch
+ * (lean is undefined at 0/0), this *keeps* mid-series zero days - a stretch
  * of zero is a real "issue went silent" signal worth seeing on the chart.
  * Leading zeros are trimmed so the line starts at first observed activity.
  *
@@ -202,7 +202,7 @@ function rollingVolumeTrend(
     values.push(count);
     dates.push(windowEnd.toISOString().slice(0, 10));
   }
-  // Trim leading zero-days only — the entity wasn't being discussed yet.
+  // Trim leading zero-days only - the entity wasn't being discussed yet.
   // Mid-series zeros stay; that's the silence signal.
   let firstNonZero = 0;
   while (firstNonZero < values.length && values[firstNonZero] === 0) firstNonZero++;
@@ -217,17 +217,17 @@ function rollingVolumeTrend(
  * same render share one underlying fetch. The home page is the canonical
  * hot path: `<HomePage>` calls `getDashboardData()` and the sibling
  * `<IssueContributionsChart>` server component calls `getIndexBreakdown()`
- * — both rely on this function. Without `cache()` they each paginated the
+ * - both rely on this function. Without `cache()` they each paginated the
  * full 17K-row deep-join independently, adding ~7s to TTFB (v0.6.60
- * measured 15s home TTFB pre-fix). Per-render scope only — does NOT bridge
+ * measured 15s home TTFB pre-fix). Per-render scope only - does NOT bridge
  * separate requests.
  *
  * Page size bumped 500 → 1000 in v0.6.60. The 500 cap was added in v0.6.3
  * because Vercel's edge→Supabase route returns short pages on big response
- * payloads — but v0.6.51 fixed the terminator to only stop on empty pages,
+ * payloads - but v0.6.51 fixed the terminator to only stop on empty pages,
  * so a short page no longer truncates silently. 1000 halves round-trip
  * count (17 pages instead of 34). The select payload per row is small
- * (~300 bytes — IDs + a few short fields, no text), so a full 1000-row
+ * (~300 bytes - IDs + a few short fields, no text), so a full 1000-row
  * page is ~300KB; comfortably under the response cap.
  */
 const fetchScoreRows = cache(
@@ -286,7 +286,7 @@ const fetchScoreRows = cache(
         channel_reach: Number(ch.reach),
       });
     }
-    // Empty-page-only termination — see [[pagination-stable-order]] for
+    // Empty-page-only termination - see [[pagination-stable-order]] for
     // why a short page (length < pageSize, > 0) is normal on this route.
   }
   return all;
@@ -295,7 +295,7 @@ const fetchScoreRows = cache(
 /**
  * Minimum mentions an issue needs in BOTH the current and prior window to be
  * eligible as a "biggest mover". Without this, a quiet week (few mentions) can
- * produce a large, noisy lean swing and grab the headline on a thin sample —
+ * produce a large, noisy lean swing and grab the headline on a thin sample -
  * e.g. an 18-mention week outranking a 400-mention one. The lean swing is only
  * trustworthy once each side of the comparison has enough rows behind it.
  * The same floor applies to the volume-swing axis: a 4 → 12 mention spike is
@@ -335,7 +335,7 @@ export async function getDashboardData(
   const now = new Date();
   const asOfDate = now.toISOString().slice(0, 10);
 
-  // Total tracked shows + total ingested episodes — used by TrustStrip so
+  // Total tracked shows + total ingested episodes - used by TrustStrip so
   // its numbers match the SystemStats panel on /channels. Don't conflate
   // these with the in-window classification volume (those are scoped to
   // the rolling 7-day window for Index math).
@@ -458,11 +458,11 @@ export async function getDashboardData(
   issueAggregates.sort((a, b) => b.volume - a.volume);
 
   // Movers: per-issue current vs previous window.
-  // A row earns its place if EITHER the lean swung OR mention volume swung —
+  // A row earns its place if EITHER the lean swung OR mention volume swung -
   // two orthogonal "biggest mover" signals shown side by side. The lean side
   // answers "did anyone change their mind?"; the volume side answers "did the
   // agenda shift?" An issue can spike in attention with stable lean (Iran
-  // breaking news) or drift L↔R while volume stays flat — both are worth
+  // breaking news) or drift L↔R while volume stays flat - both are worth
   // surfacing.
   const movers: IssueMover[] = [];
   if (prevRows.length > 0) {
@@ -539,7 +539,7 @@ export async function getDashboardData(
 }
 
 /**
- * System-wide rollup stats — channel count, episodes processed, hours of
+ * System-wide rollup stats - channel count, episodes processed, hours of
  * audio analyzed, etc. Used on /channels page and other admin/social-proof
  * surfaces. Designed to be cheap: just COUNT(*) queries + a small duration
  * sum, no transcript text fetching.
@@ -550,31 +550,31 @@ export interface SystemStats {
   /** Unique-show counts split by editorial lean. */
   channelsByLean: { L: number; M: number; R: number };
   /** Sum of unique-show reach (max reach per show across its platform rows).
-   *  Counted by unique show so a dual-platform show isn't double-counted —
+   *  Counted by unique show so a dual-platform show isn't double-counted -
    *  one human who follows Ben Shapiro on YT AND podcast is one audience
    *  unit, not two. (The Index math still uses per-row reach for weighting;
    *  this stat is the public-facing "how big is the panel?" number.) */
   audienceReach: number;
-  /** Unique-show reach split by editorial lean — sums to audienceReach. */
+  /** Unique-show reach split by editorial lean - sums to audienceReach. */
   audienceReachByLean: { L: number; M: number; R: number };
   /** Number of active issues in the taxonomy (drives the "across N issues"
-   *  sublabel on /log — dynamic so it doesn't go stale as taxonomy grows). */
+   *  sublabel on /log - dynamic so it doesn't go stale as taxonomy grows). */
   activeIssues: number;
   /** Total episodes ever ingested (any transcript status). */
   episodesIngested: number;
-  /** Episodes with a transcript on file — the ones actually analyzable. */
+  /** Episodes with a transcript on file - the ones actually analyzable. */
   episodesAnalyzed: number;
   classifications: number;
   sentimentScores: number;
   hoursOfAudio: number;
   /** Earliest episode ingest timestamp (when continuous tracking began), ISO. */
   coverageSinceISO: string | null;
-  /** Latest sentiment_score.created_at, ISO — the newest data point. */
+  /** Latest sentiment_score.created_at, ISO - the newest data point. */
   lastUpdated: string | null;
 }
 
 /**
- * Panel-specific stats — composition of the channel set we track, NOT what
+ * Panel-specific stats - composition of the channel set we track, NOT what
  * the pipeline has done with it. Lives on `/channels`, separate from
  * `getSystemStats` (which is processing-scale and lives on `/log`). Sharing
  * the channels query would marginally save a round trip, but the SoC
@@ -589,17 +589,17 @@ export interface PanelStats {
   audienceReachByLean: { L: number; M: number; R: number };
   channelsByCohort: { independent: number; legacy: number };
   audienceReachByCohort: { independent: number; legacy: number };
-  /** Raw active channel rows — each (show, platform) is its own row. */
+  /** Raw active channel rows - each (show, platform) is its own row. */
   platformRows: number;
   /** Per-platform breakdown of `platformRows`. */
   platformSplit: { youtube: number; podcast: number };
   /** Largest single show by max reach across its platforms. */
   largestShow: { name: string; reach: number } | null;
-  /** MAX(reach_updated_at) across active channels — when the most-recently-
+  /** MAX(reach_updated_at) across active channels - when the most-recently-
    *  refreshed channel was last synced. Earliest channel's reach_updated_at
    *  is the floor (worst-case staleness); MAX is the headline freshness. */
   lastReachSync: string | null;
-  /** MIN(reach_updated_at) — the oldest reach number still in the panel.
+  /** MIN(reach_updated_at) - the oldest reach number still in the panel.
    *  Useful for "as old as X ago" reader signals. */
   oldestReachSync: string | null;
 }
@@ -650,7 +650,7 @@ export async function getPanelStats(): Promise<PanelStats> {
   }
   // Reach-freshness bookends: most-recent and oldest refresh timestamps
   // across the active panel. /channels displays the most-recent one as
-  // "last refreshed" — readers' best signal of how live the numbers are.
+  // "last refreshed" - readers' best signal of how live the numbers are.
   let lastReachSync: string | null = null;
   let oldestReachSync: string | null = null;
   for (const c of rows) {
@@ -682,7 +682,7 @@ export async function getSystemStats(): Promise<SystemStats> {
   // and count unique shows overall and per lean. A show's lean is consistent
   // across its platform rows, so first-seen lean per name is canonical.
   // Also fetch `reach` so we can sum unique-show audience for the /log stats
-  // panel — same collapse rule (max reach per show, not sum, since the same
+  // panel - same collapse rule (max reach per show, not sum, since the same
   // followers often appear on both platforms).
   const { data: channelRows } = await db
     .from("channels")
@@ -729,7 +729,7 @@ export async function getSystemStats(): Promise<SystemStats> {
   ]);
 
   // Sum episode durations, paginated. Terminate only on an empty page and
-  // advance by the actual rows returned — robust regardless of the project's
+  // advance by the actual rows returned - robust regardless of the project's
   // Max Rows cap (a fixed `data.length < pageSize` break can stop early).
   let totalSeconds = 0;
   const pageSize = 1000;
@@ -791,7 +791,7 @@ export interface IssueContribution {
   numClassifications: number;
   /** Average raw sentiment (-5..+5) across this issue's classifications. */
   avgSentiment: number;
-  /** Σ (sentiment × intensity × log10(reach)) — the net push this issue
+  /** Σ (sentiment × intensity × log10(reach)) - the net push this issue
    *  exerts on the Soapbox Index. Negative = pulls L; positive = pulls R. */
   contribution: number;
   direction: "L" | "R" | "neutral";
@@ -802,7 +802,7 @@ export interface IndexBreakdown {
   index: number;
   windowDays: number;
   totalClassifications: number;
-  /** Issues sorted by |contribution| descending — biggest movers first. */
+  /** Issues sorted by |contribution| descending - biggest movers first. */
   issues: IssueContribution[];
 }
 
@@ -944,10 +944,10 @@ function homeSnapshotKey(windowDays: number): string {
  */
 export async function writeHomeSnapshot(windowDays = 7): Promise<HomeSnapshot> {
   // Sequential (not Promise.all) so the first call populates the per-request
-  // fetchScoreRows cache and the second reuses it — one DB pass, not two.
+  // fetchScoreRows cache and the second reuses it - one DB pass, not two.
   const dashboard = await getDashboardData(windowDays);
   const breakdown = await getIndexBreakdown(windowDays);
-  // Per-cohort indices for the sub-needles — computed regardless of the master's
+  // Per-cohort indices for the sub-needles - computed regardless of the master's
   // cohort selection so they're ready the moment legacy is exposed.
   const [indDash, legDash] = [
     await getDashboardData(windowDays, ["independent"]),
@@ -1028,7 +1028,7 @@ export interface IssueDrillDown {
  * one channel's episodes). Unlike fetchScoreRows (which pulls the whole ~17K-row
  * join for global aggregates), this anchors on `classifications` and filters at
  * the DB via an indexed column (`issue_slug` / `episode_id`), so a drill-down
- * page returns only its own slice — tens-to-hundreds of rows — instead of the
+ * page returns only its own slice - tens-to-hundreds of rows - instead of the
  * whole table. This is the fix for ~7s drill-down TTFBs (the pages used
  * fetchScoreRows + a JS filter). Returns the same ScoreRow shape as
  * fetchScoreRows; only scored classifications are included.
@@ -1075,7 +1075,7 @@ async function fetchScoreRowsFiltered(
     else q = q.in("episode_id", filter.episodeIds);
 
     // Stable PK order + empty-page-only termination (the canonical pagination
-    // pattern — see [[pagination-stable-order]]).
+    // pattern - see [[pagination-stable-order]]).
     const { data, error } = await q
       .order("id", { ascending: true })
       .range(from, from + pageSize - 1);

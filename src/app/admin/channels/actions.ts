@@ -22,7 +22,7 @@ export async function addChannelAction(
 }
 
 /**
- * Resolve a handle + auto-draft a rationale for the admin to edit. Read-only —
+ * Resolve a handle + auto-draft a rationale for the admin to edit. Read-only -
  * the admin reviews/edits the draft, then commits via addChannelAction.
  */
 export async function previewChannelAction(

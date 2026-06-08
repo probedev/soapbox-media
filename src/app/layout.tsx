@@ -6,11 +6,11 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "Soapbox · Online political media, quantified",
   description:
-    "Soapbox quantifies what political media on YouTube and podcasts is saying about US policy issues — across independent creators and legacy institutions. Updated daily.",
+    "Soapbox quantifies what political media on YouTube and podcasts is saying about US policy issues - across independent creators and legacy institutions. Updated daily.",
   openGraph: {
     title: "Soapbox · Online political media, quantified",
     description:
-      "Soapbox quantifies what political media on YouTube and podcasts is saying about US policy issues — across independent creators and legacy institutions. Updated daily.",
+      "Soapbox quantifies what political media on YouTube and podcasts is saying about US policy issues - across independent creators and legacy institutions. Updated daily.",
     url: "https://soapbox.media",
     siteName: "Soapbox",
     type: "website",

@@ -13,11 +13,11 @@ export function getAnthropicClient(): Anthropic {
 /**
  * Model selection by task:
  * - Sonnet 4.6 for classification (nuanced multi-issue extraction from long transcripts)
- * - Haiku 4.5 for scoring (structured sentiment/intensity from short quotes — fast + cheap)
+ * - Haiku 4.5 for scoring (structured sentiment/intensity from short quotes - fast + cheap)
  */
 export const MODEL_CLASSIFY = "claude-sonnet-4-6";
 export const MODEL_SCORE = "claude-haiku-4-5-20251001";
-// Haiku for short one-off generations like the admin channel-rationale draft —
+// Haiku for short one-off generations like the admin channel-rationale draft -
 // fast, cheap, and a single sentence doesn't need Sonnet.
 export const MODEL_RATIONALE = "claude-haiku-4-5-20251001";
 
@@ -32,7 +32,7 @@ export const MODEL_RATIONALE = "claude-haiku-4-5-20251001";
  *     particular has been observed adding these to score values; the
  *     JSON spec only allows a leading `-`, so `JSON.parse` throws.
  * Targets only `+` immediately after `:` `,` or `[` (with optional
- *     whitespace) and immediately before a digit — i.e. JSON value
+ *     whitespace) and immediately before a digit - i.e. JSON value
  *     positions. Won't touch `+` inside string literals.
  */
 function normalizeLlmJson(raw: string): string {
@@ -44,7 +44,7 @@ export function extractJson<T>(text: string): T | null {
   const fenced = text.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
   const candidates: string[] = [];
   if (fenced) candidates.push(fenced[1]);
-  // Bare array or object — match the outermost braces/brackets
+  // Bare array or object - match the outermost braces/brackets
   const arrayMatch = text.match(/\[[\s\S]*\]/);
   if (arrayMatch) candidates.push(arrayMatch[0]);
   const objMatch = text.match(/\{[\s\S]*\}/);

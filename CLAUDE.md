@@ -1,4 +1,4 @@
-# CLAUDE.md — working guide for soapbox.media
+# CLAUDE.md - working guide for soapbox.media
 
 Soapbox quantifies what alt-media political voices (podcasts + YouTube) are
 saying about a defined issue taxonomy, and surfaces it as the **Soapbox Index**
@@ -10,13 +10,13 @@ Design history lives in `ARCHITECTURE.md`; release-by-release detail in
 
 ## Commands
 
-- `npm run dev` — local dev (reads `.env.local`)
-- `npm run typecheck` — **run before declaring any task done**
-- `npm run build` — prod build (catches what tsc misses)
+- `npm run dev` - local dev (reads `.env.local`)
+- `npm run typecheck` - **run before declaring any task done**
+- `npm run build` - prod build (catches what tsc misses)
 - Pipeline (CLI, hit live DB via `.env.local`): `npm run ingest -- <chans> <per>`,
   `npm run transcribe -- <n>`, `npm run classify -- <n>`, `npm run score -- <n>`
-- `bash scripts/catchup.sh` — full-pipeline drain (loops with hard safety caps)
-- `npm run seed:gold-set` — populate the gold-set labeling items
+- `bash scripts/catchup.sh` - full-pipeline drain (loops with hard safety caps)
+- `npm run seed:gold-set` - populate the gold-set labeling items
 
 ## Release ritual (every shippable change)
 
@@ -26,12 +26,12 @@ Design history lives in `ARCHITECTURE.md`; release-by-release detail in
 4. `git ls-remote --tags origin vX.Y.Z` (confirm unused) → commit → push → tag.
 5. Push to `main` auto-deploys on Vercel. The footer shows `VERSION`.
 
-## Guardrails (learned the hard way — don't relearn)
+## Guardrails (learned the hard way - don't relearn)
 
 - **Never loop cost-incurring stages unattended.** classify = Sonnet (~$0.05/ep).
   A loop with a loose cap reclassified the same episodes ~95× ($180 burned).
   Caps live in `scripts/catchup.sh`; single high-limit invocations are safer.
-- **Supabase Max Rows cap is 1000.** `.limit(50000)` does NOT beat it — it
+- **Supabase Max Rows cap is 1000.** `.limit(50000)` does NOT beat it - it
   silently truncates. Paginate with `.range()`, order by a stable key, stop
   only on an empty page. This caused both a data-loss bug and the classify
   runaway.
@@ -60,7 +60,7 @@ swappable. Aggregation (`src/lib/aggregate.ts`) is read-only.
 - Cron: Vercel, per-stage jobs with throughput-tuned cadences (set in
   `vercel.json`). Ingest 1×/day (10:00 UTC). Transcribe + classify every 2h
   (12×/day), classify offset +30 min. Score every 3h (also refreshes the home
-  snapshot). Cadence tightened v0.6.81 now stages are parallelized — frequency
+  snapshot). Cadence tightened v0.6.81 now stages are parallelized - frequency
   doesn't change cost (episode *volume* does), it just cuts processing latency.
   Ingest stays 1×/day on purpose: its 3-episode cap is enforced per-RUN, so
   running it more often would over-sample high-volume channels past the 3/day
@@ -80,27 +80,30 @@ swappable. Aggregation (`src/lib/aggregate.ts`) is read-only.
 
 ## Connectors
 
-Supabase, Vercel, and GitHub MCP connectors are available — query the DB and
+Supabase, Vercel, and GitHub MCP connectors are available - query the DB and
 read deploy/runtime logs directly instead of asking the user to paste. Prefer
 **read** for Supabase; for destructive writes or schema migrations, confirm
 with the user first.
 
 ## Conventions & quality bar
 
-- Secrets live only in gitignored `.env.local` — never commit them.
+- **Never use em dashes** (the long dash, Unicode U+2014) in any copy, comment,
+  or code. Use commas, colons, parentheses, or a spaced hyphen (" - ") instead.
+  This is a hard style rule across the whole project, going forward.
+- Secrets live only in gitignored `.env.local`; never commit them.
 - Clean, type-safe, scalable code over MVP shortcuts. Cost-conscious
   (~$1k/mo budget). UI is shadcn/ui + Tailwind; tables via TanStack Table.
 - **Charts: standardize on Recharts v3 + the shadcn chart component.** Every
   chart (new or touched) uses `ChartContainer` + `ChartConfig` +
   `ChartTooltip`/`ChartTooltipContent` (+ `ChartLegendContent` where useful)
-  from `src/components/ui/chart.tsx` — not bare Recharts elements or hand-rolled
+  from `src/components/ui/chart.tsx` - not bare Recharts elements or hand-rolled
   tooltips. This buys consistent tooltips, animations, theming, and a11y across
   the site. Give `ChartContainer` an explicit `min-h-*`/`aspect-*` (v3 needs a
   measurable size). Reference chart colors via the `--chart-*` CSS tokens /
   `ChartConfig.color`, never `hsl(var(...))`. Keep the house lean palette
   (red = right `#dc2626`, blue = left `#2563eb`) and the L+x/R+x labels.
   To add components/charts, use the **shadcn MCP** (configured in `.mcp.json`)
-  rather than hand-copying — `npx shadcn@latest add <component>`.
+  rather than hand-copying - `npx shadcn@latest add <component>`.
 - Scoring changes must be validated against the gold set (`/eval/label`) before
-  shipping — the sentiment scale is bimodal and under active calibration.
+  shipping - the sentiment scale is bimodal and under active calibration.
 - Never republish full transcripts; excerpts + source links only.

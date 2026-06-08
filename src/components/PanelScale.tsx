@@ -1,5 +1,5 @@
 /**
- * PanelScale — composition stats card for /channels.
+ * PanelScale - composition stats card for /channels.
  *
  * Mirrors the visual rhythm of SystemStats on /log, but the numbers are
  * about the panel itself (who we track) rather than the pipeline's
@@ -15,7 +15,7 @@ import { Mic, Tv } from "lucide-react";
 import { getPanelStats } from "@/lib/aggregate";
 
 function relativeTime(iso: string | null): string {
-  if (!iso) return "—";
+  if (!iso) return "-";
   const diffMs = Date.now() - new Date(iso).getTime();
   const diffMin = Math.floor(diffMs / 60_000);
   const diffH = Math.floor(diffMin / 60);

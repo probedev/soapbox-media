@@ -1,12 +1,12 @@
 /**
- * Public MCP server — lets external AI agents (campaign managers, media
+ * Public MCP server - lets external AI agents (campaign managers, media
  * buyers, consultants) query Soapbox data: the Index, issue trends, channel
  * stances, and mention-level quotes with sources.
  *
  * Transport: Streamable HTTP at POST /api/mcp/mcp (SSE transport is not
- * enabled — it would need Redis; modern MCP clients use streamable HTTP).
+ * enabled - it would need Redis; modern MCP clients use streamable HTTP).
  *
- * Auth: DUAL-MODE during the OAuth migration —
+ * Auth: DUAL-MODE during the OAuth migration -
  *   1. OAuth 2.1 (real): Supabase-issued JWTs validated as a resource server
  *      (RFC 9728 discovery via /.well-known/oauth-protected-resource → PKCE →
  *      bearer JWT). This is the claude.ai / ChatGPT web-connector path.
@@ -15,7 +15,7 @@
  *      verifyMcpToken; the static fast-path below skips the OAuth challenge
  *      for x-api-key callers.
  *
- * Data policy: full transcripts are NEVER exposed (licensing + house rule) —
+ * Data policy: full transcripts are NEVER exposed (licensing + house rule) -
  * mention-level supporting quotes with episode source links only. All tools
  * are read-only via the service client; RLS posture unchanged.
  */
@@ -33,7 +33,7 @@ const json = (data: unknown) => ({
   content: [{ type: "text" as const, text: JSON.stringify(data, null, 1) }],
 });
 
-// Prefer the precomputed dashboard_snapshot for the default 7-day window — an
+// Prefer the precomputed dashboard_snapshot for the default 7-day window - an
 // indexed single-row read (~sub-100ms) instead of getDashboardData's full
 // paginated deep-join + rolling-sparkline recompute (~10s, the cause of the
 // slow get_index/get_movers tool calls). The website home page already does
@@ -64,7 +64,7 @@ const handler = createMcpHandler(
 
     server.tool(
       "get_movers",
-      "Issues with the biggest period-over-period change — either lean swing (which direction the conversation moved) or mention-volume swing (what got loud/quiet). Eligibility floors filter out thin-sample noise.",
+      "Issues with the biggest period-over-period change - either lean swing (which direction the conversation moved) or mention-volume swing (what got loud/quiet). Eligibility floors filter out thin-sample noise.",
       { window_days: z.number().int().min(1).max(90).default(7).describe("Trailing window in days; compared against the same-length window immediately prior") },
       async ({ window_days }) => {
         const d = await dashboardFor(window_days);
@@ -88,7 +88,7 @@ const handler = createMcpHandler(
 
     server.tool(
       "get_issue_detail",
-      "Drill into one issue: per-channel contribution ranking for the current week — which shows are driving the conversation on this issue and from which side.",
+      "Drill into one issue: per-channel contribution ranking for the current week - which shows are driving the conversation on this issue and from which side.",
       { issue_slug: z.string().describe("Issue slug from list_issues") },
       async ({ issue_slug }) => {
         const d = await getIssueDrillDown(issue_slug);
@@ -98,7 +98,7 @@ const handler = createMcpHandler(
 
     server.tool(
       "get_channel_detail",
-      "Drill into one channel: its issue mix and stance profile — what this show talks about and how it leans per issue.",
+      "Drill into one channel: its issue mix and stance profile - what this show talks about and how it leans per issue.",
       { channel_id: z.string().uuid().describe("Channel UUID from list_channels") },
       async ({ channel_id }) => {
         const d = await getChannelDrillDown(channel_id);
@@ -108,15 +108,15 @@ const handler = createMcpHandler(
 
     server.tool(
       "search_mentions",
-      "Search scored issue mentions — each result is a verbatim quote (excerpt) from an episode with its sentiment score (-5 = left-aligned framing, +5 = right-aligned framing), intensity (1-5), issue, channel, and a source link to the full episode. Filter by issue, channel, lean, cohort, platform, date range, sentiment range, or keyword within the quote. Results are ordered by scoring recency, NOT publish date — use published_after/published_before to control the time window. Full transcripts are not available through this API; quotes + source links only.",
+      "Search scored issue mentions - each result is a verbatim quote (excerpt) from an episode with its sentiment score (-5 = left-aligned framing, +5 = right-aligned framing), intensity (1-5), issue, channel, and a source link to the full episode. Filter by issue, channel, lean, cohort, platform, date range, sentiment range, or keyword within the quote. Results are ordered by scoring recency, NOT publish date - use published_after/published_before to control the time window. Full transcripts are not available through this API; quotes + source links only.",
       {
         issue_slug: z.string().optional().describe("Filter to one issue (from list_issues)"),
         channel_id: z.string().uuid().optional().describe("Filter to one channel (from list_channels)"),
         lean: z.array(z.enum(["L", "M", "R"])).optional().describe("Filter by channel editorial lean"),
         cohort: z.enum(["independent", "legacy"]).optional().describe("independent = alt-media panel (drives the public Index); legacy = mainstream comparison set"),
         platform: z.enum(["youtube", "podcast"]).optional(),
-        published_after: z.string().optional().describe("ISO date — episodes published on/after"),
-        published_before: z.string().optional().describe("ISO date — episodes published on/before"),
+        published_after: z.string().optional().describe("ISO date - episodes published on/after"),
+        published_before: z.string().optional().describe("ISO date - episodes published on/before"),
         sentiment_min: z.number().min(-5).max(5).optional(),
         sentiment_max: z.number().min(-5).max(5).optional(),
         quote_contains: z.string().optional().describe("Case-insensitive substring match within the quote text"),
@@ -179,8 +179,8 @@ const authedHandler = withMcpAuth(handler, verifyMcpToken, {
 });
 
 // Legacy x-api-key callers bypass the OAuth challenge (they have no bearer
-// token to trigger discovery); everything else — Bearer JWT or Bearer static
-// key — goes through the spec path. Once all demo users migrate to OAuth this
+// token to trigger discovery); everything else - Bearer JWT or Bearer static
+// key - goes through the spec path. Once all demo users migrate to OAuth this
 // fast-path and the static-key branch in verifyMcpToken can be deleted.
 const route = (req: Request) => {
   if (isStaticKey(req.headers.get("x-api-key"))) return handler(req);

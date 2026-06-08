@@ -1,8 +1,8 @@
 /**
- * Data assembly for /admin/homelab — the private mock-up page where all 14
+ * Data assembly for /admin/homelab - the private mock-up page where all 14
  * proposed home-page cards render against LIVE data so the v1 cut can be
  * chosen by looking, not guessing. Read-only; pragmatic single-pass queries
- * (this page may take ~10s — fine for an admin decision tool, NOT the shape
+ * (this page may take ~10s - fine for an admin decision tool, NOT the shape
  * production cards will use; those will be folded into the home snapshot).
  *
  * All weighting matches the Index: weight = intensity × log10(reach);
@@ -37,7 +37,7 @@ function weightedIndex(rows: LabRow[]): number | null {
 }
 
 /** Paginated 90-day scored-mention pull. Stable PK order, empty-page-only
- *  termination — see [[pagination-stable-order]]. No quote text (kept light);
+ *  termination - see [[pagination-stable-order]]. No quote text (kept light);
  *  receipts/cross-talk fetch quotes separately. */
 async function fetchLabRows(days = 90): Promise<LabRow[]> {
   const db = createServiceClient();
@@ -259,7 +259,7 @@ function getFuses(rows: LabRow[]): FuseRow[] {
       const ratio = weekly[3] / prevAvg;
       const byChan = new Map<string, number>();
       for (const r of weeks[3]) byChan.set(r.ch_name, (byChan.get(r.ch_name) ?? 0) + 1);
-      const firstMover = [...byChan.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? "—";
+      const firstMover = [...byChan.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? "-";
       return { issue, weekly, ratio: Number(ratio.toFixed(2)), firstMover };
     })
     .filter((f) => f.weekly[3] >= 10)

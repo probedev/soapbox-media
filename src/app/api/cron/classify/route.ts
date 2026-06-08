@@ -1,6 +1,6 @@
 /**
  * Per-stage cron: classify. Runs Sonnet over pending transcripts and writes
- * issue mentions. Runs with its own 300s budget — this is the stage that blew
+ * issue mentions. Runs with its own 300s budget - this is the stage that blew
  * the combined pipeline past 300s once it started doing real work (v0.6.29).
  * Logs a usage_log row populated for the classify stage.
  */

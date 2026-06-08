@@ -21,14 +21,14 @@ interface IndexAreaChartProps {
   windowDays?: number;
   /**
    * Tailwind max-width class for the chart container. Defaults to `max-w-md`
-   * (the narrow home-page hero). Pass `""` to let it fill its parent — used in
+   * (the narrow home-page hero). Pass `""` to let it fill its parent - used in
    * the wide issue/channel drill-down cards.
    */
   maxWidthClass?: string;
   /**
    * Whether the vertical range must include 0 (the neutral line). True for the
    * home Index (so the L/R side is obvious). False for an issue/channel that
-   * sits far from center — fit to the data so the line uses the full height
+   * sits far from center - fit to the data so the line uses the full height
    * instead of leaving dead space.
    */
   includeZero?: boolean;

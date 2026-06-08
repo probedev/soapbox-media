@@ -66,7 +66,7 @@ function formatDate(iso: string): string {
 }
 
 function formatDuration(seconds: number | null): string {
-  if (!seconds || seconds <= 0) return "—";
+  if (!seconds || seconds <= 0) return "-";
   const h = Math.floor(seconds / 3600);
   const m = Math.floor((seconds % 3600) / 60);
   return h > 0 ? `${h}h ${m}m` : `${m}m`;
@@ -81,7 +81,7 @@ const LEAN: Record<string, { label: string; cls: string }> = {
 type Stage = "done" | "failed" | "partial" | "pending" | "no-signal" | "na";
 
 // "no-signal" reads as a *complete* state ("we looked, found nothing political")
-// — distinct from "pending" ("not yet looked"). The hollow ring tells that story
+// - distinct from "pending" ("not yet looked"). The hollow ring tells that story
 // visually: same footprint as the other dots but unfilled, signalling
 // "registered but empty." v0.6.54.
 const STATUS: Record<Stage, { label: string; dot: string }> = {
@@ -121,7 +121,7 @@ function StatusDot({ state }: { state: Stage }) {
 
 function Legend() {
   // Visible legend covers the five real states episodes land in. `na` is
-  // omitted — it only appears as a degenerate cascade when transcribe failed
+  // omitted - it only appears as a degenerate cascade when transcribe failed
   // and the downstream stages are gated, which is rare and self-explanatory
   // (red dot upstream).
   return (
@@ -204,9 +204,9 @@ const COLUMN_LABELS: Record<string, string> = {
 
 // Column widths as PERCENTAGES of the table (which is w-full). With
 // `table-fixed`, percentages are relative to the table width, so they always
-// sum to the container — the table never exceeds it and there's no horizontal
+// sum to the container - the table never exceeds it and there's no horizontal
 // scroll. (Pixel widths summing > container would force the table wider and
-// scroll — that was the earlier bug.) Long cells truncate instead.
+// scroll - that was the earlier bug.) Long cells truncate instead.
 const COL_WIDTH: Record<string, number> = {
   expander: 4,
   political_lean: 9,
@@ -349,7 +349,7 @@ const columns: ColumnDef<EpisodeTableRow>[] = [
 
 // Client table column id → server sort key (a real DB column). Stage columns
 // map to their underlying status field so server ordering groups "how far each
-// episode got" — close enough to the client STAGE_RANK ordering.
+// episode got" - close enough to the client STAGE_RANK ordering.
 const SERVER_SORT_KEY: Record<string, string> = {
   published_at: "published_at",
   title: "title",

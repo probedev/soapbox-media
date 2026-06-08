@@ -38,7 +38,7 @@ function ChannelCadenceTable({ rows }: { rows: ChannelAuditRow[] }) {
 
   // Count name occurrences so we know when to suffix the platform.
   // Each (show, platform) is a separate ingest source; same name across rows
-  // shouldn't read as a duplicate — it's "Ben Shapiro Show (Pod)" and
+  // shouldn't read as a duplicate - it's "Ben Shapiro Show (Pod)" and
   // "Ben Shapiro Show (YT)", deliberately separated.
   const nameCounts = new Map<string, number>();
   for (const r of rows) nameCounts.set(r.name, (nameCounts.get(r.name) || 0) + 1);
@@ -100,7 +100,7 @@ function ChannelCadenceTable({ rows }: { rows: ChannelAuditRow[] }) {
       {dormant.length > 0 && (
         <div className="mt-6">
           <div className="text-sm font-semibold text-amber-700 mb-2">
-            Dormant ({dormant.length}) — no episodes in last 14 days
+            Dormant ({dormant.length}) - no episodes in last 14 days
           </div>
           <div className="border border-amber-200 rounded-lg bg-amber-50/50 divide-y divide-amber-100">
             {dormant.map((c) => (

@@ -1,8 +1,8 @@
 /**
- * IssueActivityByTopic — "what alt-media is talking about" summary for /issues.
+ * IssueActivityByTopic - "what alt-media is talking about" summary for /issues.
  *
  * The /issues page is otherwise a static taxonomy reference; this card adds the
- * one dimension it lacks — attention. It rolls the per-issue volume from the
+ * one dimension it lacks - attention. It rolls the per-issue volume from the
  * home dashboard snapshot up into the same topics the list below is grouped by,
  * so the reader sees which areas are hot right now before scrolling the full
  * catalog. Distinct from the home page's "Biggest movers" (a lean-swing
@@ -12,7 +12,7 @@
  * this discussed" metric). The lean tint uses volume-weighted lean (reach-
  * weighted, same basis as the Soapbox Index) so the direction is honest.
  *
- * Pure presentational — the page computes the rollup and passes it in, so this
+ * Pure presentational - the page computes the rollup and passes it in, so this
  * adds no DB query (mirrors PanelBalance / PanelScale).
  */
 import { cn } from "@/lib/utils";

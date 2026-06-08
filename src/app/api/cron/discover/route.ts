@@ -1,7 +1,7 @@
 /**
  * Weekly cron: rebuild emerging-issue discovery candidates by clustering recent
  * off-taxonomy topics. Surfaces them at /admin/discovery for human-gated review.
- * Not a pipeline stage — it reads discovery_topics and writes
+ * Not a pipeline stage - it reads discovery_topics and writes
  * discovery_candidates; it never edits the taxonomy.
  */
 import { type NextRequest, NextResponse } from "next/server";

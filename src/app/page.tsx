@@ -15,7 +15,7 @@ import { PUBLIC_COHORTS } from "@/lib/cohort";
 // The home page reads a precomputed snapshot (written at the end of the score
 // cron) so it serves one light row instead of re-aggregating the full
 // sentiment_scores join per request. Kept `force-dynamic` so it always reflects
-// the latest snapshot the moment the cron refreshes it — reading one indexed
+// the latest snapshot the moment the cron refreshes it - reading one indexed
 // row is sub-100ms. Falls back to a live computation only when the snapshot is
 // missing or unavailable (first deploy / before first cron / pre-migration).
 export const dynamic = "force-dynamic";
@@ -38,14 +38,14 @@ export default async function HomePage() {
   const HOMEPAGE_WINDOW_DAYS = 7;
   // Prefer the precomputed snapshot. `.catch(() => null)` keeps the page alive
   // if the dashboard_snapshot table doesn't exist yet (migration not applied)
-  // or the read errors — we just fall back to the live (slower) path.
+  // or the read errors - we just fall back to the live (slower) path.
   const snapshot = await readHomeSnapshot(HOMEPAGE_WINDOW_DAYS).catch(() => null);
   const data = snapshot?.dashboard ?? (await getDashboardData(HOMEPAGE_WINDOW_DAYS));
   // Breakdown for <IssueContributionsChart>. From the snapshot when present;
   // otherwise the component computes it live itself (prop left undefined).
   const breakdown =
     snapshot?.breakdown ?? (await getIndexBreakdown(HOMEPAGE_WINDOW_DAYS));
-  // Trending Names (BETA) — its own snapshot, refreshed by /api/cron/trending.
+  // Trending Names (BETA) - its own snapshot, refreshed by /api/cron/trending.
   // Best-effort: a missing/failed read must not break the home page.
   const trending = await readTrending().catch(() => null);
 
@@ -61,7 +61,7 @@ export default async function HomePage() {
     <main className="min-h-screen">
       <Header />
 
-      {/* Hero — needle + headline number + sparkline + trust strip */}
+      {/* Hero - needle + headline number + sparkline + trust strip */}
       <section className="px-6 pt-12 pb-10 max-w-5xl mx-auto text-center">
         <div className="uppercase text-xs font-semibold tracking-wider text-gray-500 mb-2">
           The Soapbox Index · updated daily
@@ -158,7 +158,7 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* Why is the Index where it is? — per-issue contribution breakdown */}
+      {/* Why is the Index where it is? - per-issue contribution breakdown */}
       <section className="border-t border-gray-200 bg-gray-50">
         <div className="max-w-3xl mx-auto px-6 py-12">
           <IssueContributionsChart windowDays={HOMEPAGE_WINDOW_DAYS} breakdown={breakdown} />
@@ -176,7 +176,7 @@ export default async function HomePage() {
         </section>
       )}
 
-      {/* Trending Names (BETA) — named-entity burst tease */}
+      {/* Trending Names (BETA) - named-entity burst tease */}
       {trending && trending.entities.length > 0 && (
         <section className="border-t border-gray-200 bg-white">
           <div className="max-w-3xl mx-auto px-6 py-12">

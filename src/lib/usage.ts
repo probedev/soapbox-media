@@ -79,7 +79,7 @@ export async function recordPipelineRun(
   });
 
   if (error) {
-    // Don't fail the cron just because logging failed — log to console.
+    // Don't fail the cron just because logging failed - log to console.
     console.error("recordPipelineRun: failed to persist usage_log:", error.message);
   }
 }

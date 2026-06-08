@@ -1,5 +1,5 @@
 /**
- * Support donations to Soapbox (Breakfastball LLC) — NOT to candidates, not
+ * Support donations to Soapbox (Breakfastball LLC) - NOT to candidates, not
  * tax-deductible. One-time (payment mode, pay-what-you-want) or monthly
  * (subscription mode, ad-hoc recurring price). No account/entitlement: it's a
  * contribution, so we just take the payment and say thanks.
@@ -31,7 +31,7 @@ export async function POST(req: NextRequest) {
       line_items: [{
         price_data: {
           currency: "usd",
-          product_data: { name: recurring ? "Monthly support — Soapbox.media" : "Support — Soapbox.media" },
+          product_data: { name: recurring ? "Monthly support - Soapbox.media" : "Support - Soapbox.media" },
           unit_amount: amt,
           ...(recurring ? { recurring: { interval: "month" as const } } : {}),
         },

@@ -1,7 +1,7 @@
 /**
  * Server-paginated episode table feed for /log (and channel drill-downs).
  * Sorting, search, and pagination happen in Postgres so the client fetches
- * only the page it renders — TTFB stays flat as the archive grows instead of
+ * only the page it renders - TTFB stays flat as the archive grows instead of
  * shipping all ~2,000+ rows per request.
  *
  * Public, read-only data; served via the service-role client like the rest of

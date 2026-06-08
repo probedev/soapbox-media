@@ -1,7 +1,7 @@
 interface WeeklyHeadlineProps {
   /** Fully-assembled headline string from buildAutoHeadline(). */
   text?: string;
-  /** Optional href — when present, wraps the headline in a link with a subtle "see more" affordance. */
+  /** Optional href - when present, wraps the headline in a link with a subtle "see more" affordance. */
   href?: string;
 }
 

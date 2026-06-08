@@ -76,7 +76,7 @@ export default async function IssuePage({
           </div>
         </div>
 
-        {/* Trend — lean (L↔R) paired with attention (mention volume). Two
+        {/* Trend - lean (L↔R) paired with attention (mention volume). Two
             sparklines side-by-side answer the two reader questions at once:
             "where is alt media landing on this?" + "is anyone actually
             talking about it?" Volume falls back beneath the lean chart on

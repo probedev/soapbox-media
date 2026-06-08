@@ -1,7 +1,7 @@
 /**
  * Per-episode classification + score detail, lazy-loaded when an activity-log
  * row is expanded. Returns every issue mention the classifier found in this
- * episode, each with its supporting quote and sentiment/intensity score — the
+ * episode, each with its supporting quote and sentiment/intensity score - the
  * "receipts" behind the status dots. Fetched on demand (one episode at a time)
  * so the /log table never eager-loads the full classifications join.
  *
@@ -34,7 +34,7 @@ export async function GET(
 
   const mentions: EpisodeMention[] = (data || []).map((r: any) => {
     // sentiment_scores is one-to-one on classification_id, but PostgREST embeds
-    // a reverse relation as an array — normalize either shape.
+    // a reverse relation as an array - normalize either shape.
     const score = Array.isArray(r.score) ? r.score[0] : r.score;
     const issue = Array.isArray(r.issue) ? r.issue[0] : r.issue;
     return {

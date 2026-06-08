@@ -1,8 +1,8 @@
 /**
- * Discover module — merge raw off-taxonomy topic labels (harvested during
+ * Discover module - merge raw off-taxonomy topic labels (harvested during
  * classify) into candidate emerging-issue themes via a single Haiku pass.
  * Synonyms/rephrasings of the same underlying issue collapse into one theme;
- * genuinely distinct topics stay separate. Pure proposal — a human decides
+ * genuinely distinct topics stay separate. Pure proposal - a human decides
  * whether any theme becomes a taxonomy issue.
  */
 import { getAnthropicClient, MODEL_SCORE, extractJson } from "@/lib/anthropic";
@@ -39,7 +39,7 @@ For each theme return:
 LABELS:
 ${list}
 
-OUTPUT — return ONLY a JSON array, no prose, no markdown fences:
+OUTPUT - return ONLY a JSON array, no prose, no markdown fences:
 [{"canonical_label": "...", "summary": "...", "member_indices": [0, 4]}]`;
 }
 

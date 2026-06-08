@@ -4,7 +4,7 @@
  * The 14 candidate home-page cards, rendered against live data on
  * /admin/homelab so the v1 cut can be chosen visually. Styling follows the
  * house chart conventions: red = right, blue = left, L+x/R+x labels.
- * These are decision mocks — production versions get snapshot-backed data
+ * These are decision mocks - production versions get snapshot-backed data
  * and polish, but the data shown here is real.
  */
 import * as React from "react";
@@ -25,7 +25,7 @@ const BLUE = "#2563eb";
 const GRAY = "#9ca3af";
 
 const fmtLean = (v: number | null) =>
-  v === null ? "—" : v > 0.05 ? `R+${v.toFixed(1)}` : v < -0.05 ? `L+${Math.abs(v).toFixed(1)}` : "Even";
+  v === null ? "-" : v > 0.05 ? `R+${v.toFixed(1)}` : v < -0.05 ? `L+${Math.abs(v).toFixed(1)}` : "Even";
 const leanColor = (v: number | null) => (v === null ? GRAY : v > 0.05 ? RED : v < -0.05 ? BLUE : GRAY);
 const fmtReach = (x: number) => (x >= 1e6 ? (x / 1e6).toFixed(1) + "M" : Math.round(x / 1e3) + "k");
 
@@ -372,7 +372,7 @@ export function PolarizationCard({ bins, pctExtreme, mentions }: { bins: PolarBi
       </ResponsiveContainer>
       <div className="text-xs text-gray-600 mt-2">
         <span className="font-semibold text-gray-900">{pctExtreme}%</span> of this week&apos;s {mentions.toLocaleString()} mentions
-        sit beyond ±3 — the conversation is bimodal by nature; the valley in the middle is the finding.
+        sit beyond ±3 - the conversation is bimodal by nature; the valley in the middle is the finding.
       </div>
     </div>
   );

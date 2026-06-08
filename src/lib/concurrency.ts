@@ -2,7 +2,7 @@
  * Bounded-concurrency worker pool. Runs `fn` over `items` with at most
  * `concurrency` in flight at once, pulling from a shared cursor (no
  * head-of-line blocking). `fn` returns void and does its own work / side
- * effects / counter mutation — safe to mutate shared counters because JS is
+ * effects / counter mutation - safe to mutate shared counters because JS is
  * single-threaded (the `+=` after each await never interleaves).
  *
  * If `stopAt` (epoch ms) is given, workers stop pulling NEW items once the

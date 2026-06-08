@@ -1,6 +1,6 @@
 /**
  * Browser-side Supabase client (anon key, session persisted in the browser).
- * Used ONLY by end-user-facing auth surfaces — currently the OAuth consent
+ * Used ONLY by end-user-facing auth surfaces - currently the OAuth consent
  * page (/oauth/consent), which needs a logged-in user session to call
  * supabase.auth.oauth.{getAuthorizationDetails,approveAuthorization,...}.
  *

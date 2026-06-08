@@ -7,11 +7,22 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
+## v0.9.2 · 2026-06-08
+
+### Changed
+
+- **Banned em dashes project-wide.** Added a hard style rule to CLAUDE.md (never
+  use the long U+2014 dash anywhere; use commas, colons, parentheses, or a
+  spaced hyphen) and scrubbed every existing em dash from the site copy,
+  components, lib, comments, CLAUDE.md, and this changelog. Mechanical
+  replacement: spaced em dash to " - ", attached to "-". (Minus signs in scores
+  like -5 are a different character and were left alone.)
+
 ## v0.9.1 · 2026-06-08
 
 ### Changed
 
-- **Support page copy rewritten in a warmer, Wikipedia-style appeal** —
+- **Support page copy rewritten in a warmer, Wikipedia-style appeal** -
   reflective and second-person ("think back over this past year of politics…
   what is political media actually saying?"), with the "$5, $20, $50, or
   whatever feels right" ask, an independence/threat framing, and a closing
@@ -23,13 +34,13 @@ pre-launch build leading into the November 2026 US midterms.
 ### Added
 
 - **Support donations (workstream 3).** Wikipedia-style "fund the referee"
-  contributions to Soapbox — pay-what-you-want one-time (Stripe `payment` mode
+  contributions to Soapbox - pay-what-you-want one-time (Stripe `payment` mode
   + `submit_type: donate`) or monthly (ad-hoc recurring price), no account
   required (`/api/stripe/donate`, `DonationWidget`). New `/support` page plus
   **L/M/R persuasion variants** (`/support/left|middle|right`) reframing the ask
   for donors who already give to candidates across the map, sharing one
   `SupportLanding` + copy map. `/support/thanks` confirmation. Clearly labeled
-  **not a political contribution and not tax-deductible** (for-profit LLC) —
+  **not a political contribution and not tax-deductible** (for-profit LLC) -
   goes to Soapbox/Breakfastball operations, never to candidates. Footer now
   links **Support**.
 
@@ -40,7 +51,7 @@ pre-launch build leading into the November 2026 US midterms.
 - **/mcp page: subscribe in, beta-access out.** Replaced the "request a beta
   access key" CTA (and the bottom "Get a key" section) with the $300/mo
   pay-first **Subscribe** card (new reusable `SubscribeButton`). Connect
-  instructions updated to the OAuth sign-in path — no `YOUR_ACCESS_KEY` headers;
+  instructions updated to the OAuth sign-in path - no `YOUR_ACCESS_KEY` headers;
   just the server URL + browser login. claude.ai/ChatGPT note updated from
   "OAuth on roadmap" to "supported."
 
@@ -49,10 +60,10 @@ pre-launch build leading into the November 2026 US midterms.
 ### Changed
 
 - **Subscription flow switched to pay-first (Model B).** No account needed to
-  subscribe — the friction of "sign up before you can pay" is gone. Flow:
+  subscribe - the friction of "sign up before you can pay" is gone. Flow:
   `/pricing` → Subscribe (anonymous) → Stripe Checkout collects email + card →
   webhook `checkout.session.completed` **provisions a Supabase user** from the
-  email (`provisionUserByEmail` — finds existing or creates + sends a Supabase
+  email (`provisionUserByEmail` - finds existing or creates + sends a Supabase
   invite/set-password email), links the subscription, and grants entitlement →
   new `/welcome` page handles the set-password landing and shows the
   connect-your-agent instructions. Stripe's hosted checkout can't create a
@@ -62,7 +73,7 @@ pre-launch build leading into the November 2026 US midterms.
   `provisionUserByEmail` + `linkSubscription` + `syncSubscriptionByCustomer`.
   - **Supabase config needed:** add `https://www.soapbox.media/welcome` to the
     Auth redirect-URL allowlist (invite link lands there). Invite emails use
-    Supabase Auth's email — fine for testing; custom SMTP for scale.
+    Supabase Auth's email - fine for testing; custom SMTP for scale.
 
 ## v0.8.4 · 2026-06-08
 
@@ -90,7 +101,7 @@ pre-launch build leading into the November 2026 US midterms.
 
 ### Fixed
 
-- **Checkout `STRIPE_PRICE_ID not configured` in prod** — the price id was read
+- **Checkout `STRIPE_PRICE_ID not configured` in prod** - the price id was read
   at module load (`export const PRICE_ID = process.env…`), which can be inlined
   at build / survive build-cache and miss a runtime env var. Now read at
   request time via `priceId()`. (If it still reports unset after this, the var
@@ -101,14 +112,14 @@ pre-launch build leading into the November 2026 US midterms.
 ### Changed
 
 - Deploy bump to pick up the production Stripe env vars (`STRIPE_SECRET_KEY`,
-  `STRIPE_PRICE_ID`, `STRIPE_WEBHOOK_SECRET`) — Vercel only injects env on a
+  `STRIPE_PRICE_ID`, `STRIPE_WEBHOOK_SECRET`) - Vercel only injects env on a
   fresh deployment, and the v0.8.0 build predated them. No code change.
 
 ## v0.8.0 · 2026-06-08
 
 ### Added
 
-- **MCP access monetization — $300/mo Stripe subscription (workstream 2).**
+- **MCP access monetization - $300/mo Stripe subscription (workstream 2).**
   Full subscribe → entitlement → gating chain on top of the OAuth identity:
   - `/pricing` (subscribe) → `/api/stripe/checkout` (Checkout, subscription
     mode, `client_reference_id` = Supabase user) → `/api/stripe/webhook`
@@ -116,7 +127,7 @@ pre-launch build leading into the November 2026 US midterms.
     `customer.subscription.*` → upserts the `subscriptions` entitlement row) →
     `/account` (status + post-checkout landing) via `/api/stripe/status`.
   - **Gating:** MCP tools now require the `mcp` scope, which `verifyMcpToken`
-    grants only to active subscribers — OR everyone while `MCP_OPEN_BETA` is on
+    grants only to active subscribers - OR everyone while `MCP_OPEN_BETA` is on
     (default), so current testers aren't locked out. Flip `MCP_OPEN_BETA=false`
     to enforce paid-only; static `MCP_ACCESS_KEYS` stay exempt (comped/demo).
     Entitlement reads are DB-only (`lib/entitlements.ts`), no Stripe SDK in the
@@ -134,7 +145,7 @@ pre-launch build leading into the November 2026 US midterms.
 - **Charting standardized on Recharts v3 + the shadcn chart component.**
   Upgraded `recharts` 2.15.4 → 3.8.1 and re-pulled the v3 shadcn `chart.tsx`
   (now ships `ChartTooltipContent`/`ChartLegendContent` + `initialDimension`).
-  Our code used none of v3's removed APIs, so the bump is clean — typecheck +
+  Our code used none of v3's removed APIs, so the bump is clean - typecheck +
   build green, home/issue/homelab chart pages render without errors. CLAUDE.md
   now mandates the shadcn chart pattern (`ChartContainer` + `ChartConfig` +
   `ChartTooltipContent`) for every new/touched chart, for consistent tooltips,
@@ -152,7 +163,7 @@ pre-launch build leading into the November 2026 US midterms.
 
 ### Fixed
 
-- **MCP `get_index` / `get_movers` were very slow** — they called
+- **MCP `get_index` / `get_movers` were very slow** - they called
   `getDashboardData()` live on every request (full paginated deep-join +
   rolling-sparkline recompute, ~10s). Now they read the precomputed
   `dashboard_snapshot` for the default 7-day window (indexed single-row read,
@@ -164,7 +175,7 @@ pre-launch build leading into the November 2026 US midterms.
 
 ### Added
 
-- **MCP OAuth — consent screen + end-user accounts (part 2).** The app now has
+- **MCP OAuth - consent screen + end-user accounts (part 2).** The app now has
   end-user authentication (it was service-role-only before). New
   `/oauth/consent` screen handles Supabase's OAuth authorization handoff:
   reads `authorization_id`, requires a logged-in session, shows the requesting
@@ -184,7 +195,7 @@ pre-launch build leading into the November 2026 US midterms.
 
 ### Added
 
-- **MCP OAuth 2.1 — resource-server half (part 1 of real MCP auth).** The MCP
+- **MCP OAuth 2.1 - resource-server half (part 1 of real MCP auth).** The MCP
   endpoint now validates Supabase-issued JWTs as an OAuth resource server
   (RFC 9728): new `/.well-known/oauth-protected-resource` metadata route
   advertising Supabase as the authorization server, JWKS token validation
@@ -201,10 +212,10 @@ pre-launch build leading into the November 2026 US midterms.
 ### Changed
 
 - **Trending Names ranking, after an accuracy investigation.** The v0.7.4
-  breadth-only ranking crowned "New York Times" (#1 on 119 shows) — but a
+  breadth-only ranking crowned "New York Times" (#1 on 119 shows) - but a
   context probe showed NYT runs at only ~1.5–1.9× its baseline: omnipresent,
   not trending. Inversely, the genuine breaking event (the Meet-the-Press /
-  Kristen Welker walkout) was absent — real (0→10 shows, accelerating) but too
+  Kristen Welker walkout) was absent - real (0→10 shows, accelerating) but too
   fresh to clear the breadth bar under 1×/day ingest. Findings: (1) burst floor
   raised 1.4→1.7 to strip flat perennials; (2) a higher bar (2.5×) for major
   media outlets, which are structurally always-cited, so they only headline if
@@ -214,7 +225,7 @@ pre-launch build leading into the November 2026 US midterms.
   the rising bar. Result: an all-real, coherent leaderboard (Maine Senate race,
   California politics, Hamas/Lebanon) instead of NYT on ubiquity. Known beta
   limits unchanged: ASR-misspelled canonicals (e.g. "Plattner") and a 1–2 day
-  lag on breaking events — both await entity-linking/NER on the roadmap.
+  lag on breaking events - both await entity-linking/NER on the roadmap.
 
 ## v0.7.4 · 2026-06-08
 
@@ -231,7 +242,7 @@ pre-launch build leading into the November 2026 US midterms.
   filter + stopword/first-name blocklists to strip capitalized non-entities,
   and breadth-gated rising rank. Persisted to `dashboard_snapshot`
   (`trending_v1`), refreshed daily by `/api/cron/trending` (10:30 UTC, after
-  ingest). Labelled experimental — canonicalization is still maturing. Roadmap
+  ingest). Labelled experimental - canonicalization is still maturing. Roadmap
   path: PERSON/ORG/PLACE typing (ORG opens a corporate-comms cohort) and an
   MCP tool.
 
@@ -239,13 +250,13 @@ pre-launch build leading into the November 2026 US midterms.
 
 ### Added
 
-- **/admin/homelab — home-page redesign lab.** All 14 candidate cards for
+- **/admin/homelab - home-page redesign lab.** All 14 candidate cards for
   the home-page overhaul rendered against live data (90-day pull), grouped
   by proposed zone, so the v1 cut and ordering can be chosen by looking:
   Pulse, Battlefield, Heat Grid, Ownership Map, The Gap, Two Conversations,
   Risers & Faders, Megaphone treemap, Lit Fuses, Strips, Receipts,
   Cross-Talk (string-match v1 over scored quotes), Polarization Strip, and
-  Audio-vs-Video. Deliberately heavy/unoptimized — it's a decision tool;
+  Audio-vs-Video. Deliberately heavy/unoptimized - it's a decision tool;
   chosen cards get snapshot-backed production implementations.
 
 ## v0.7.2 · 2026-06-06
@@ -258,14 +269,14 @@ pre-launch build leading into the November 2026 US midterms.
   default). Replaced with researched editorial estimates anchored to the ~28
   publicly-corroborated shows, using chart positions, publisher
   announcements, public rankers, YouTube presence, and a Podchaser
-  powerScore prior (calibrated: ρ=0.57 — useful as prior, not as truth).
+  powerScore prior (calibrated: ρ=0.57 - useful as prior, not as truth).
   Values bracketed to coarse tiers (50k–5M); biggest corrections: Theo Von
   300k → 5M, Up First 300k → 4M, Benny Show/Piers Morgan 300k → 2M. Total
   podcast panel reach 23.1M → 39.7M. Apply script
   (`scripts/apply-reach-estimates.ts`) only touches exact-300k rows, so
   anchors are untouchable and re-runs are no-ops.
 - **Methodology page: "Audience reach: how we measure it."** New section
-  disclosing the split measurement model — YouTube subscriber counts from
+  disclosing the split measurement model - YouTube subscriber counts from
   the YouTube Data API (auto-refreshed daily at ingest) vs editorial
   weekly-listener estimates for podcasts (no public per-show measurement
   exists at panel scale; commercial aggregator audience fields verified
@@ -276,12 +287,12 @@ pre-launch build leading into the November 2026 US midterms.
 
 ### Added
 
-- **/mcp page — public walkthrough of the MCP server.** Who it's for
+- **/mcp page - public walkthrough of the MCP server.** Who it's for
   (campaign teams, media buyers, consultants, pollsters, comms shops,
   journalists), eight persona-mapped example questions the dataset answers
   today, the nine-tool reference table, the data boundaries (excerpts +
   source links, never full transcripts), and copy-paste connect configs for
-  Claude Code, Claude Desktop (mcp-remote bridge), Cursor, and VS Code —
+  Claude Code, Claude Desktop (mcp-remote bridge), Cursor, and VS Code -
   with an honest note that claude.ai/ChatGPT web connectors need OAuth
   (roadmap). Beta keys are free, requested via access@soapbox.media.
   Footer now links the page as "For AI Agents".
@@ -290,19 +301,19 @@ pre-launch build leading into the November 2026 US midterms.
 
 ### Added
 
-- **Public MCP server** (`/api/mcp/mcp`, Streamable HTTP) — external AI agents
+- **Public MCP server** (`/api/mcp/mcp`, Streamable HTTP) - external AI agents
   can now query Soapbox data directly: campaign managers / media buyers /
   consultants connect their own agents and ask arbitrary questions instead of
   being limited to our charts. Nine read-only tools: `get_index`,
   `get_movers`, `list_issues`, `list_channels`, `get_issue_detail`,
-  `get_channel_detail`, `search_mentions` (the workhorse — filtered
+  `get_channel_detail`, `search_mentions` (the workhorse - filtered
   quote-level search with sentiment, source links, pagination),
   `get_issue_trend` (weekly volume/sentiment series), and `get_methodology`
   (scoring scale + live panel stats, for citation). Auth via
   `MCP_ACCESS_KEYS` (comma-separated bearer keys, fails closed) so demo keys
   can be issued per-customer; OAuth/Stripe deferred until demo interest
   proves out. Transcript policy enforced at the data layer: mention-level
-  verbatim quotes + episode source links only — full transcripts are never
+  verbatim quotes + episode source links only - full transcripts are never
   exposed (PodScan/Supadata license them to us, not through us). New deps:
   `mcp-handler`, `@modelcontextprotocol/sdk`, `zod`.
 
@@ -312,7 +323,7 @@ pre-launch build leading into the November 2026 US midterms.
 
 - **Score throughput resized for the expanded panel: `SCORE_LIMIT` 240 → 720.**
   The channel expansion tripled episode intake (~470 eps/day, ~10 mentions/ep
-  ≈ 4,700 mentions/day) while score capacity stayed at 8×240 = 1,920/day —
+  ≈ 4,700 mentions/day) while score capacity stayed at 8×240 = 1,920/day -
   every cron run saturated its cap and ~2,000 unscored classifications piled
   up, showing as partially-scored episodes in /log. 240 mentions took ~35s per
   run, so 720 (~105s) fits comfortably inside the 240s stage time budget; new
@@ -324,12 +335,12 @@ pre-launch build leading into the November 2026 US midterms.
 ### Changed
 
 - **Tighter pipeline cadence for a fresher site.** Now that transcribe/classify/
-  score run through concurrency pools, processing latency — not cost — is the
+  score run through concurrency pools, processing latency - not cost - is the
   thing to cut (cost tracks episode *volume*, which is unchanged). Transcribe +
   classify go from every 4h → **every 2h**; score from every 6h → **every 3h**
   (score also refreshes the home snapshot, so the needle now updates 8×/day
   instead of 4×). Capacity check: score 8×240=1,920 mentions/day vs ~1,400
-  steady-state; classify 12×60=720 episodes/day vs ~230. Ingest stays 1×/day —
+  steady-state; classify 12×60=720 episodes/day vs ~230. Ingest stays 1×/day -
   its 3-episode cap is per-run, so more frequent ingest would over-sample
   high-volume channels past the 3/day "stance per audience" cap.
 
@@ -351,7 +362,7 @@ pre-launch build leading into the November 2026 US midterms.
   step on `/admin/channels` resolves the handle, reports floor/dup status, and
   generates a one-sentence rationale in the site's house voice (Haiku, grounded
   on the channel's own YouTube description + recent video titles + assigned
-  lean) — pre-filling the editable field so the admin *edits* rather than
+  lean) - pre-filling the editable field so the admin *edits* rather than
   *writes from scratch*. `previewYouTubeChannel()` / `generateChannelRationale()`
   in `src/lib/channels.ts`; generation never blocks the add (falls back to a
   template on error).
@@ -368,7 +379,7 @@ pre-launch build leading into the November 2026 US midterms.
   distinguishing a terminal "no captions" (206 / empty / bad video) from a
   transient error (5xx / 429 / network). Transient failures leave the episode
   `pending` and bump a new `episodes.transcript_attempts` counter, retrying up
-  to `MAX_TRANSCRIPT_ATTEMPTS` (3) before giving up — so blips self-heal while a
+  to `MAX_TRANSCRIPT_ATTEMPTS` (3) before giving up - so blips self-heal while a
   genuinely-broken video still terminates. Backfilled the 89 stranded episodes.
 
 ## v0.6.77 · 2026-06-01
@@ -402,12 +413,12 @@ pre-launch build leading into the November 2026 US midterms.
 
 ### Added
 
-- **Cohort legend** (`<CohortLegend>`) on `/channels` and `/log` — defines the
+- **Cohort legend** (`<CohortLegend>`) on `/channels` and `/log` - defines the
   mic = independent / tv = legacy icons next to the channel list + episode
   table.
 - **Cohort breakdown on the panel cards:**
-  - **Panel balance** gains two stacked bars — shows-by-cohort and reach-by-
-    cohort (independent vs legacy) — alongside the existing L/M/R bars.
+  - **Panel balance** gains two stacked bars - shows-by-cohort and reach-by-
+    cohort (independent vs legacy) - alongside the existing L/M/R bars.
     `StackedBar` generalized to per-segment colors.
   - **Panel scale** gains a "By cohort" line with the icons + each cohort's show
     count and combined reach (`getPanelStats` now returns `channelsByCohort` /
@@ -420,14 +431,14 @@ pre-launch build leading into the November 2026 US midterms.
 
 ## v0.6.73 · 2026-06-01
 
-### Added — LEGACY COHORT LAUNCH 🚀
+### Added - LEGACY COHORT LAUNCH 🚀
 
 - **Legacy media is now live alongside independent.** Flipped
   `PUBLIC_COHORTS` to `['independent', 'legacy']`, which simultaneously:
   - **Blends the master Soapbox Index** across both cohorts (≈L+0.1, reach-
     weighted, volume-capped).
-  - **Reveals the two sub-needles** under the master — Independent (≈L+0.5) vs
-    Legacy (≈R+1.5) — with the caption "same issues, same scoring."
+  - **Reveals the two sub-needles** under the master - Independent (≈L+0.5) vs
+    Legacy (≈R+1.5) - with the caption "same issues, same scoring."
   - **Shows the cohort icon** (mic = independent, tv = legacy) on `/channels`
     and `/log`, and surfaces the 9 legacy channels + their episodes.
 - **Copy reframe.** Home headline → "Where is online political media leaning
@@ -438,21 +449,21 @@ pre-launch build leading into the November 2026 US midterms.
 
 ## v0.6.72 · 2026-06-01
 
-### Added (gated — invisible)
+### Added (gated - invisible)
 
 - **Independent vs Legacy sub-needles** under the master Soapbox Index on the
   home page. Two compact needles (`<SubNeedle>`, reusing `SoapboxNeedle` at a
-  smaller size) showing each cohort's Index — so the blended master headline
+  smaller size) showing each cohort's Index - so the blended master headline
   arrives with the split that explains it. Gated on `PUBLIC_COHORTS.length > 1`,
   invisible until the flip.
 - The home snapshot (`writeHomeSnapshot`) now also computes and stores
   per-cohort indices (`HomeSnapshot.cohorts`), so the sub-needles read from the
-  precomputed row — no extra per-request work. Field is optional for backward
+  precomputed row - no extra per-request work. Field is optional for backward
   compatibility with older snapshots.
 
 ## v0.6.71 · 2026-06-01
 
-### Added (gated — invisible)
+### Added (gated - invisible)
 
 - **Cohort badge** (`<CohortBadge>`): a small icon + hover label marking a
   channel/episode as independent (mic) or legacy (tv), placed next to the L/M/R
@@ -471,14 +482,14 @@ pre-launch build leading into the November 2026 US midterms.
   De-dried the taxonomy intro and removed the "(not yet bucketed)" TODO leaking
   into the "Political figures & parties" group.
 - **Methodology now documents volume normalization.** The `/methodology` Index
-  section explains the two deliberate choices — audience-reach weighting and the
-  **3-episodes/day per-channel cap** — framing the Index as "stance per unit of
+  section explains the two deliberate choices - audience-reach weighting and the
+  **3-episodes/day per-channel cap** - framing the Index as "stance per unit of
   audience" rather than who posts most. (Previously only the reach-weighting
   formula was disclosed; the cap was undocumented.)
 
 ### Fixed
 
-- **`scripts/drain.ts` rides out transient blips** — a stage round now retries
+- **`scripts/drain.ts` rides out transient blips** - a stage round now retries
   with backoff (up to 5 consecutive errors) instead of crashing the whole drain
   on a one-off Supadata/Supabase `fetch failed`.
 
@@ -488,7 +499,7 @@ pre-launch build leading into the November 2026 US midterms.
 
 - **Parallelized transcribe too.** The transcribe stage was still serial (the
   slow part of a full drain). Now runs through the same `mapPool` at concurrency
-  8 — each Supadata call is multi-second, so the request rate stays ~2/s, well
+  8 - each Supadata call is multi-second, so the request rate stays ~2/s, well
   under the 10/s Supadata limit. `TRANSCRIBE_LIMIT` raised 40→100 (the
   wall-clock budget remains the real cap; the pool stops pulling at the
   deadline). Transcribe rounds drop from ~3–6 min to well under a minute.
@@ -509,12 +520,12 @@ pre-launch build leading into the November 2026 US midterms.
     cron cadence), bounded now by the Anthropic tier rather than the serial
     loop. Counters are mutated inside the pool, which is safe (single-threaded).
   - New `npm run drain` (`scripts/drain.ts`): loops the parallelized stages
-    until the backlog clears — used to drain the legacy seed immediately rather
+    until the backlog clears - used to drain the legacy seed immediately rather
     than waiting ~1–3 days for the crons.
 
 ## v0.6.67 · 2026-05-31
 
-### Added (foundation — invisible)
+### Added (foundation - invisible)
 
 - **Channel cohorts: `independent` vs `legacy`.** Groundwork for an
   independent-vs-legacy comparison and a blended master Index. New
@@ -525,7 +536,7 @@ pre-launch build leading into the November 2026 US midterms.
   (`src/lib/cohort.ts` → `PUBLIC_COHORTS = ['independent']`). The Index
   (`fetchScoreRows`), issue/topic drill-downs, channel list, panel/system
   stats (shows, episodes, hours), and the `/log` feed all filter to the public
-  cohort. This lets legacy channels be seeded and ingested **invisibly** —
+  cohort. This lets legacy channels be seeded and ingested **invisibly** -
   legacy data accumulates but never surfaces until we flip `PUBLIC_COHORTS` and
   ship the comparison UX. Zero behavior change now (every channel is
   `independent`). Non-political legacy content stays a non-issue: it classifies
@@ -538,8 +549,8 @@ pre-launch build leading into the November 2026 US midterms.
 ### Performance
 
 - **Drill-down pages (`/channels/[id]`, `/issues/[slug]`, `/topics/[slug]`)
-  were ~7s — now DB-filtered.** Each called `fetchScoreRows()` — the full
-  ~17K-row sentiment_scores deep join — then filtered in JS for the one
+  were ~7s - now DB-filtered.** Each called `fetchScoreRows()` - the full
+  ~17K-row sentiment_scores deep join - then filtered in JS for the one
   channel/issue/topic. They pulled the entire table to show a single slice
   (the same problem the home page had, never fixed for the drill-downs).
   - New `fetchScoreRowsFiltered()` anchors on `classifications` and filters at
@@ -551,7 +562,7 @@ pre-launch build leading into the November 2026 US midterms.
     the topic's child issues then filters by their slugs; `getChannelDrillDown`
     resolves the channel's episode ids then filters by them. The downstream JS
     filters become no-ops on the already-scoped set, so the numbers are
-    unchanged — only faster. Stays live (no snapshot/staleness).
+    unchanged - only faster. Stays live (no snapshot/staleness).
 
 ## v0.6.65 · 2026-05-31
 
@@ -559,11 +570,11 @@ pre-launch build leading into the November 2026 US midterms.
 
 - **`/log` now server-paginates its episode table.** The page was loading the
   entire ~2,000-row archive every request to power client-side
-  search/sort/paginate — ~1.3s TTFB that grows with the archive. (Measured: the
-  underlying `episode_pipeline_summary` view runs in ~64ms — the DB was never
+  search/sort/paginate - ~1.3s TTFB that grows with the archive. (Measured: the
+  underlying `episode_pipeline_summary` view runs in ~64ms - the DB was never
   the bottleneck; the cost was fetching + serializing the full row set.)
   - New `GET /api/episodes` endpoint: sort, search, and pagination run in
-    Postgres (`getEpisodeTablePage` — `.range()` + `count: 'exact'`), returning
+    Postgres (`getEpisodeTablePage` - `.range()` + `count: 'exact'`), returning
     only the ~25 rows a page shows plus the total count. Search is sanitized
     before the PostgREST `or()` filter; stage columns sort by their underlying
     status field.
@@ -571,7 +582,7 @@ pre-launch build leading into the November 2026 US midterms.
     sorting/filtering/pagination + debounced search + abortable fetch). `/log`
     uses it; the per-channel table keeps client mode (small, preloaded sets).
     Expandable per-episode receipts (v0.6.64) work unchanged.
-  - `/log` TTFB no longer scales with the episode count — it fetches one page
+  - `/log` TTFB no longer scales with the episode count - it fetches one page
     regardless of archive size. Trade-off: the table now hydrates client-side
     (a brief "Loading episodes…") rather than being in the initial HTML.
 
@@ -582,7 +593,7 @@ pre-launch build leading into the November 2026 US midterms.
 - **Expandable per-episode receipts on `/log`.** Each scored episode row now
   expands to show exactly what the pipeline classified and scored: every issue
   mention with its sentiment chip (L+/R+, the home Index convention), a 1–5
-  intensity meter, and the supporting quote the model flagged — plus an episode
+  intensity meter, and the supporting quote the model flagged - plus an episode
   net-lean summary. Delivers on the page's "receipts, in the open" promise and
   gives the operator a fast lens to spot mis-scores or bad issue-mappings before
   scaling the channel set.
@@ -599,22 +610,22 @@ pre-launch build leading into the November 2026 US midterms.
 
 ### Fixed
 
-- **Cron classify silently stalled — `transcripts.id` doesn't exist.** The
+- **Cron classify silently stalled - `transcripts.id` doesn't exist.** The
   scheduled classify stage reported `pendingFound=0` on every run for >24h
   while 68 transcribed episodes sat ready. Root cause: `runClassify` did
   `.select("id, …")` / `.order("id")` on the `transcripts` table, whose PK is
-  `episode_id` — there is no `id` column. The query 400'd every run, the error
+  `episode_id` - there is no `id` column. The query 400'd every run, the error
   was swallowed (`const { data } =` with no error check), the loop broke, and
   the empty result read as "queue empty." Broken since v0.6.47 (the "add ORDER
   BY" fix used the wrong column name); masked because the CLI catchup
   (`scripts/classify.ts`, episode-first since v0.6.48) did the real draining.
 - **Fix: cron classify is now episode-first, mirroring the CLI.** Query the
   `episodes` table for `classify_status='pending' AND transcript_status=
-  'fetched'` (cheap — no text), then load each transcript's `text` on demand
+  'fetched'` (cheap - no text), then load each transcript's `text` on demand
   inside the loop. This eliminates the ≈80MB "pull every transcript" payload
   that also caused the response-size/timeout fragility, and the pending-episode
   query now **checks its error and throws** instead of silently reporting an
-  empty queue — so this class of stall fails loud, not silent.
+  empty queue - so this class of stall fails loud, not silent.
 - Drained the 68-episode backlog (classify + score) so the Index reflects
   current data.
 
@@ -623,7 +634,7 @@ pre-launch build leading into the November 2026 US midterms.
 ### Added
 
 - **"What alt-media is talking about" card on `/issues`.** The issues page was
-  the only main page with no data card above its list — a static taxonomy
+  the only main page with no data card above its list - a static taxonomy
   reference with no live signal. Added a topic-level attention rollup above the
   taxonomy: the 23 issues' mention volume aggregated into the same 11 topics the
   list is grouped by, ranked by mention count, each with a volume bar, the
@@ -633,12 +644,12 @@ pre-launch build leading into the November 2026 US midterms.
     row, no heavy join) via `readHomeSnapshot()`, with a live `getDashboardData`
     fallback when the snapshot is absent. So the page stays fast and adds no new
     DB aggregation.
-  - New `<IssueActivityByTopic>` component (pure presentational, prop-driven —
+  - New `<IssueActivityByTopic>` component (pure presentational, prop-driven -
     same pattern as `PanelBalance` / `PanelScale`). Bars + headline use raw
     mention count ("how much is this discussed"); lean tint uses volume-weighted
     lean so the direction matches the Index basis.
   - Deliberately distinct from the home page's "Biggest movers" (a lean-swing
-    leaderboard) — this is an attention-volume *distribution*, answering the
+    leaderboard) - this is an attention-volume *distribution*, answering the
     `/issues` reader's question "which areas are hot, which should I open?"
 
 ## v0.6.61 · 2026-05-30
@@ -647,7 +658,7 @@ pre-launch build leading into the November 2026 US midterms.
 
 - **Home page TTFB: precompute the dashboard instead of recomputing per
   request.** v0.6.60's `cache()` fix only deduped the double `fetchScoreRows`
-  call *within* one render — it can't cache across requests, and `cache()` is
+  call *within* one render - it can't cache across requests, and `cache()` is
   per-render scope only. Direct prod timing after v0.6.60 still showed ~9.5s
   TTFB on `/` (every visitor recomputed the full ~17K-row deep join from
   scratch), while `/channels` and `/issues` stayed ~0.4s. Root cause is
@@ -681,7 +692,7 @@ pre-launch build leading into the November 2026 US midterms.
 - **Home page TTFB ~15s → expected ~4s.** Direct prod timing showed 14.6–15.8s
   TTFB on `/`. Root cause: `fetchScoreRows()` was called TWICE per render
   (once by `getDashboardData()` for the dashboard, once by `getIndexBreakdown()`
-  via the sibling `<IssueContributionsChart>` server component) — each
+  via the sibling `<IssueContributionsChart>` server component) - each
   paginating the full 17K-row deep join independently, ~35 round trips to
   Supabase apiece.
   - **Wrapped `fetchScoreRows` with React `cache()`** so all server-component
@@ -694,7 +705,7 @@ pre-launch build leading into the November 2026 US midterms.
     terminator to only stop on truly-empty pages, so short pages no longer
     truncate; can safely go back to 1000-row pages. Halves round-trip count
     again (17 pages instead of 34). Per-row payload is small (~300 bytes,
-    no text), so a 1000-row page is ~300KB — comfortably under response cap.
+    no text), so a 1000-row page is ~300KB - comfortably under response cap.
 - **Combined effect:** home page does ~17 round trips instead of ~70.
   Other pages that call `fetchScoreRows` once each (`/issues/[slug]`,
   `/topics/[slug]`, `/channels/[id]`) get the page-size win (about 50%
@@ -707,7 +718,7 @@ pre-launch build leading into the November 2026 US midterms.
   Postgres (a view or materialized view computed by cron) so app reads a
   small result set instead of all 17K scored rows. The original `aggregate.ts`
   comment from v0 flagged this as the "v1 will move this" path. v0.6.60
-  buys time but doesn't replace it — at 100K+ scored rows the per-render
+  buys time but doesn't replace it - at 100K+ scored rows the per-render
   scan will still be slow even with dedup + bigger pages.
 
 ## v0.6.59 · 2026-05-30
@@ -723,7 +734,7 @@ pre-launch build leading into the November 2026 US midterms.
   "no-signal") and let cc=0 + `classify_status='pending'` fall through.
   Result: 132 episodes were rendering as scored=green on /log when they
   were nowhere near scored. Visible on the activity log as rows with
-  transcribed=gray, classified=gray, **scored=green** — a logical
+  transcribed=gray, classified=gray, **scored=green** - a logical
   impossibility the cascade should have prevented.
 
   Fix: explicit `classified === "pending" ? "pending"` guard before the
@@ -735,13 +746,13 @@ pre-launch build leading into the November 2026 US midterms.
 
 ### Fixed
 
-- **Podcast reach auto-refresh removed — PodScan's `audience_size` is
+- **Podcast reach auto-refresh removed - PodScan's `audience_size` is
   unreliable for the panel's purposes.** v0.6.57's reach-refresh pass
   attempted to hit PodScan's `/podcasts/{id}` endpoint and pull
   `pickPodscanReach` from the response, but the immediate post-deploy
   refresh exposed the gap: zero of 44 podcasts updated. Probing the
-  endpoint directly showed `audience_size` IS exposed — just nested at
-  `reach.audience_size` (not top-level where the helper looked) — but
+  endpoint directly showed `audience_size` IS exposed - just nested at
+  `reach.audience_size` (not top-level where the helper looked) - but
   the values are wildly off from publicly-reported listener estimates:
   - Joe Rogan Experience: DB 14.5M vs PodScan `reach.audience_size`: 4.7M
   - Mark Levin Show: DB 7.0M vs PodScan `reach.audience_size`: **100**
@@ -760,20 +771,20 @@ pre-launch build leading into the November 2026 US midterms.
 - **Honest copy on `/channels`.** Intro paragraph: "YouTube subscriber
   counts refresh daily during the ingest pass; podcast audience estimates
   are editorial and reviewed at panel-add time." (Previously: "Reach
-  figures refresh daily from the YouTube Data API and PodScan" — half
+  figures refresh daily from the YouTube Data API and PodScan" - half
   wrong.)
 - **`<PanelScale>` freshness label**: now reads "YouTube subs refreshed
-  Xh ago · podcast reach editorial" — was "Reach refreshed Xh ago," which
+  Xh ago · podcast reach editorial" - was "Reach refreshed Xh ago," which
   implied podcasts were also auto-refreshed.
 
 ### Notes
 
-- `getPodcastById` helper stays in `src/lib/podscan.ts` — it's a clean
+- `getPodcastById` helper stays in `src/lib/podscan.ts` - it's a clean
   by-id lookup that may be useful for other contexts (e.g., verifying a
   candidate matches what's in the panel during admin add-flow); just not
   for reach refresh.
 - The 44 podcast rows still have their `reach_updated_at` backfilled to
-  `created_at` (17 days old). That's accurate — we genuinely haven't
+  `created_at` (17 days old). That's accurate - we genuinely haven't
   refreshed them. The PanelScale label correctly reads off
   `MAX(reach_updated_at)` which is now-today (the YT refresh time), so
   the visible signal is right.
@@ -788,7 +799,7 @@ pre-launch build leading into the November 2026 US midterms.
   sites wrote `reach` (`seed-channels.ts`, `channels.ts` add-flow,
   `enrich-legacy-wishlist.ts`); none refreshed it. 84% of the panel was
   carrying 17-day-old subscriber/listener counts. The `/channels` intro
-  paragraph claimed reach was "pulled live" — technically true, at seed
+  paragraph claimed reach was "pulled live" - technically true, at seed
   time only. Index math weights by `log10(reach)`, so stale reach = mildly
   wrong weights.
 
@@ -798,22 +809,22 @@ pre-launch build leading into the November 2026 US midterms.
   already iterates every active channel; now it also refreshes each
   channel's reach in the same loop. YT is batched via
   `getChannelDetailsBatch` (one API call for up to 50 channels, ~1 quota
-  unit each — free tier handles 10,000/day); podcasts are per-row via the
+  unit each - free tier handles 10,000/day); podcasts are per-row via the
   new `getPodcastById` helper in `src/lib/podscan.ts` (PodScan has no batch
-  endpoint). Failures are logged-and-skipped — a transient API blip on one
+  endpoint). Failures are logged-and-skipped - a transient API blip on one
   channel must not abort the whole ingest pass. Only positive `reach`
   values overwrite the stored stat; a 0 / null response keeps the existing
   number so a lookup miss doesn't zero out a known channel.
 - **`channels.reach_updated_at` column.** New `TIMESTAMPTZ` with `now()`
   default. Backfilled to `created_at` for existing rows (conservative "at
   least this stale" floor; the seed scripts didn't track it). Bumped on
-  every refresh attempt — even when the number didn't change — so
+  every refresh attempt - even when the number didn't change - so
   staleness-detection isn't misleading.
-- **Freshness signal on `<PanelScale>`** — top-right of the card now reads
+- **Freshness signal on `<PanelScale>`** - top-right of the card now reads
   "Reach refreshed Xh ago" (MAX(reach_updated_at) across active channels).
   Same `relativeTime` shape as the existing "Latest data" timestamp on
   `<SystemStats>`.
-- **`/channels` intro paragraph tightened** — now reads "Reach figures
+- **`/channels` intro paragraph tightened** - now reads "Reach figures
   refresh daily from the YouTube Data API and PodScan during the ingest
   pass" instead of the previous "pulled live" wording, which is honest
   about cadence.
@@ -827,7 +838,7 @@ pre-launch build leading into the November 2026 US midterms.
 
 ### Notes
 
-- New migration `add_channels_reach_updated_at` — non-destructive
+- New migration `add_channels_reach_updated_at` - non-destructive
   `ALTER TABLE … ADD COLUMN`, backfill from `created_at`, set NOT NULL +
   default `now()`.
 - `pickPodscanReach` (same field-fallback as `seed-podcasts.ts`'s
@@ -842,19 +853,19 @@ pre-launch build leading into the November 2026 US midterms.
 - **Stat cards re-homed by reader question, not by convenience.** /log's
   System Scale was carrying the panel-composition stat ("Combined audience
   reach", added in v0.6.54) which actually answers "is this panel
-  representative?" — a /channels question, not a /log question. The /log
+  representative?" - a /channels question, not a /log question. The /log
   reader is asking "is the pipeline running?". Moved the reach number off
   /log and onto a new `<PanelScale>` card on /channels where it belongs.
 
 ### Added
 
-- **`<PanelScale>` card on /channels** — composition stats (shows tracked,
+- **`<PanelScale>` card on /channels** - composition stats (shows tracked,
   combined audience, platform rows, largest single show). Same visual
   shape as `<SystemStats>` on /log so the cards rhyme, but the question
   they answer is different. Sits ABOVE `<PanelBalance>` so the page reads
   magnitude (raw numbers) → distribution (stacked bars) → list (per-lean
   show grid).
-- **New `getPanelStats()` aggregate helper.** Channels-table only — no
+- **New `getPanelStats()` aggregate helper.** Channels-table only - no
   episode/classification/score queries. Returns shows tracked + L/M/R
   count, audience reach + L/M/R split, platform row count + YT/Pod split,
   and the largest single show by max reach. Mirrors the unique-show
@@ -865,7 +876,7 @@ pre-launch build leading into the November 2026 US midterms.
 
 - **`/log` System Scale trimmed to 4 pipeline-only stats** (was 5):
   shows tracked, episodes analyzed, hours of audio, issue mentions. Grid
-  shifted from `lg:grid-cols-5` to `md:grid-cols-4` — same breathing
+  shifted from `lg:grid-cols-5` to `md:grid-cols-4` - same breathing
   room per stat. `getSystemStats` still computes `audienceReach` +
   `audienceReachByLean` for any downstream caller; it's just not
   displayed on /log anymore.
@@ -878,14 +889,14 @@ pre-launch build leading into the November 2026 US midterms.
   (count + reach) show the L/M/R distribution side by side so the
   asymmetry between editorial-intent-balanced counts and what-the-
   landscape-looks-like reach is visible at a glance. Current state:
-  shows are 36% L / 14% M / 50% R but reach is 28% L / 15% M / 57% R —
+  shows are 36% L / 14% M / 50% R but reach is 28% L / 15% M / 57% R -
   right-leaning shows carry larger average audiences (2.77M vs 1.93M L),
   so reach skews right. Badge says this plainly rather than letting the
   intro paragraph imply uniform balance. Asymmetry sentence renders
-  dynamically — only shown when avg-reach ratio across cohorts ≥ 1.25×,
+  dynamically - only shown when avg-reach ratio across cohorts ≥ 1.25×,
   so it'll quiet down if the panel rebalances.
 - The honest copy explicitly notes that `log10(reach)` weighting in the
-  Index dampens the asymmetry but doesn't erase it — a methodology cue
+  Index dampens the asymmetry but doesn't erase it - a methodology cue
   for readers comparing the published Index to their intuition.
 
 ## v0.6.54 · 2026-05-30
@@ -893,40 +904,40 @@ pre-launch build leading into the November 2026 US midterms.
 ### Added
 
 - **"No signal" status on the public activity log.** ~8% of processed
-  episodes (161/1941 today) are off-taxonomy — classified successfully but
+  episodes (161/1941 today) are off-taxonomy - classified successfully but
   produced no political-issue mentions (sports, true crime, celebrity, etc.).
   These previously rendered as the same gray dots as "pending" episodes, with
-  the `scored` column tooltip saying "Not applicable" — confusing because
+  the `scored` column tooltip saying "Not applicable" - confusing because
   gray reads as in-progress, and a "complete but empty" episode isn't
   in-progress. New `no-signal` status with a hollow outlined dot
-  (border-only, transparent fill — reads as "registered but empty") on both
+  (border-only, transparent fill - reads as "registered but empty") on both
   the `classified` and `scored` columns when `classify_status='processed'`
   and `classification_count = 0`. Tooltip: "No political signal · issue
   taxonomy didn't match." Added to the visible legend.
 - **Combined-audience reach stat on `/log`.** Headline number for "how big
-  is this panel?" — sum of unique-show reach (max per show across platform
+  is this panel?" - sum of unique-show reach (max per show across platform
   rows, so dual-platform shows aren't double-counted; matches the methodology
   for the by-show comparison from yesterday's enrichment script). Sublabel
   breaks reach out by editorial lean (L · M · R), same shape as the existing
-  show-count sublabel — surfaces cohort balance on the same surface.
+  show-count sublabel - surfaces cohort balance on the same surface.
 
 ### Changed
 
 - **`episode_pipeline_summary` view: added `classify_status`.** Migration
-  `add_classify_status_to_pipeline_summary_view` — non-destructive
+  `add_classify_status_to_pipeline_summary_view` - non-destructive
   `CREATE OR REPLACE VIEW`. Column had to be appended at the end of the
   SELECT (Postgres can't reorder existing view columns; only append). The
   view's only consumer (`getEpisodeTableRows`) updated to select it.
 - **Hours-of-audio stat reformatted.** Was `1.4K` (compact) which read like
   a placeholder; now `1,433` (full number) with sublabel `≈ 60 days
   continuous` instead of the static `Long-form, Shorts filtered`. Confirmed
-  100% of episodes have `duration_sec` — the data was always plumbed; just
+  100% of episodes have `duration_sec` - the data was always plumbed; just
   the formatter obscured it.
 - **Issues-mentions sublabel: dynamic count + folded sentiment-scores stat.**
-  Was hardcoded `Across 15 issues` (stale — taxonomy is at 23). Now reads
+  Was hardcoded `Across 15 issues` (stale - taxonomy is at 23). Now reads
   the active-issue count from `issues` table and renders `Across N issues,
   all sentiment-scored`. The standalone "Sentiment scores" stat was dropped
-  to make room for combined-audience — post-v0.6.53 score == mentions for
+  to make room for combined-audience - post-v0.6.53 score == mentions for
   the autonomous-cron steady state, so the standalone number wasn't pulling
   its weight.
 
@@ -935,22 +946,22 @@ pre-launch build leading into the November 2026 US midterms.
 ### Fixed
 
 - **CLI scripts had the same `.range()` family bug** the cron path got fixed
-  for in v0.6.51 — the previous audit pass (v0.6.52) only covered
+  for in v0.6.51 - the previous audit pass (v0.6.52) only covered
   `src/`, not `scripts/`. Caught by the catchup drain itself: the classify
   stage drained cleanly (393 → 0, added 4,758 new classifications), but
   `scripts/score.ts` told the catchup loop "queue drained" while 5,809
   classifications were actually unscored. Root cause: both pagination loops
   in `score.ts` had no `.order()` AND the `data.length < pageSize` early-out
-  — so the script only ever read page 0 of `classifications` and
+  - so the script only ever read page 0 of `classifications` and
   `sentiment_scores`, scored the 200-ish overlap in page 0 across 3 catchup
   iterations (600 scored), then page 0 showed "all scored" → "drained"
   sentinel fired. Same dual-bug as the original v0.6.47.
-- **`scripts/score.ts`** — added stable `.order("id", asc)` on the
+- **`scripts/score.ts`** - added stable `.order("id", asc)` on the
   classifications loop and `.order("classification_id", asc)` on the
   sentiment_scores loop (UNIQUE constraint makes it a valid pagination
   key); removed both `data.length < pageSize` early-outs. Same canonical
   pattern as `aggregate.ts:155-209`.
-- **`scripts/classify.ts`** — happened to work in the catchup drain (the
+- **`scripts/classify.ts`** - happened to work in the catchup drain (the
   filtered `pending` set fits in a single page below the response cap), but
   carried both the non-unique-sort-key bug and the short-page early-out.
   Added `id` as a stable tiebreaker after `published_at`; removed the
@@ -973,21 +984,21 @@ pre-launch build leading into the November 2026 US midterms.
   v0.6.51 `grep -n "range(" src/` sweep.** Three callers had subspecies of
   the same family of pagination bugs. None were currently breaking the cron
   (that was v0.6.51), but each would have bitten silently as the panel keeps
-  scaling — so fixing all of them is part of "runs autonomously."
-  - `src/lib/audit.ts` `paginatedSelect` — the generic helper used by
+  scaling - so fixing all of them is part of "runs autonomously."
+  - `src/lib/audit.ts` `paginatedSelect` - the generic helper used by
     `/admin/channels-audit` had both halves of the v0.6.47/v0.6.51 bug: no
     `.order()` and a `data.length < pageSize` early-out. Hardcoded
     `.order("id", ascending: true)` inside the helper (all three callers
     use tables with an `id` PK; the helper's contract is now unambiguous
-    — "I paginate by id") and dropped the short-page break.
-  - `src/lib/episodes.ts` `getEpisodeTableRows` — had empty-page-only
+    - "I paginate by id") and dropped the short-page break.
+  - `src/lib/episodes.ts` `getEpisodeTableRows` - had empty-page-only
     termination ✓ but ordered by `published_at DESC` alone, which isn't
     unique. Two episodes posted in the same second could re-cross page
     boundaries and appear duplicated in the /log table. Added
     `.order("id", descending)` as the stable tiebreaker after the business
     order; UI behavior unchanged when published_at values are distinct
     (the common case), now deterministic when they collide.
-  - `src/app/channels/page.tsx` — single-call `.range(0, 999)` silently
+  - `src/app/channels/page.tsx` - single-call `.range(0, 999)` silently
     truncates at 1000 active channel rows. We're at 85 today but the
     scale-out target is ~200 unique shows (2–3 platform rows each, easily
     400–600), well within the lifetime of this code. Converted to the
@@ -1001,7 +1012,7 @@ pre-launch build leading into the November 2026 US midterms.
   `[[pagination-stable-order]]`: stable `.order(<unique_key>)` AND
   `data.length === 0` as the only loop terminator. The pattern is
   duplicated across 5 files (`aggregate.ts` ×2, `discovery.ts`,
-  `pipeline.ts` ×3, `audit.ts`, `episodes.ts`, `channels/page.tsx`) — a
+  `pipeline.ts` ×3, `audit.ts`, `episodes.ts`, `channels/page.tsx`) - a
   good candidate for extraction into a shared helper if/when scope allows.
 
 ## v0.6.51 · 2026-05-29
@@ -1012,7 +1023,7 @@ pre-launch build leading into the November 2026 US midterms.
   two).** Same `pendingFound=0` symptom as v0.6.47, different half of the
   same pagination antipattern. v0.6.47 added the required `ORDER BY` but
   kept `if (data.length < pageSize) break;` as the loop terminator. That
-  early-out fires on *any* short page — and Vercel's edge→Supabase route
+  early-out fires on *any* short page - and Vercel's edge→Supabase route
   hits a response-size cap before the row cap on `runClassify`'s deep-join
   query (each row carries full transcript text). Once `transcripts` grew
   past the response threshold (1,779 rows as of today), the first page came
@@ -1020,7 +1031,7 @@ pre-launch build leading into the November 2026 US midterms.
   already-processed rows, and the JS filter to `classify_status='pending'`
   returned `[]`. Result: **3 of every 4 classify cron runs today found 0
   pending despite 393 actually pending** (08:30/12:30/16:30 UTC; only the
-  00:34 + 04:34 runs processed work). Fix: terminate on empty page only —
+  00:34 + 04:34 runs processed work). Fix: terminate on empty page only -
   matches the canonical pattern at `aggregate.ts:155-209` (v0.6.3) and the
   `getSystemStats` pagination at `aggregate.ts:450-461`. Applied to all
   three paginated loops in `pipeline.ts` (`runClassify` transcripts,
@@ -1031,30 +1042,30 @@ pre-launch build leading into the November 2026 US midterms.
 ### Added
 
 - **Mention-volume signal alongside lean in "Biggest movers."** The home card
-  now ranks issues on two orthogonal axes — lean swing (L↔R movement) and
-  mention-volume swing (attention shift) — and shows both. A row earns its
+  now ranks issues on two orthogonal axes - lean swing (L↔R movement) and
+  mention-volume swing (attention shift) - and shows both. A row earns its
   spot if `|leanΔ| ≥ 0.5` OR `volumeRatio` crosses `[0.67×, 1.5×]`; both
   numbers display so visitors can see which signal (or both) put it there.
   Ranking uses `max(|leanΔ|/2, |log2(volumeRatio)|)` so a 2-point lean swing
   and a 2× volume swing carry equal weight, and the existing
   `MOVER_MIN_MENTIONS = 25` floor applies on both windows so neither axis
-  fires on thin samples. Cap moved into `getDashboardData` (6 rows) — the
+  fires on thin samples. Cap moved into `getDashboardData` (6 rows) - the
   home page just renders `data.movers` directly now. Mobile keeps the
   original 3-column layout for readability; desktop expands to 6 columns
   (adds Last week / Mentions / Volume).
 - **Per-issue mention-volume sparkline on `/issues/[slug]`.** New
   `<VolumeAreaChart>` component (neutral gray, non-negative y-axis, no
-  zero reference line — counterpart to `<IndexAreaChart>`) renders alongside
+  zero reference line - counterpart to `<IndexAreaChart>`) renders alongside
   the existing lean trend in a 2-up grid. Answers the question the lean
   chart can't: "is anyone actually talking about this issue right now?"
   Powered by a new `rollingVolumeTrend()` helper in `aggregate.ts` that
   mirrors `rollingLeanTrend`'s windowing but keeps mid-series zero days
-  (a stretch of zero is a real "issue went silent" signal — lean is just
+  (a stretch of zero is a real "issue went silent" signal - lean is just
   undefined at 0/0, volume isn't); leading-only zero days are trimmed so
   the chart starts at first activity.
 - **`IssueMover` extended** with `currentMentions`, `prevMentions`,
   `volumeRatio` (week-over-week mention-count ratio). `IssueDrillDown` gains
-  `volumeTrend: { values, dates }`. No new pipeline cost — both surfaces are
+  `volumeTrend: { values, dates }`. No new pipeline cost - both surfaces are
   derived from the existing `fetchScoreRows()` data.
 
 ## v0.6.49 · 2026-05-29
@@ -1064,7 +1075,7 @@ pre-launch build leading into the November 2026 US midterms.
 - **`scripts/discover-socialblade.ts` handles markdown + smarter triage.**
   Added a markdown-table parser (auto-detected by extension or content) so
   Social Blade pages saved via a browser markdown-clipper extension work
-  directly — previously only HTML was supported. Tightened the bucketing:
+  directly - previously only HTML was supported. Tightened the bucketing:
   beyond "in panel" / "legacy" / "candidate", the script now flags
   "non-US/non-English" (Cyrillic / Devanagari / Burmese / CJK scripts; known
   Spanish/Bengali/Hindi outlets) and "non-political" (gaming, true-crime,
@@ -1073,7 +1084,7 @@ pre-launch build leading into the November 2026 US midterms.
   to catch Social Blade ↔ panel mismatches (Ben Shapiro ↔ "The Ben Shapiro
   Show", etc.).
 
-- **`docs/legacy-media-wishlist.md`** — appended a "From Social Blade Top
+- **`docs/legacy-media-wishlist.md`** - appended a "From Social Blade Top
   100 News (US, 2026-05-29)" section with cable / broadcast, digital-native,
   local-affiliate, and ambiguous-cohort entries surfaced by the scrape.
 
@@ -1082,18 +1093,18 @@ pre-launch build leading into the November 2026 US midterms.
 ### Changed
 
 - **CLI classify is episodes-first.** The old `scripts/classify.ts` paginated
-  the entire `transcripts` table with `text` embedded in the SELECT — a 1700-
+  the entire `transcripts` table with `text` embedded in the SELECT - a 1700-
   row × ~100KB/row payload that hit Postgres's `statement_timeout` once the
   panel hit ~80 channels. Refactored to query `episodes` (no `text`) filtered
   on `classify_status='pending' AND transcript_status='fetched'`, then load
   each transcript on demand inside the loop. Orders by `published_at DESC` so
   the most-recent backlog drains first. The cron path in `pipeline.ts` may
   benefit from the same treatment if/when it starts timing out at larger
-  scale — for now its 300s function budget masks the inefficiency.
+  scale - for now its 300s function budget masks the inefficiency.
 
 ### Added
 
-- **`scripts/discover-socialblade.ts`** — one-time parser for saved Social
+- **`scripts/discover-socialblade.ts`** - one-time parser for saved Social
   Blade "Top by category" HTML pages (politics, news, etc.). Direct fetch is
   blocked by Cloudflare, so you save the page from a browser, point this
   script at the file(s), and it: extracts every `/youtube/channel/UC…` link
@@ -1109,7 +1120,7 @@ pre-launch build leading into the November 2026 US midterms.
   stall.** Two of today's four scheduled classify runs (08:30 and 12:30 UTC)
   reported `pendingFound = 0` despite 564 episodes actually being pending.
   Once the `transcripts` table grew past 1000 rows, PostgREST's `.range()`
-  pagination returned non-deterministic pages — some runs got pages where
+  pagination returned non-deterministic pages - some runs got pages where
   every row was already `classify_status='processed'`, so the cron silently
   decided there was nothing to do and exited in 9 s. This is the exact
   pagination gotcha called out in `CLAUDE.md`; the CLI scripts had stable
@@ -1134,7 +1145,7 @@ pre-launch build leading into the November 2026 US midterms.
 
 ### Added
 
-- **`/admin/channels` — admin flow to add a channel + deep-ingest history.**
+- **`/admin/channels` - admin flow to add a channel + deep-ingest history.**
   Editor enters a YouTube handle/URL + L/M/R lean; the server action resolves
   via the YT API, enforces the **300K subscriber floor**, inserts, and
   deep-ingests the last 30 episodes. The cron then catches up
@@ -1155,7 +1166,7 @@ pre-launch build leading into the November 2026 US midterms.
 - **Cron stages run multi-times/day to fix the backlog dynamic.** Ingest stayed
   daily (10:00 UTC); **transcribe and classify now run every 4h** (6×/day),
   with classify offset +30 min; **score runs every 6h** (4×/day). Same total
-  work per day, smoother throughput — with the v0.6.43 time-budget guard each
+  work per day, smoother throughput - with the v0.6.43 time-budget guard each
   run completes cleanly, so the only knob needed is *frequency*. At 48
   channels this keeps the pipeline caught-up (transcribe 240/day vs ~148
   ingest/day; classify ~90/day vs ~40/day transcribed). Empty runs are free.
@@ -1166,7 +1177,7 @@ pre-launch build leading into the November 2026 US midterms.
   for the 48→200 scale-up: curation criteria, sourcing ladder, ~$870/mo cost
   model at 200 channels, throughput requirements (hourly classify), phased
   rollout, and open editorial decisions (reach floor, lean balance target,
-  cost ceiling). Not implemented — review artifact.
+  cost ceiling). Not implemented - review artifact.
 
 ## v0.6.43 · 2026-05-27
 
@@ -1174,7 +1185,7 @@ pre-launch build leading into the November 2026 US midterms.
 
 - **Classify cron 504 after the taxonomy grew to 23 issues.** This morning's
   scheduled classify ran the full 300s on a 15-episode batch and was killed
-  mid-batch (12 episodes done, no `usage_log` row) — the larger taxonomy makes
+  mid-batch (12 episodes done, no `usage_log` row) - the larger taxonomy makes
   each episode slower and produce more mentions, so a fixed `CLASSIFY_LIMIT`
   can overshoot. Added a **wall-clock budget** (`STAGE_TIME_BUDGET_MS = 240s`):
   the classify loop stops when the budget is hit and always completes cleanly,
@@ -1186,7 +1197,7 @@ pre-launch build leading into the November 2026 US midterms.
 
 ### Added
 
-- **Topic drill-down pages (`/topics/[slug]`)** — the deeper Phase 2 read path.
+- **Topic drill-down pages (`/topics/[slug]`)** - the deeper Phase 2 read path.
   `getTopicDrillDown` rolls a parent Topic's child issues into a topic-level
   lean + 30-day trend (same reach×intensity weighting as the Index, so the
   numbers stay consistent across issue/topic/overall). Each topic page shows the
@@ -1196,7 +1207,7 @@ pre-launch build leading into the November 2026 US midterms.
 
 ## v0.6.41 · 2026-05-26
 
-Two-level taxonomy — Phase 2 (read path) + discovery integration + staged
+Two-level taxonomy - Phase 2 (read path) + discovery integration + staged
 classify-broadening. (Parent **Topics** contain child **Issues**; see
 `docs/taxonomy-v2-design.md`.)
 
@@ -1210,7 +1221,7 @@ classify-broadening. (Parent **Topics** contain child **Issues**; see
   (`issues.topic_slug`). `discovery_candidates.assigned_topic_slug` records it.
 - **7 gap-filling issues staged (inactive).** Health care, Social Security &
   Medicare, Justice/rule-of-law, Government corruption, Gun policy, Drug policy,
-  Race & discrimination — to cover the empty/thin Topics classify is currently
+  Race & discrimination - to cover the empty/thin Topics classify is currently
   blind to. **Staged `active=false` with draft L/R anchors**, so they do NOT
   affect classify or the Index until the anchors are reviewed and activated.
 - Migrations `taxonomy_v2_topics_layer` and
@@ -1232,14 +1243,14 @@ classify-broadening. (Parent **Topics** contain child **Issues**; see
 
 ## v0.6.39 · 2026-05-26
 
-Emerging-issue discovery with admin oversight — the fixed 16-issue taxonomy no
+Emerging-issue discovery with admin oversight - the fixed 16-issue taxonomy no
 longer silently misses new topics (e.g. it would now surface something like a
 "Trump anti-weaponization fund" for review).
 
 ### Added
 
 - **Harvest** (Phase 1): the classify pass now *also* returns substantive
-  political topics that don't fit the taxonomy (`OffTaxonomyTopic` — label +
+  political topics that don't fit the taxonomy (`OffTaxonomyTopic` - label +
   quote), stored in the new `discovery_topics` table. Applies to both the cron
   `runClassify` and the CLI. Marginal token cost; no extra LLM pass. Off-taxonomy
   episodes (0 taxonomy mentions) are exactly where new issues hide.
@@ -1261,7 +1272,7 @@ longer silently misses new topics (e.g. it would now surface something like a
 
 ### Guardrail
 
-- Discovery **proposes, a human disposes** — the system never edits the taxonomy
+- Discovery **proposes, a human disposes** - the system never edits the taxonomy
   on its own; only the admin Promote action (which requires the editor to write
   the L/R positions) creates an issue. Decided candidates' source topics stay
   linked so dismissed themes don't resurface.
@@ -1278,7 +1289,7 @@ longer silently misses new topics (e.g. it would now surface something like a
   episode already present on a sibling channel. Because channels ingest
   reach-desc, the higher-reach copy is kept and the re-post is skipped.
   Backfill: removed the 18 redundant copies already in the DB (with their
-  classifications/scores; transcripts cascaded) — all were lower-reach podcast
+  classifications/scores; transcripts cascaded) - all were lower-reach podcast
   copies; where only one copy was processed, that one was kept regardless of
   reach. No remaining cross-platform dup groups.
 
@@ -1288,12 +1299,12 @@ longer silently misses new topics (e.g. it would now surface something like a
 
 - **Cron split into per-stage jobs to fix a 300s timeout.** After v0.6.29 made
   classify do real work, the combined nightly pipeline exceeded Vercel's 300s
-  function limit — the 2026-05-26 run returned `504`, classified 73 mentions,
+  function limit - the 2026-05-26 run returned `504`, classified 73 mentions,
   then was killed before `score` (left them unscored) and before writing
   `usage_log`. The four stages now each run as their own cron with a full 300s
   budget: `/api/cron/{ingest,transcribe,classify,score}`, staggered at :00/:15/
   :30/:45 past 10:00 UTC. Stage logic was extracted unchanged into
-  `src/lib/pipeline.ts` (stages never call each other, so they split cleanly —
+  `src/lib/pipeline.ts` (stages never call each other, so they split cleanly -
   see ARCHITECTURE.md). The old `/api/cron/pipeline` endpoint is kept for manual
   full runs (logs as source "manual"). Each stage logs its own `usage_log` row.
 
@@ -1305,7 +1316,7 @@ longer silently misses new topics (e.g. it would now surface something like a
   from marketing framing ("the way you'd want it measured", "source of truth")
   to a factual statement of what the page documents; softened "hand-curated" →
   "curated". The rigorous middle (formulas, channel-skew honesty, known
-  limitations) and the bottom "Why this exists" mission section are unchanged —
+  limitations) and the bottom "Why this exists" mission section are unchanged -
   the goal was to keep hype away from the method. Per reader feedback that the
   page mixed marketing jargon with the actual methodology.
 
@@ -1351,7 +1362,7 @@ User-feedback clarity pass on two charts (methodology rewrite tracked separately
   half. `IndexAreaChart` now takes a `maxWidthClass` prop (default `max-w-md`
   for the home hero; `""` on the drill-downs so it fills the card). It also
   takes `includeZero` (default `true`): the home Index keeps its 0-anchored
-  range, but issue/channel charts now fit to their own data — an entity that
+  range, but issue/channel charts now fit to their own data - an entity that
   sits far from neutral (e.g. a channel at L+4.8) uses the full chart height
   instead of squashing the line into a third with dead space above it. The
   zero reference line is hidden when not anchoring to zero.
@@ -1387,7 +1398,7 @@ User-feedback clarity pass on two charts (methodology rewrite tracked separately
   episode that yields **0 mentions** never got a row, so it stayed "pending"
   forever and was re-sent to Sonnet every run. The first 15 pending happened to
   be genuinely off-taxonomy (sports, true crime, celebrity, stale/junk clips),
-  so they permanently clogged the `CLASSIFY_LIMIT=15` batch — ~$1/run for **0
+  so they permanently clogged the `CLASSIFY_LIMIT=15` batch - ~$1/run for **0
   new classifications**, while newer classifiable episodes behind them were
   never reached and the backlog never drained. Diagnosed from live data: 142
   pending, 350K input tokens → 60 output tokens across 15 episodes (model
@@ -1422,13 +1433,13 @@ Housekeeping: finish the v0.6.26 dead-code removal and track the dev guide.
 
 ### Removed
 
-- **`IndexSparkline.tsx` and `EpisodeList.tsx`** — v0.6.26 emptied these to
+- **`IndexSparkline.tsx` and `EpisodeList.tsx`** - v0.6.26 emptied these to
   stubs but never `git rm`'d them. Nothing imports either; deleting the files
   completes that release's intent.
 
 ### Added
 
-- **`CLAUDE.md`** is now tracked in the repo — the working guide for Claude
+- **`CLAUDE.md`** is now tracked in the repo - the working guide for Claude
   Code (commands, release ritual, guardrails, infra facts). Previously
   untracked/local-only.
 
@@ -1472,7 +1483,7 @@ Home-page trend chart + /log header fix.
 
 ### Added
 
-- **Interactive Index trend chart** on the home page — a Recharts area chart
+- **Interactive Index trend chart** on the home page - a Recharts area chart
   (via shadcn chart primitives, `src/components/ui/chart.tsx`) replacing the
   static SVG sparkline under the needle. Shows the 30-day rolling Soapbox
   Index with hover tooltips (date + L/R value), a neutral zero baseline, an
@@ -1494,12 +1505,12 @@ Online gold-set labeling + /log table polish.
 - **Online scoring-calibration tool** (`/eval/label`) to replace the CSV gold
   set. Multiple independent labelers score the same blinded items (lean-coded
   source only, no channel name / model score / ids) on sentiment (−5…+5),
-  intensity (1…5), confidence (1–3), + notes — instructions and the three
+  intensity (1…5), confidence (1–3), + notes - instructions and the three
   calibration examples are built into the page. Shared link + name to start;
   forward-only and resumable. New `gold_items` / `gold_labels` tables
   (migration `20260524000002`), seeded by `npm run seed:gold-set` (same
   stratified sample as the CSV exporter; model answer frozen per item).
-  Submissions go through a server action on the service-role client — no
+  Submissions go through a server action on the service-role client - no
   client-side DB access; the page is `noindex`.
 
 ### Fixed
@@ -1519,13 +1530,13 @@ Online gold-set labeling + /log table polish.
 
 - **shadcn/ui** adopted as the component system (the codebase already used
   `cn`, `clsx`, `tailwind-merge` and shadcn-style markup). Added theme tokens
-  to `globals.css` + `tailwind.config.ts` (additive — existing literal-gray
+  to `globals.css` + `tailwind.config.ts` (additive - existing literal-gray
   pages unaffected), `components.json`, and `src/components/ui/`:
   button, input, table, badge, dropdown-menu.
 - **Episode receipts → a real data table** (`EpisodeDataTable`, TanStack
   Table + shadcn). Columns: category (L/M/R), date, channel, video, type,
   length, and Transcribed / Classified / Scored status (colored dots with
-  Radix tooltips) — all sortable, with search, pagination, and a
+  Radix tooltips) - all sortable, with search, pagination, and a
   column-visibility menu. Channel names link to the channel page. The channel
   drill-down's "Recent episodes" reuses the same table (Category + Channel
   columns hidden).
@@ -1536,7 +1547,7 @@ Online gold-set labeling + /log table polish.
 
 ### Changed
 
-- **Pipeline health moved to `/admin/pipeline`** — it's operational detail
+- **Pipeline health moved to `/admin/pipeline`** - it's operational detail
   for internal consumption, not public. The public `/log` is now scale +
   searchable episode receipts only.
 
@@ -1556,7 +1567,7 @@ Data integrity: one score per classification, enforced.
 ### Added
 
 - **`UNIQUE (classification_id)` on `sentiment_scores`** (migration
-  `20260524000000`) — duplicate scores are now structurally impossible.
+  `20260524000000`) - duplicate scores are now structurally impossible.
 
 ### Changed
 
@@ -1583,7 +1594,7 @@ Data integrity: one score per classification, enforced.
   health in plain English plus a small last-7-run trend strip, and a detailed
   recent-runs table with per-stage counts and any error message. Operators can
   see at a glance which stage is broken; users get real transparency. Shows
-  **no cost/token data** — that stays on the operator-only /admin/costs.
+  **no cost/token data** - that stays on the operator-only /admin/costs.
 - **Per-episode pipeline progress in the receipts list.** `EpisodeList` now
   shows each episode's progress through all four stages (Ingested →
   Transcribed → Classified → Scored) with done/failed/pending/partial state,
@@ -1620,7 +1631,7 @@ Cron is end-to-end. Cleanup + the real root cause.
 
 ### Changed
 
-- `runTranscribe` no longer swallows errors in a bare `catch {}` — failures
+- `runTranscribe` no longer swallows errors in a bare `catch {}` - failures
   (missing env var, Supadata outage) are now logged. This is what would have
   surfaced the `SUPADATA_API_KEY` problem on day one.
 
@@ -1632,7 +1643,7 @@ Cron is end-to-end. Cleanup + the real root cause.
 ### Note
 
 - The v0.6.17 platform-by-map change is retained as a robustness improvement,
-  but it was not the root cause — the missing env var explained the failure
+  but it was not the root cause - the missing env var explained the failure
   on its own. No evidence the channel embed was actually broken.
 
 ## v0.6.17 · 2026-05-24
@@ -1643,7 +1654,7 @@ The last link in the cron chain.
 
 - **Cron transcribe failed every YouTube episode without calling Supadata.**
   Once v0.6.16 fixed the key and the cache, the cron could finally *see*
-  pending episodes — but it still marked them all `failed` in ~50ms, never
+  pending episodes - but it still marked them all `failed` in ~50ms, never
   reaching Supadata. Root cause: the `channel:channels!fk(platform)` embed
   didn't expose `.platform` reliably at runtime, so `row.channel?.platform`
   was undefined and every episode flunked the `=== "youtube"` guard. Replaced
@@ -1659,7 +1670,7 @@ cron from doing useful work while the CLI worked fine; all are fixed here.
 ### Fixed
 
 - **Stale cached reads (the big one).** Supabase-js issues reads as `fetch`
-  GETs, and the Next.js App Router caches `fetch` by default — so every
+  GETs, and the Next.js App Router caches `fetch` by default - so every
   server-side read (the cron *and* server components) was frozen at the
   first snapshot taken after each deploy. The cron reported identical
   results across separate runs (`pendingFound: 1504` twice while the live
@@ -1671,14 +1682,14 @@ cron from doing useful work while the CLI worked fine; all are fixed here.
   "already classified" set with `.limit(50000)`, which Supabase silently
   caps at the project Max Rows (1000). Once the classifications table grew
   past ~1000 rows the dedup set was incomplete, so episodes were
-  re-classified on every pass — catastrophic under a loop (a catch-up run
+  re-classified on every pass - catastrophic under a loop (a catch-up run
   reclassified 234 episodes ~95× into 24k duplicate rows before being
   caught). Now paginates via `.range()` and terminates only on an empty
   page. The runaway duplicates were cleaned up out-of-band.
 
 ### Added
 
-- **`scripts/catchup.sh`** — full-pipeline drain that runs ingest, then
+- **`scripts/catchup.sh`** - full-pipeline drain that runs ingest, then
   loops transcribe/classify/score until each queue empties, with hard
   per-stage iteration caps so a logic bug can't run away unattended.
 
@@ -1686,7 +1697,7 @@ cron from doing useful work while the CLI worked fine; all are fixed here.
 
 - Corrected Vercel's `SUPABASE_SERVICE_ROLE_KEY`: it held a legacy **anon**
   JWT, not a service-role key. With RLS enabled on all tables and zero
-  policies, an anon key reads/writes nothing — which is why the cron saw an
+  policies, an anon key reads/writes nothing - which is why the cron saw an
   empty database while the CLI (real service key) worked. Swapped to the new
   `sb_secret_…` key. (RLS-with-no-policies is a latent landmine to address
   separately.) `CRON_SECRET` rotated.
@@ -1706,7 +1717,7 @@ The `youtube-transcript` npm library had two compounding problems:
 
 1. **Library bug.** Returned `"Transcript is disabled on this video"`
    for videos that demonstrably have captions on YouTube. Documented
-   issue since mid-2024 — the library does HTML scraping and breaks
+   issue since mid-2024 - the library does HTML scraping and breaks
    whenever YouTube changes the embedded `ytInitialPlayerResponse`
    shape.
 2. **Cloud-IP blocking.** Even when the library worked, YouTube
@@ -1725,7 +1736,7 @@ both treating symptoms of two problems as if they were one.
 - **Transcripts now fetched via Supadata** (https://supadata.ai), a
   managed YouTube transcript API. We hit `GET /v1/transcript` with the
   YouTube watch URL; they handle scraping, proxy rotation, library
-  maintenance — everything we were doing badly. ~$17/mo on the Pro
+  maintenance - everything we were doing badly. ~$17/mo on the Pro
   plan for our ~3000-transcript/month volume. Uses `mode=native` so we
   only fetch existing captions, never pay for AI generation.
 - **`youtube-transcript` package removed** from dependencies. Was the
@@ -1758,7 +1769,7 @@ Architectural fix for the YouTube-on-Vercel transcript problem:
 The `youtube-transcript` library was reporting "Transcript is disabled
 on this video" for videos that actually have captions available on
 YouTube. Manual spot-check of three failed-from-Vercel videos showed
-two with auto-generated captions, one with owner-uploaded captions —
+two with auto-generated captions, one with owner-uploaded captions -
 all present and visible on the YT site. Gregg's home network
 successfully transcribed the same videos.
 
@@ -1811,7 +1822,7 @@ Transcribe throughput bump: TRANSCRIBE_LIMIT 10 → 40 per cron run.
 
 - **`TRANSCRIBE_LIMIT` raised from 10 to 40.** Diagnostic SQL showed
   ~49 YouTube episodes ingested per 24h vs only 10 transcribe attempts
-  per cron — the pending pool was growing by ~90/day with the rest of
+  per cron - the pending pool was growing by ~90/day with the rest of
   the pipeline starved for fresh content. 40 attempts at ~1s each adds
   ~30s to cron wall time, still well inside the 300s function budget.
   Won't fully close the gap with daily YT ingest, but cuts the daily
@@ -1834,7 +1845,7 @@ and May 14 crons. Diagnosed via the logging added in v0.6.9.
 ### Fixed
 
 - **Haiku's positive-number "+" prefix is now tolerated.** Score output
-  was arriving as `{"sentiment": +4.2, "intensity": 3}` — Haiku
+  was arriving as `{"sentiment": +4.2, "intensity": 3}` - Haiku
   "helpfully" prefixing positive numbers with a plus sign. JSON spec
   doesn't allow a leading `+`, so `JSON.parse` rejected the entire
   response. Added `normalizeLlmJson` helper that strips leading `+` in
@@ -1860,7 +1871,7 @@ changing its visual character.
 ### Changed
 
 - **Reference lines at ±5** in addition to the existing dashed-zero
-  line. Gives the eye a magnitude anchor at a glance — previously
+  line. Gives the eye a magnitude anchor at a glance - previously
   every value just floated relative to whatever the data range happened
   to be.
 - **Endpoint date labels** under the chart. "Apr 20 ───── May 14" so
@@ -1876,7 +1887,7 @@ changing its visual character.
 ### Technical
 
 - `aggregate.ts` now returns `sparklineDates: string[]` alongside
-  `sparkline: number[]` — same length, same order. Days with no data
+  `sparkline: number[]` - same length, same order. Days with no data
   are skipped in both arrays so they stay in sync.
 
 ## v0.6.9 · 2026-05-14
@@ -1926,7 +1937,7 @@ Social-share polish and brand attribution.
 ### Changed
 
 - **Page title rewritten.** Was *"Soapbox: The FiveThirtyEight of
-  Alternative Political Media"* — that framing was useful internally
+  Alternative Political Media"* - that framing was useful internally
   as a north star but is the wrong thing to put on a tab, invites
   premature comparison, and the product should stand on its own.
   Now: *"Soapbox · Alternative media discourse, quantified"*.
@@ -1942,7 +1953,7 @@ Social-share polish and brand attribution.
 - **Dynamic Open Graph image** at `src/app/opengraph-image.tsx`. When
   the site URL is shared (iMessage, Twitter/X, Slack, LinkedIn, etc.)
   the preview card now shows the **live Soapbox Index value**, a
-  needle bar, channel + episode counts, and the as-of date — generated
+  needle bar, channel + episode counts, and the as-of date - generated
   at request time via `next/og`'s `ImageResponse` and cached for an
   hour per URL. Every share becomes a data preview of the current
   state of alt-media discourse. Twitter card configured to use the
@@ -1972,7 +1983,7 @@ Home page UX polish and scoring-evaluation tooling.
 - **Independent scoring validation package.** New `eval/` directory
   with `LABELING_INSTRUCTIONS.md` (a 4-page methodology brief for an
   outside labeler) and `scripts/extract-gold-set.ts` (stratified
-  sampler that emits two CSVs — a clean labeler version with channel
+  sampler that emits two CSVs - a clean labeler version with channel
   names blinded to lean, and an internal answer key with model scores).
   Run with `npm run eval:extract-gold-set`. Designed to validate the
   Haiku scorer against independent human judgment; output feeds the
@@ -1983,8 +1994,8 @@ Home page UX polish and scoring-evaluation tooling.
 Transcribe reliability fix. Cron's transcribe stage was burning its
 TRANSCRIBE_LIMIT on the freshest YouTube uploads of the day, which
 typically don't have auto-captions generated yet. Those failed and got
-marked permanently failed (no retry logic). Older pending episodes —
-which actually do have captions ready — were starved.
+marked permanently failed (no retry logic). Older pending episodes -
+which actually do have captions ready - were starved.
 
 ### Fixed
 
@@ -2000,7 +2011,7 @@ which actually do have captions ready — were starved.
 
 ### Known followup (v0.7)
 
-Failed transcripts are still permanently failed — no retry. When
+Failed transcripts are still permanently failed - no retry. When
 `transcript_attempts` + `transcript_last_attempted_at` columns are added,
 "failed" becomes retryable until N attempts spread over M hours. Tracked
 in memory under v0.7 queue.
@@ -2033,7 +2044,7 @@ the daily ingest backlog.
 
 ### Changed
 
-- **Cron batch limits raised** — `CLASSIFY_LIMIT` 2 → 15, `SCORE_LIMIT`
+- **Cron batch limits raised** - `CLASSIFY_LIMIT` 2 → 15, `SCORE_LIMIT`
   30 → 80. Original limits would have taken ~75 days to burn down a
   single day's 150-episode ingest backlog. New limits target a 1-week
   catch-up rate while staying ~45s clear of the 300s function timeout.
@@ -2046,7 +2057,7 @@ Same-day branding + transparency-surface polish on top of v0.6.0.
 
 ### Added
 
-- **Brand identity** — wooden-crate logo + red/blue `soapbox` wordmark
+- **Brand identity** - wooden-crate logo + red/blue `soapbox` wordmark
   (red `#C8202F` on "soap", blue `#114A8A` on "box") replacing the plain
   text mark. Logo source-of-truth at `src/assets/logo-crate.png`, served
   through `next/image` with priority + blur placeholder (~5KB delivered
@@ -2054,13 +2065,13 @@ Same-day branding + transparency-surface polish on top of v0.6.0.
 
 ### Changed
 
-- **Activity moved to footer** — the `/log` link lives in the footer
+- **Activity moved to footer** - the `/log` link lives in the footer
   alongside Issues / Channels / Methodology rather than the top nav.
   Activity is a transparency surface, not a primary destination.
-- **Trust strip totals aligned** with `/channels` SystemStats — both now
+- **Trust strip totals aligned** with `/channels` SystemStats - both now
   report cumulative channel + episode counts rather than mixing in-window
   counts with all-time. "Episodes in window" → "Episodes tracked".
-- **`.media` removed from header** — top-of-page brand mark is now the
+- **`.media` removed from header** - top-of-page brand mark is now the
   wordmark alone; the `.media` TLD was redundant next to the logo.
 
 ## v0.6.0 · 2026-05-12
@@ -2071,30 +2082,30 @@ this work shipped in a single extended session.
 ### Added
 
 - **Admin tooling** (Basic Auth gated via middleware against ADMIN_PASSWORD):
-  - `/admin/costs` — Anthropic spend dashboard. Daily/weekly/monthly burn vs
+  - `/admin/costs` - Anthropic spend dashboard. Daily/weekly/monthly burn vs
     $1k budget cap, 30-day daily bar chart, recent-runs table. Backed by a
     new `usage_log` table written from the cron pipeline.
-  - `/admin/channels-audit` — three views to guide channel curation:
+  - `/admin/channels-audit` - three views to guide channel curation:
     publishing cadence per show (last 14 days), L/M/R coverage gaps by issue,
     and "mentioned but not tracked" report scanning supporting quotes for
     candidate voices.
-- **PostHog product analytics** — client-side init + manual pageview capture
+- **PostHog product analytics** - client-side init + manual pageview capture
   for the App Router. Autocapture / heatmaps / web vitals on; session
   recordings off.
-- **Public `/changelog` page** — renders `CHANGELOG.md` directly via
+- **Public `/changelog` page** - renders `CHANGELOG.md` directly via
   react-markdown so the file remains the single source of truth. Footer
   version pill links here.
-- **Public `/log` activity feed** — paginated 50/page; every episode the
+- **Public `/log` activity feed** - paginated 50/page; every episode the
   pipeline has ingested with status badges + link to source. Receipts for
   transparency.
-- **Per-channel episode list** on channel drill-down pages — last 25
+- **Per-channel episode list** on channel drill-down pages - last 25
   episodes for that show with publish date, duration, transcript status,
   source link.
-- **External-link affordance per channel** — every channel card on
+- **External-link affordance per channel** - every channel card on
   `/channels` and the drill-down page links out to YouTube or Apple Podcasts.
-- **Shared `Header` + `Footer` components** — DRYed out the inline JSX
+- **Shared `Header` + `Footer` components** - DRYed out the inline JSX
   across all pages; nav changes are now a one-line edit.
-- **Version surface** — `v0.x.y` pill in every page footer linking to the
+- **Version surface** - `v0.x.y` pill in every page footer linking to the
   on-site changelog. `src/lib/version.ts` is the single source of truth.
 
 ### Channel curation
@@ -2122,13 +2133,13 @@ this work shipped in a single extended session.
 - **Em-dash sweep** across all user-facing text. Replaced with appropriate
   punctuation (colons before lists, parens for asides, commas in flow).
   Per Gregg's site-wide style choice.
-- **Channels list grouped by show** — same name across YouTube + podcast
+- **Channels list grouped by show** - same name across YouTube + podcast
   collapses to one card with platform indicators, eliminating the visual
   "duplicate channel" problem.
-- **Status badge clarity** on activity log — "pending" renamed to
+- **Status badge clarity** on activity log - "pending" renamed to
   "awaiting transcript" so casual visitors understand it as expected
   latency, not a bug.
-- **Hero subtext rewritten** — sharper framing of why soapbox exists
+- **Hero subtext rewritten** - sharper framing of why soapbox exists
   (alt-media now shapes US political discourse; not measured at scale;
   Soapbox listens above your personal algorithms).
 - **Issue contribution chart** added to `/methodology` with auto-generated
@@ -2140,7 +2151,7 @@ this work shipped in a single extended session.
   10:00 UTC daily (6 AM ET). Writes a `usage_log` row at completion.
 - `src/middleware.ts` enforces HTTP Basic Auth on `/admin/*`.
 - Added `react-markdown`, `@tailwindcss/typography`, `posthog-js`.
-- ARCHITECTURE.md — comprehensive live source-of-truth document. Maintained
+- ARCHITECTURE.md - comprehensive live source-of-truth document. Maintained
   per non-trivial commit.
 
 ### Vexes documented for vNext
@@ -2152,8 +2163,8 @@ this work shipped in a single extended session.
   feed when a show has changed feeds. Workaround in v0.6.0: explicit
   `podscanPodcastId` field on SeedChannel. Future fix: smart resolver that
   prefers the feed with most recent episodes.
-- **Reach is a snapshot at ingest time** — need periodic re-fetch.
-- **Issue taxonomy fixed editorial** — emergent-topic detection deferred.
+- **Reach is a snapshot at ingest time** - need periodic re-fetch.
+- **Issue taxonomy fixed editorial** - emergent-topic detection deferred.
 - **Twitch streamer ingestion** still deferred.
 
 ## v0.5.0 · 2026-05-12

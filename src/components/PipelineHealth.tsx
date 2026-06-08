@@ -5,7 +5,7 @@ import type { UsageLogRow } from "@/lib/usage";
  *   1. a last-N-runs grid (stage × run, green/amber/red/idle) for at-a-glance
  *      issue spotting, and
  *   2. a detailed recent-runs table with per-stage counts.
- * Deliberately shows NO cost/token data — that stays on the operator-only
+ * Deliberately shows NO cost/token data - that stays on the operator-only
  * /admin/costs dashboard. This page is about "is the machine healthy."
  */
 
@@ -162,7 +162,7 @@ export function PipelineHealth({ runs }: { runs: UsageLogRow[] }) {
         </span>
       </div>
 
-      {/* Per-stage status cards — current health of each stage, in words,
+      {/* Per-stage status cards - current health of each stage, in words,
           with a small last-7-run trend strip. */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {STAGES.map(({ key, label }) => {
@@ -188,7 +188,7 @@ export function PipelineHealth({ runs }: { runs: UsageLogRow[] }) {
                     <span
                       key={r.id}
                       className={`w-2.5 h-2.5 rounded-sm ${CELL_CLASS[s]}`}
-                      title={`${shortDate(r.ran_at)} ${shortTime(r.ran_at)} — ${STATUS_WORD[s]}`}
+                      title={`${shortDate(r.ran_at)} ${shortTime(r.ran_at)} - ${STATUS_WORD[s]}`}
                     />
                   );
                 })}

@@ -1,5 +1,5 @@
 /**
- * Channel-onboarding lib — adds a new YouTube channel to the panel and
+ * Channel-onboarding lib - adds a new YouTube channel to the panel and
  * deep-ingests its recent history. Shared by the CLI tool
  * (`scripts/backfill-channel-history.ts`) and the `/admin/channels` admin
  * action. Encapsulates: handle parsing, YT resolve + sub-floor check,
@@ -21,12 +21,12 @@ const LEAN_LABEL = { L: "Left", M: "Middle / cross-cutting", R: "Right" } as con
 /**
  * Draft a one-sentence channel description in the site's house voice, given the
  * channel's own metadata + the editorially-assigned lean. The admin EDITS this
- * draft rather than writing from scratch — see [[admin-channel-autodescribe]].
+ * draft rather than writing from scratch - see [[admin-channel-autodescribe]].
  *
  * House style (from the existing panel): one line, ~12-25 words, concrete,
  * posture-first; semicolon-separated clauses; names the host/network and the
  * format; describes political character, never hypes. No markdown, no quotes.
- * Falls back to a minimal template if the model call fails — generation must
+ * Falls back to a minimal template if the model call fails - generation must
  * never block adding a channel.
  */
 export async function generateChannelRationale(opts: {
@@ -52,7 +52,7 @@ export async function generateChannelRationale(opts: {
     (recentTitles.length
       ? `Recent video titles: ${recentTitles.slice(0, 8).join(" | ").slice(0, 600)}\n`
       : "") +
-    `\nReturn ONLY the sentence — no preamble, no quotes, no markdown. Describe ` +
+    `\nReturn ONLY the sentence - no preamble, no quotes, no markdown. Describe ` +
     `the host/network, format, and political posture. Do not invent facts not ` +
     `supported by the inputs.`;
 
@@ -71,7 +71,7 @@ export async function generateChannelRationale(opts: {
   } catch {
     // fall through to template
   }
-  return `${title}; ${LEAN_LABEL[lean]} posture. (Auto-draft failed — please edit.)`;
+  return `${title}; ${LEAN_LABEL[lean]} posture. (Auto-draft failed - please edit.)`;
 }
 
 export interface ChannelPreview {
@@ -140,7 +140,7 @@ export function extractYouTubeHandle(input: string): string | null {
   if (t.startsWith("@")) return t.slice(1);
   const m = t.match(/youtube\.com\/@([\w.\-]+)/i);
   if (m) return m[1];
-  // bare word (e.g. "MeidasTouch") — treat as a handle
+  // bare word (e.g. "MeidasTouch") - treat as a handle
   if (/^[\w.\-]+$/.test(t)) return t;
   return null;
 }
@@ -148,11 +148,11 @@ export function extractYouTubeHandle(input: string): string | null {
 export interface AddChannelInput {
   handleOrUrl: string;
   lean: "L" | "M" | "R";
-  /** One-sentence rationale for the lean assignment — shown on /channels.
+  /** One-sentence rationale for the lean assignment - shown on /channels.
    *  Required so the panel surface stays informative. */
   rationale: string;
   /** Cohort placement: independent (creator/native) vs legacy (traditional
-   *  institution). Defaults to independent — most additions are creators. */
+   *  institution). Defaults to independent - most additions are creators. */
   cohort?: Cohort;
   nameOverride?: string;
   /** Max episodes to deep-ingest after adding. Default 30. */
@@ -182,7 +182,7 @@ export async function addYouTubeChannel(input: AddChannelInput): Promise<AddChan
   if (!yt) throw new Error(`YouTube channel @${handle} not found.`);
   if (yt.subscriberCount < SUB_FLOOR) {
     throw new Error(
-      `${yt.title} has ${yt.subscriberCount.toLocaleString()} subscribers — below the ${SUB_FLOOR.toLocaleString()} floor.`,
+      `${yt.title} has ${yt.subscriberCount.toLocaleString()} subscribers - below the ${SUB_FLOOR.toLocaleString()} floor.`,
     );
   }
 

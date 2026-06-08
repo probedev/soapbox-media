@@ -2,17 +2,17 @@
  * YouTube Data API v3 helpers + Supadata transcript fetcher.
  *
  * We use raw fetch() against YouTube's REST API rather than the heavier
- * `googleapis` SDK — we only need a small subset of endpoints and avoiding
+ * `googleapis` SDK - we only need a small subset of endpoints and avoiding
  * the SDK keeps deps lean.
  *
  * Transcripts are fetched via Supadata's managed API (v0.6.14) rather
  * than the previous `youtube-transcript` library, which had two
  * compounding failure modes:
- *   1. Library bug — returned "Transcript is disabled" for videos that
+ *   1. Library bug - returned "Transcript is disabled" for videos that
  *      actually had captions on YouTube. Documented issue, mid-2024+.
- *   2. Cloud IP blocking — even when the library worked, YouTube
+ *   2. Cloud IP blocking - even when the library worked, YouTube
  *      throttled requests from Vercel/GH Actions egress pools.
- * Supadata is just an HTTPS call from anywhere — no scraping, no IP
+ * Supadata is just an HTTPS call from anywhere - no scraping, no IP
  * issues, no library maintenance. ~$17/mo at our volume on the Pro plan.
  *
  * Quota notes: each `channels.list` call costs 1 unit, `playlistItems.list`
@@ -150,7 +150,7 @@ export async function getRecentUploads(
 /**
  * Paginate a channel's uploads playlist back to `sinceIso`, returning every
  * upload published on/after that cutoff (newest first). Unlike getRecentUploads
- * (single 50-item page), this walks pageTokens — needed to cover ~30 days of a
+ * (single 50-item page), this walks pageTokens - needed to cover ~30 days of a
  * high-volume channel. Durations are batch-fetched in chunks of 50. `hardCap`
  * bounds a runaway (e.g. a firehose with thousands of uploads in the window).
  */
@@ -215,7 +215,7 @@ export async function getUploadsSince(
 }
 
 /**
- * Channels this channel "features" on its page — peers, network siblings,
+ * Channels this channel "features" on its page - peers, network siblings,
  * friends-of-the-show, hand-picked by the host. A very high-signal adjacency
  * signal for finding competitors of an existing channel set. Costs 1 quota
  * unit per call. Returns the deduped list of featured channel IDs.
@@ -266,14 +266,14 @@ export async function getChannelDetailsBatch(
 /**
  * Pull the existing transcript for a YouTube video via Supadata's API.
  *
- * Uses `mode=native` — fetch the existing caption track if any, do NOT
+ * Uses `mode=native` - fetch the existing caption track if any, do NOT
  * trigger AI generation. AI generation costs 2 credits/min vs 1 credit
  * for a native fetch (success or unavailable), and at our volume we'd
  * rather just skip videos without captions than pay to generate
  * potentially-inaccurate ones.
  *
  * Returns a discriminated result so the caller can tell the two failure
- * modes apart — they must NOT be handled identically:
+ * modes apart - they must NOT be handled identically:
  *   - { ok: true, text }                    captions fetched
  *   - { ok: false, retriable: false }       definitively no captions / bad
  *                                           video → terminal, don't retry
@@ -334,7 +334,7 @@ export async function getVideoTranscript(videoId: string): Promise<TranscriptFet
 
     return { ok: true, text: data.content };
   } catch (e: any) {
-    // Network-level failure (DNS, connection reset, timeout) — transient.
+    // Network-level failure (DNS, connection reset, timeout) - transient.
     const errClass = e?.constructor?.name || "Error";
     const errMsg = e?.message || String(e);
     console.error(`[YT transcript] ${errClass} for ${videoId} (transient): ${errMsg}`);

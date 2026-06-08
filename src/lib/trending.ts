@@ -1,5 +1,5 @@
 /**
- * Trending Names — a BETA home-page tease. Detects named entities (people,
+ * Trending Names - a BETA home-page tease. Detects named entities (people,
  * orgs, places) surging across the tracked panel this week and links back to
  * the shows discussing them. Validated via scripts/probe-entity-burst.ts; the
  * known-imperfect parts (ASR-misspelling fragmentation, scoring) are mitigated
@@ -11,7 +11,7 @@
  *   - recent  = last 7 days  → mentions + per-channel + daily sparkline
  *   - baseline = days 8–21   → the rate to burst against
  * An entity qualifies if it's broad (≥ MIN_CHANNELS shows) AND rising
- * (burst ≥ MIN_BURST). Ranked by breadth — "how many shows picked it up" — the
+ * (burst ≥ MIN_BURST). Ranked by breadth - "how many shows picked it up" - the
  * signal that the panel converged on something.
  *
  * Persisted to dashboard_snapshot (key `trending_v1`), refreshed daily by
@@ -24,20 +24,20 @@ const RECENT_DAYS = 7;
 const BASELINE_DAYS = 14; // days 8..21
 const SPARK_DAYS = 14;
 const MIN_CHANNELS = 8; // cross-panel breadth floor
-const MIN_MENTIONS = 40; // volume floor — kills niche 15-mention spikes
+const MIN_MENTIONS = 40; // volume floor - kills niche 15-mention spikes
 // Burst floor raised 1.4 → 1.7 (2026-06-08): excludes omnipresent institutions
-// (NYT, CNN, Trump) that are cited every week at ~1.5× — broad but not actually
+// (NYT, CNN, Trump) that are cited every week at ~1.5× - broad but not actually
 // trending. We rank by BREADTH among entities that clear this floor: breadth
 // ranking implicitly suppresses the extraction noise floor (ASR fragments /
 // common-word leaks rarely reach wide breadth), while the burst floor strips
-// the perennials. Burst ranking was tried and rejected — it surfaced the junk.
+// the perennials. Burst ranking was tried and rejected - it surfaced the junk.
 const MIN_BURST = 1.7;
 const MAX_ENTITIES = 12;
 
 // Major media outlets are cited across the whole panel every week, so their
 // baseline is structurally huge and a normal burst floor lets them headline
 // "trending" on ubiquity (NYT topped the list at only 1.9×). Require them to
-// REALLY spike (2.5×) to qualify — a media org genuinely becoming the story.
+// REALLY spike (2.5×) to qualify - a media org genuinely becoming the story.
 const MEDIA_FLOOR = 2.5;
 const MEDIA_ORGS = new Set(
   ("new york times,the new york times,washington post,the washington post,wall street journal," +
@@ -92,7 +92,7 @@ const SINGLE_BLOCK = new Set(
    "women men kids children guys folks people money power world country state nation government congress " +
    "war peace media news story point question issue problem reason way thing stuff lot lots " +
    "everything anything nothing something everyone someone anyone nobody " +
-   // bare common first names — the full "Scott Jennings" survives (multi-token);
+   // bare common first names - the full "Scott Jennings" survives (multi-token);
    // lone "Scott" is an ambiguous fragment, so drop it
    "scott mike michael john james david dave chris mark paul steve steven tom thomas dan dann joe joseph " +
    "bill bob robert rick richard jim jimmy tony tim kevin brian gary jeff jeffrey greg craig sam ben " +
@@ -133,7 +133,7 @@ function extractEntities(text: string): Map<string, { count: number; starts: num
       }
       break;
     }
-    // trim common/connector edges (both ends — fixes "maine so", "in america")
+    // trim common/connector edges (both ends - fixes "maine so", "in america")
     while (run.length && (CONNECTORS.has(run[run.length - 1].toLowerCase()) || COMMON.has(run[run.length - 1].toLowerCase()))) run.pop();
     while (run.length && COMMON.has(run[0].toLowerCase())) run.shift();
 
@@ -301,9 +301,9 @@ export async function computeTrending(): Promise<TrendingPayload> {
       return e.burst >= floor;
     })
     // Rank by breadth (burst tiebreak) among entities that cleared the rising
-    // floor — clean (junk lacks breadth) and not perennial-dominated (floor
+    // floor - clean (junk lacks breadth) and not perennial-dominated (floor
     // strips NYT-likes). Fresh breakouts (Welker) still lag a day under 1×/day
-    // ingest as reaction accumulates — an accepted property, not a bug.
+    // ingest as reaction accumulates - an accepted property, not a bug.
     .sort((a, b) => b.channels - a.channels || b.burst - a.burst)
     .slice(0, MAX_ENTITIES);
 

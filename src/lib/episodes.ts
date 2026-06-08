@@ -82,11 +82,11 @@ export async function getEpisodeTableRows(
         "id, title, published_at, source_url, duration_sec, channel_id, channel_name, political_lean, platform, transcript_status, classify_status, classification_count, scored_count",
       );
     if (channelId) q = q.eq("channel_id", channelId);
-    // published_at is the business order (newest first) but isn't unique —
+    // published_at is the business order (newest first) but isn't unique -
     // two episodes posted in the same second can re-cross page boundaries
     // and appear duplicated in the table. Chain `id` as the stable tiebreaker
     // so pagination is deterministic even when published_at values collide.
-    // (See [[pagination-stable-order]] — the missing-tiebreaker subspecies of
+    // (See [[pagination-stable-order]] - the missing-tiebreaker subspecies of
     // the v0.6.47 family.)
     const { data, error } = await q
       .order("published_at", { ascending: false })
@@ -119,9 +119,9 @@ function mapEpisodeRow(r: any): EpisodeTableRow {
         ? "failed"
         : "pending";
   // "no-signal" = classified, taxonomy didn't match (~8% of processed
-  // episodes — sports, true crime, celebrity, etc.). Distinct from "pending"
+  // episodes - sports, true crime, celebrity, etc.). Distinct from "pending"
   // so readers don't mistake a complete-but-empty result for in-progress
-  // work. v0.6.54 — see [[soapbox-roadmap]] no-signal status.
+  // work. v0.6.54 - see [[soapbox-roadmap]] no-signal status.
   const classified: EpisodeTableRow["classified"] =
     transcribed === "failed"
       ? "na"
@@ -201,7 +201,7 @@ export interface EpisodeTablePage {
 /**
  * One page of the episode table, sorted/searched/paginated in Postgres. Backs
  * the server-driven /log table (and channel drill-downs) so the page fetches
- * only the ~50 rows it renders instead of the whole archive — TTFB stays flat
+ * only the ~50 rows it renders instead of the whole archive - TTFB stays flat
  * as the episode count grows. Returns the page plus the exact total count.
  */
 export async function getEpisodeTablePage(opts: {
@@ -234,7 +234,7 @@ export async function getEpisodeTablePage(opts: {
   else query = query.in("cohort", [...PUBLIC_COHORTS]);
 
   if (q && q.trim()) {
-    // Sanitize before interpolating into the PostgREST or() filter DSL —
+    // Sanitize before interpolating into the PostgREST or() filter DSL -
     // commas, parens, and wildcards would otherwise change the filter's
     // meaning. Strip them to spaces; ilike still matches on the rest.
     const term = q.trim().replace(/[,()%*\\]/g, " ").trim();

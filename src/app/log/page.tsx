@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 
 export default async function LogPage() {
   // The episode table fetches its own pages from /api/episodes (server-side
-  // sort/search/pagination), so the page no longer ships the whole archive —
+  // sort/search/pagination), so the page no longer ships the whole archive -
   // TTFB stays flat as the episode count grows. Only SystemStats renders here.
   return (
     <main className="min-h-screen">
@@ -24,7 +24,7 @@ export default async function LogPage() {
         </h1>
         <p className="text-gray-600 mt-3 leading-relaxed max-w-3xl">
           Receipts, in the open. The scale of what we&apos;ve analyzed, and
-          every episode the pipeline has ingested — with exactly how far each
+          every episode the pipeline has ingested - with exactly how far each
           one made it through transcription, issue classification, and
           sentiment scoring. Sort, search, and page through the full record.
         </p>
@@ -34,7 +34,7 @@ export default async function LogPage() {
           <SystemStats />
         </div>
 
-        {/* Episode receipts — sortable / searchable table */}
+        {/* Episode receipts - sortable / searchable table */}
         <div className="mt-10">
           <h2 className="text-sm font-semibold uppercase tracking-wider text-gray-600 mb-3">
             Episode receipts

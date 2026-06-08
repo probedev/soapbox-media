@@ -94,7 +94,7 @@ function platformAbbrev(p: "youtube" | "podcast"): string {
 
 export default async function ChannelsListPage() {
   const db = createServiceClient();
-  // Paginate by `id` (stable PK) and terminate only on an empty page — see
+  // Paginate by `id` (stable PK) and terminate only on an empty page - see
   // [[pagination-stable-order]]. A single `.range(0, 999)` silently truncates
   // at 1000 active channels, which the panel will cross on the path to ~200
   // unique shows (2-3 platform rows each) and definitely past that. JS

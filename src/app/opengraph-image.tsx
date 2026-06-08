@@ -10,7 +10,7 @@
  * Auto-detected by Next.js App Router. The metadata in `layout.tsx`
  * references the same image for Twitter cards via `summary_large_image`.
  *
- * Runtime: nodejs (not edge) — we need fs.readFileSync to inline the
+ * Runtime: nodejs (not edge) - we need fs.readFileSync to inline the
  * crate PNG, and `getDashboardData` can pull thousands of rows with deep
  * joins. Vercel caches OG images by URL so cold-start cost is amortized.
  */
@@ -37,7 +37,7 @@ function formatAsOf(iso: string): string {
 }
 
 // Inline the crate logo as a base64 data URI. We use the 256x256 favicon
-// version rather than the 1024x1024 source asset — same visual, ~20x
+// version rather than the 1024x1024 source asset - same visual, ~20x
 // smaller payload (~56KB vs ~1.2MB).
 function loadCrateDataUri(): string | null {
   try {
@@ -81,7 +81,7 @@ export default async function OpengraphImage() {
   const indexText = directionLabel + indexAbs.toFixed(1);
   const asOfFormatted = formatAsOf(data.asOfDate);
 
-  // --- Needle gauge geometry — identical math to <SoapboxNeedle> ---
+  // --- Needle gauge geometry - identical math to <SoapboxNeedle> ---
   const clamped = Math.max(-10, Math.min(10, data.index));
   const t = (clamped + 10) / 20;
   const angleDeg = (1 - t) * 180;
@@ -172,7 +172,7 @@ export default async function OpengraphImage() {
             The Soapbox Index · last 7 days
           </div>
 
-          {/* Curved gauge SVG — same geometry as <SoapboxNeedle>. Text
+          {/* Curved gauge SVG - same geometry as <SoapboxNeedle>. Text
               labels are rendered as HTML below the SVG because Satori
               (the renderer behind next/og's ImageResponse) does not
               support <text> nodes. */}
@@ -252,7 +252,7 @@ export default async function OpengraphImage() {
               fontVariantNumeric: "tabular-nums",
             }}
           >
-            {data.hasData ? indexText : "—"}
+            {data.hasData ? indexText : "-"}
           </div>
         </div>
 

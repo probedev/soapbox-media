@@ -90,7 +90,7 @@ export async function IssueContributionsChart({
 
   const maxAbs = Math.max(...data.issues.map((i) => Math.abs(i.contribution)), 1);
 
-  // Auto-generated narrative — pick top 3 L pullers and top 3 R pullers
+  // Auto-generated narrative - pick top 3 L pullers and top 3 R pullers
   const lPullers = data.issues.filter((i) => i.direction === "L").slice(0, 3);
   const rPullers = data.issues.filter((i) => i.direction === "R").slice(0, 3);
   const indexLabel = data.index >= 0 ? `R+${data.index.toFixed(1)}` : `L+${Math.abs(data.index).toFixed(1)}`;
@@ -155,9 +155,9 @@ export async function IssueContributionsChart({
 
       <p className="text-xs text-gray-500 mt-4 leading-relaxed">
         Each bar shows <strong className="font-semibold text-gray-700">how much that issue moved
-        the Soapbox Index</strong> over the last {windowDays} days — longer means a bigger push,
+        the Soapbox Index</strong> over the last {windowDays} days - longer means a bigger push,
         and the side shows which way it pushed. The number is the issue&apos;s{" "}
-        <strong className="font-semibold text-gray-700">average lean</strong> — which way it tilts
+        <strong className="font-semibold text-gray-700">average lean</strong> - which way it tilts
         per mention. The two can disagree: an issue discussed a lot but mildly can move the Index
         more than one discussed rarely but intensely.{" "}
         <a href="/methodology" className="underline hover:text-gray-700">How this is calculated →</a>{" "}

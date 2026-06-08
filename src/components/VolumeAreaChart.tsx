@@ -12,10 +12,10 @@ import {
 import { ChartContainer, ChartTooltip, type ChartConfig } from "@/components/ui/chart";
 
 /**
- * Mention-volume sparkline — counterpart to <IndexAreaChart>. Lean values are
+ * Mention-volume sparkline - counterpart to <IndexAreaChart>. Lean values are
  * bimodal (L↔R, anchored at 0); volume values are non-negative counts, so the
  * y-axis starts at 0 and there's no neutral-line reference. Color is neutral
- * gray — attention rising or falling isn't ideologically loaded.
+ * gray - attention rising or falling isn't ideologically loaded.
  */
 interface VolumeAreaChartProps {
   /** Rolling mention counts, oldest first. */

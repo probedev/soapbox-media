@@ -61,7 +61,7 @@ export default async function ChannelPage({
       })
     : null;
 
-  // Episodes for this channel — same sortable/searchable table as /log,
+  // Episodes for this channel - same sortable/searchable table as /log,
   // minus the redundant Category + Channel columns.
   const episodeRows = await getEpisodeTableRows(1000, params.id);
 
@@ -182,7 +182,7 @@ export default async function ChannelPage({
         </div>
       </section>
 
-      {/* Recent episodes — transparency surface, links out to original sources */}
+      {/* Recent episodes - transparency surface, links out to original sources */}
       <section className="border-t border-gray-200 bg-white">
         <div className="max-w-4xl mx-auto px-6 py-10">
           <div className="flex items-baseline justify-between mb-4">

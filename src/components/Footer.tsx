@@ -3,7 +3,7 @@ import { VERSION } from "@/lib/version";
 /**
  * Shared site footer used on every page. Includes the platform version so
  * the public evolution of soapbox is traceable from the live site, plus
- * /log (Activity) — a secondary transparency surface.
+ * /log (Activity) - a secondary transparency surface.
  */
 export function Footer() {
   return (

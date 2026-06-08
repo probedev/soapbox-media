@@ -11,7 +11,7 @@ export default function SupportThanksPage() {
         <h1 className="text-3xl font-semibold tracking-tight">Thank you 🙏</h1>
         <p className="text-gray-600 mt-4 leading-relaxed">
           Your support keeps Soapbox independent and free to read. We measure what political media is
-          saying so everyone argues from the same scoreboard — and you just helped keep it running.
+          saying so everyone argues from the same scoreboard - and you just helped keep it running.
         </p>
         <p className="text-gray-500 text-sm mt-4">A receipt is on its way to your email.</p>
         <div className="mt-8 flex gap-3 justify-center">

@@ -25,7 +25,7 @@ export function SubNeedle({
           hasData ? color : "text-gray-300"
         }`}
       >
-        {hasData ? `${dir}${Math.abs(value).toFixed(1)}` : "—"}
+        {hasData ? `${dir}${Math.abs(value).toFixed(1)}` : "-"}
       </div>
     </div>
   );

@@ -2,7 +2,7 @@
  * Typed environment variable accessor.
  *
  * Use getters so missing-required-key errors only fire when the key is
- * actually read — not at module import time. This means a missing
+ * actually read - not at module import time. This means a missing
  * ANTHROPIC_API_KEY won't break a Supabase-only script.
  */
 
@@ -39,7 +39,7 @@ export const env = {
   get supadataApiKey() {
     return required("SUPADATA_API_KEY");
   },
-  // Stripe (workstream 2). Lazy getters — only throw when actually read at
+  // Stripe (workstream 2). Lazy getters - only throw when actually read at
   // request time, so the app builds/runs fine before keys are configured.
   get stripeSecretKey() {
     return required("STRIPE_SECRET_KEY");

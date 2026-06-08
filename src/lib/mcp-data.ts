@@ -1,7 +1,7 @@
 /**
  * Data functions backing the public MCP server (/api/mcp). Read-only, all
  * through the service client. Transcript policy: NEVER expose full episode
- * text — mention-level supporting quotes + source links only (same rule as
+ * text - mention-level supporting quotes + source links only (same rule as
  * the public site; PodScan/Supadata license transcripts to us, not through
  * us).
  */
@@ -41,10 +41,10 @@ export interface MentionRow {
 }
 
 /**
- * Scored-mention search — the workhorse tool. Every dotted filter path goes
+ * Scored-mention search - the workhorse tool. Every dotted filter path goes
  * through !inner embeds so PostgREST filters parents, not just the embed.
  * Ordering is by scoring recency (stable PK-adjacent key); callers narrow by
- * published_after/before for time control — documented in the tool prompt.
+ * published_after/before for time control - documented in the tool prompt.
  */
 export async function searchMentions(f: MentionFilters): Promise<{ mentions: MentionRow[]; returned: number; offset: number }> {
   const db = createServiceClient();
@@ -117,7 +117,7 @@ export interface TrendBucket {
 /**
  * Weekly mention-volume + average-sentiment series for one issue. Paginates
  * with stable PK order and empty-page-only termination (see
- * [[pagination-stable-order]] — short pages on deep joins are routine).
+ * [[pagination-stable-order]] - short pages on deep joins are routine).
  */
 export async function issueTrend(
   issueSlug: string,

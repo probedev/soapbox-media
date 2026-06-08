@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * CohortBadge — a small icon (with a styled hover tooltip) marking a
+ * CohortBadge - a small icon (with a styled hover tooltip) marking a
  * channel/episode's cohort: independent (creator / digital-native, mic icon)
  * vs legacy (traditional institution, tv icon). Sits next to the L/M/R lean
  * badge. Uses the shadcn Tooltip (not a native title) so it matches the lean

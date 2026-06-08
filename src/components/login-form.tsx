@@ -6,7 +6,7 @@
  * the OAuth consent screen (/oauth/consent) and the standalone /login page.
  *
  * `redirectTo` is where social OAuth returns the user after the provider round
- * trip — pass the current consent URL so the authorization flow continues.
+ * trip - pass the current consent URL so the authorization flow continues.
  * Password auth resolves in place; the parent reacts via onAuthStateChange.
  */
 import { useState } from "react";

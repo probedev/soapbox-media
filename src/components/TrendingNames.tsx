@@ -1,10 +1,10 @@
 import type { TrendingPayload } from "@/lib/trending";
 
 /**
- * Trending Names (BETA) — home-page tease. Named entities surging across the
+ * Trending Names (BETA) - home-page tease. Named entities surging across the
  * tracked panel this week, each linking back to the shows discussing them.
  * Server-rendered from the `trending_v1` snapshot; inline SVG sparkline keeps
- * it dependency-free. Honestly labelled experimental — entity canonicalization
+ * it dependency-free. Honestly labelled experimental - entity canonicalization
  * is still maturing (see [[lib/trending]]).
  */
 function Spark({ values }: { values: number[] }) {
@@ -28,7 +28,7 @@ export function TrendingNames({ data }: { data: TrendingPayload }) {
         <span className="text-[10px] font-mono uppercase tracking-wide text-amber-700 bg-amber-50 border border-amber-200 rounded px-1.5 py-0.5">beta</span>
       </div>
       <p className="text-xs text-gray-500 mb-4">
-        People, organizations, and places surging across tracked shows this week — by how many shows picked them up. Click a show to read where.
+        People, organizations, and places surging across tracked shows this week - by how many shows picked them up. Click a show to read where.
       </p>
       <ul className="divide-y divide-gray-100">
         {data.entities.map((e) => (
@@ -53,7 +53,7 @@ export function TrendingNames({ data }: { data: TrendingPayload }) {
         ))}
       </ul>
       <p className="text-[10px] text-gray-400 mt-3">
-        Experimental — names are detected automatically from transcripts and may occasionally merge or split. Refreshed daily.
+        Experimental - names are detected automatically from transcripts and may occasionally merge or split. Refreshed daily.
       </p>
     </div>
   );

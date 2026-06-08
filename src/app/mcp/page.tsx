@@ -7,7 +7,7 @@ import { SubscribeButton } from "@/components/SubscribeButton";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Soapbox for AI Agents — MCP Server",
+  title: "Soapbox for AI Agents - MCP Server",
   description:
     "Connect your AI agent to Soapbox's political-media dataset: issue mentions, sentiment scores, and trend data from high-reach podcasts and YouTube shows, queryable over MCP.",
 };
@@ -37,7 +37,7 @@ const EXAMPLE_QUERIES: { who: string; ask: string }[] = [
   },
   {
     who: "Persuasion strategist",
-    ask: "Find middle-rated shows that discuss healthcare with right-aligned framing — those audiences may be movable. Quote the framing so I can hear the register.",
+    ask: "Find middle-rated shows that discuss healthcare with right-aligned framing - those audiences may be movable. Quote the framing so I can hear the register.",
   },
   {
     who: "Ad placement",
@@ -45,12 +45,12 @@ const EXAMPLE_QUERIES: { who: string; ask: string }[] = [
   },
   {
     who: "Journalist",
-    ask: "What is the right talking about this week that the left isn't touching at all — and vice versa? Quotes and sources for both lists.",
+    ask: "What is the right talking about this week that the left isn't touching at all - and vice versa? Quotes and sources for both lists.",
   },
 ];
 
 const TOOLS: { name: string; what: string }[] = [
-  { name: "search_mentions", what: "The workhorse. Filtered search over scored issue mentions — verbatim quotes with sentiment (−5 left to +5 right), intensity, channel, episode, and a source link. Ten filters, paginated." },
+  { name: "search_mentions", what: "The workhorse. Filtered search over scored issue mentions - verbatim quotes with sentiment (−5 left to +5 right), intensity, channel, episode, and a source link. Ten filters, paginated." },
   { name: "get_issue_trend", what: "Weekly time series for one issue: mention volume, average sentiment, average intensity. Trajectory questions." },
   { name: "get_index", what: "The Soapbox Index (−10…+10) over any trailing window, with delta, daily sparkline, and top issues by volume." },
   { name: "get_movers", what: "Issues with the biggest period-over-period lean or volume swings, with thin-sample noise filtered out." },
@@ -58,7 +58,7 @@ const TOOLS: { name: string; what: string }[] = [
   { name: "get_channel_detail", what: "One show, drilled in: its issue mix and per-issue stance profile." },
   { name: "list_issues", what: "The full issue taxonomy with definitions and the canonical left/right positions used in scoring." },
   { name: "list_channels", what: "The tracked panel: every show with lean, cohort (independent vs legacy), platform, and audience reach." },
-  { name: "get_methodology", what: "How every number is computed, plus live panel statistics — so your agent can cite its sources." },
+  { name: "get_methodology", what: "How every number is computed, plus live panel statistics - so your agent can cite its sources." },
 ];
 
 function CodeBlock({ children }: { children: string }) {
@@ -79,7 +79,7 @@ export default function McpPage() {
           Soapbox for AI agents
         </h1>
         <p className="text-gray-600 mt-3 leading-relaxed">
-          Everything on this site — the Index, the issue trends, the channel stances — is computed
+          Everything on this site - the Index, the issue trends, the channel stances - is computed
           from a dataset of scored, quoted, source-linked issue mentions across high-reach political
           podcasts and YouTube shows. The charts answer the questions we thought to ask. Your
           questions are different, and there are more of them than any dashboard can hold.
@@ -120,7 +120,7 @@ export default function McpPage() {
 
         <h2 className="text-xl font-semibold mt-12">Ask it anything</h2>
         <p className="text-gray-700 mt-3 leading-relaxed">
-          These are real questions the dataset can answer today — each one resolves to a couple of
+          These are real questions the dataset can answer today - each one resolves to a couple of
           tool calls your agent makes on your behalf:
         </p>
         <div className="mt-5 space-y-4">
@@ -154,12 +154,12 @@ export default function McpPage() {
           Every mention is a verbatim quote extracted at classification time, scored for sentiment
           (−5 strongly left-aligned to +5 strongly right-aligned) and intensity (1–5), and linked
           to its source episode. Aggregates use the same reach- and intensity-weighted math as the
-          public site — the full derivation is on the{" "}
+          public site - the full derivation is on the{" "}
           <a href="/methodology" className="underline hover:text-gray-900">methodology page</a>,
           and your agent can pull it live via <code className="text-sm">get_methodology</code>.
         </p>
         <p className="text-gray-700 mt-4 leading-relaxed">
-          One hard boundary: <strong>full transcripts are never exposed</strong> — through this API
+          One hard boundary: <strong>full transcripts are never exposed</strong> - through this API
           or anywhere else. You get mention-level excerpts and a link to the source episode. This
           is both a licensing obligation to our transcript providers and house policy.
         </p>
@@ -168,7 +168,7 @@ export default function McpPage() {
         <p className="text-gray-700 mt-3 leading-relaxed">
           The server speaks streamable-HTTP MCP at{" "}
           <code className="text-sm break-all">{ENDPOINT}</code>. You authenticate by signing in with
-          your Soapbox subscription account (OAuth) — your client opens a browser to log in and
+          your Soapbox subscription account (OAuth) - your client opens a browser to log in and
           approve; there&apos;s no key to paste.
         </p>
 
@@ -219,12 +219,12 @@ export default function McpPage() {
         <h3 className="text-base font-semibold mt-8">claude.ai and ChatGPT connectors</h3>
         <p className="text-gray-700 mt-2 text-sm leading-relaxed">
           Add a custom connector with the URL above. The connector runs the OAuth sign-in in your
-          browser — log in with your subscription account and approve, and it&apos;s connected.
+          browser - log in with your subscription account and approve, and it&apos;s connected.
         </p>
 
         <h2 className="text-xl font-semibold mt-12">Get access</h2>
         <p className="text-gray-700 mt-3 leading-relaxed">
-          $300/month for full MCP access. Subscribe below — no account needed up front; after
+          $300/month for full MCP access. Subscribe below - no account needed up front; after
           payment we email you a link to set your password, then connect your agent with the steps
           above. Cancel anytime.
         </p>

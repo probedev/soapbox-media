@@ -2,7 +2,7 @@
  * Channel-audit helpers. Powers /admin/channels-audit. Designed to be
  * called server-side from the admin page.
  *
- * All aggregations done in JS rather than SQL views — at current data
+ * All aggregations done in JS rather than SQL views - at current data
  * volume (49 channels, ~200 episodes, ~1.3k classifications) the
  * pull-and-group approach is well under 1 second. Move to materialized
  * views when classifications cross ~50k rows.
@@ -75,7 +75,7 @@ const VOICE_CANDIDATES: { name: string; tracked: boolean }[] = [
   { name: "Ezra Klein", tracked: true },
   { name: "Patrick Bet-David", tracked: true },
   { name: "PBD", tracked: true },
-  // Not tracked — candidates to evaluate
+  // Not tracked - candidates to evaluate
   { name: "Theo Von", tracked: false },
   { name: "Andrew Schulz", tracked: false },
   { name: "Russell Brand", tracked: false },
@@ -131,7 +131,7 @@ interface ClassificationRow {
  * `id` PK; the order is hardcoded so the helper's contract is unambiguous
  * ("I paginate by id, ascending") and callers can't accidentally pass a
  * non-unique sort key. See [[pagination-stable-order]] / v0.6.51 for why
- * both halves of this pattern matter — a short-page early-out (the bug
+ * both halves of this pattern matter - a short-page early-out (the bug
  * removed below) silently drops the tail on deep-join queries, and missing
  * ORDER BY lets pages overlap once the table grows past the Max Rows cap.
  */
@@ -152,7 +152,7 @@ async function paginatedSelect<T>(
     if (error) throw new Error(`${table}: ${error.message}`);
     if (!data || data.length === 0) break;
     all.push(...(data as unknown as T[]));
-    // Empty-page-only termination — a short page on Vercel's edge→Supabase
+    // Empty-page-only termination - a short page on Vercel's edge→Supabase
     // route is normal on deep payloads and does NOT mean we're done.
   }
   return all;

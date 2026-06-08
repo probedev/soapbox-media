@@ -159,7 +159,7 @@ export function LabelClient() {
           Thanks for helping calibrate Soapbox. You&apos;ll score short quotes
           from political shows on two scales the platform uses. We compare your
           independent judgment against the model&apos;s to find where it&apos;s
-          wrong. There are no trick questions — go with your gut, and try to
+          wrong. There are no trick questions - go with your gut, and try to
           finish in one sitting.
         </p>
 
@@ -169,9 +169,9 @@ export function LabelClient() {
             <p className="mt-1">
               How strongly the quote aligns with the <strong>LEFT</strong> vs.{" "}
               <strong>RIGHT</strong> position <em>on the specific issue shown</em>
-              {" "}— always use the LEFT/RIGHT anchors we give you, not political
+              {" "}- always use the LEFT/RIGHT anchors we give you, not political
               stereotypes. −5 = maximal LEFT, 0 = genuinely neutral, +5 = maximal
-              RIGHT. <strong>Use the whole scale</strong> — a mild lean is ±1, not
+              RIGHT. <strong>Use the whole scale</strong> - a mild lean is ±1, not
               ±3. Most talk isn&apos;t extreme; if you&apos;re mostly using ±5,
               recalibrate.
             </p>
@@ -179,7 +179,7 @@ export function LabelClient() {
           <div>
             <div className="font-semibold text-gray-900">Intensity (1…5)</div>
             <p className="mt-1">
-              How strongly it&apos;s expressed — 1 = passing remark, 5 = the
+              How strongly it&apos;s expressed - 1 = passing remark, 5 = the
               passionate central argument. Independent of sentiment: a passing
               remark can be hard-left (−5, intensity 1).
             </p>
@@ -216,7 +216,7 @@ export function LabelClient() {
             <li>Score only what&apos;s in the quote. If you can&apos;t tell, score 0 and lower confidence.</li>
             <li>Sarcasm / quoting an opponent: score what they actually mean.</li>
             <li>If the quote seems mis-filed under its issue, note it and score 0.</li>
-            <li>Don&apos;t revisit earlier answers — we want fresh judgment per quote.</li>
+            <li>Don&apos;t revisit earlier answers - we want fresh judgment per quote.</li>
           </ul>
         </div>
 
@@ -248,7 +248,7 @@ export function LabelClient() {
   if (phase === "done" || !current) {
     return (
       <div className="text-center py-16">
-        <h1 className="text-2xl font-semibold tracking-tight">All done — thank you!</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">All done - thank you!</h1>
         <p className="text-gray-600 mt-3">
           You&apos;ve scored {doneCount} of {total} items. Your responses are
           saved. You can close this tab.

@@ -3,7 +3,7 @@
  * during classify (discovery_topics), clusters them into candidate themes
  * (Haiku), scores each by reach × recency × frequency, and rebuilds the pending
  * candidate set for human review at /admin/discovery. Promotion into the
- * taxonomy is always human-gated — this code never edits the issues table on
+ * taxonomy is always human-gated - this code never edits the issues table on
  * its own (only promoteCandidate, invoked by an admin action, does).
  */
 import { createServiceClient } from "@/lib/db";
@@ -195,7 +195,7 @@ export async function getDiscoveryCandidates(
   return (data || []) as DiscoveryCandidate[];
 }
 
-/** Active taxonomy issues — for the "merge into" dropdown. */
+/** Active taxonomy issues - for the "merge into" dropdown. */
 export async function getActiveIssueOptions(): Promise<{ slug: string; name: string }[]> {
   const db = createServiceClient();
   const { data } = await db
@@ -243,7 +243,7 @@ export async function promoteCandidate(input: PromoteInput): Promise<{ error?: s
   return {};
 }
 
-/** Parent Topics — for the promote form's "parent topic" dropdown. */
+/** Parent Topics - for the promote form's "parent topic" dropdown. */
 export async function getTopicOptions(): Promise<{ slug: string; name: string }[]> {
   const db = createServiceClient();
   const { data } = await db.from("topics").select("slug, name").order("sort_order");

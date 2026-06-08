@@ -1,5 +1,5 @@
 /**
- * Entitlement reads — DB-only (no Stripe SDK), so the MCP auth hot path can
+ * Entitlement reads - DB-only (no Stripe SDK), so the MCP auth hot path can
  * import this without pulling Stripe. The Stripe webhook writes the
  * `subscriptions` row; this just reads it to gate access.
  */
@@ -9,7 +9,7 @@ const ACTIVE_STATUSES = new Set(["active", "trialing"]);
 
 /** Open-beta flag: while true, any authenticated OAuth user gets tool access
  *  (so demos/testers aren't locked out). Set MCP_OPEN_BETA=false to enforce
- *  paid-only — then only active subscribers (and static keys) get in. */
+ *  paid-only - then only active subscribers (and static keys) get in. */
 export function isOpenBeta(): boolean {
   return process.env.MCP_OPEN_BETA !== "false";
 }

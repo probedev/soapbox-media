@@ -1,6 +1,6 @@
 /**
  * Gold-set labeling helpers. Server-side only (service-role client). The
- * labeler-facing surface is deliberately blinded — no model scores, no channel
+ * labeler-facing surface is deliberately blinded - no model scores, no channel
  * name, no classification id ever reaches the browser.
  */
 import { createServiceClient } from "./db";

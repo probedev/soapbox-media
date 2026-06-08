@@ -140,7 +140,7 @@ export function AddChannelClient() {
         <div className="mt-3 text-xs bg-gray-50 border border-gray-200 rounded-md px-3 py-2 text-gray-700">
           Resolved <strong>{preview.name}</strong> ({preview.subs.toLocaleString()} subs).
           {preview.alreadyInPanel && (
-            <span className="text-amber-700"> ⚠ Already in the panel — adding will be rejected.</span>
+            <span className="text-amber-700"> ⚠ Already in the panel - adding will be rejected.</span>
           )}
           {preview.belowFloor && (
             <span className="text-amber-700"> ⚠ Below the 300K subscriber floor.</span>
@@ -149,7 +149,7 @@ export function AddChannelClient() {
       )}
 
       <label className="text-xs text-gray-600 block mt-2.5">
-        Lean rationale — auto-drafted, edit before adding (appears on /channels)
+        Lean rationale - auto-drafted, edit before adding (appears on /channels)
         <textarea
           rows={2}
           className={inputClass}

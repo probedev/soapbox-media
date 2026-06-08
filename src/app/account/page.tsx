@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Minimal account page — subscription status + the post-checkout landing
+ * Minimal account page - subscription status + the post-checkout landing
  * (success_url → /account?checkout=success). Reads /api/stripe/status with the
  * user's session token.
  */
@@ -48,7 +48,7 @@ export default function AccountPage() {
               <div className="space-y-4">
                 {justSubscribed && status.active && (
                   <p className="text-sm text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-md p-3">
-                    🎉 Subscription active — connect your agent to <code>https://www.soapbox.media/api/mcp/mcp</code>.
+                    🎉 Subscription active - connect your agent to <code>https://www.soapbox.media/api/mcp/mcp</code>.
                   </p>
                 )}
                 <div className="flex items-center justify-between text-sm">
@@ -69,7 +69,7 @@ export default function AccountPage() {
                   </p>
                 )}
                 {!status.active && (
-                  <Button className="w-full" onClick={() => (window.location.href = "/pricing")}>Subscribe — $300/mo</Button>
+                  <Button className="w-full" onClick={() => (window.location.href = "/pricing")}>Subscribe - $300/mo</Button>
                 )}
               </div>
             )}

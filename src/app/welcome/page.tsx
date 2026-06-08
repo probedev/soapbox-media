@@ -2,9 +2,9 @@
 
 /**
  * Pay-first onboarding landing. Two entry points:
- *  1. Right after Stripe payment (success_url = /welcome?paid=1) — the invite
+ *  1. Right after Stripe payment (success_url = /welcome?paid=1) - the invite
  *     email is on its way; tell them to check it.
- *  2. From the Supabase invite/set-password email link — a session is
+ *  2. From the Supabase invite/set-password email link - a session is
  *     established (detectSessionInUrl), so we show a set-password form, then
  *     the "connect your agent" instructions.
  */
@@ -58,7 +58,7 @@ export default function WelcomePage() {
             {authed === false && (
               <div className="space-y-3 text-sm text-muted-foreground">
                 <p>🎉 Thanks for subscribing! We&apos;ve emailed you a link to <strong>set your password</strong> and activate access.</p>
-                <p>Check your inbox (and spam) and click the link to finish — it brings you right back here.</p>
+                <p>Check your inbox (and spam) and click the link to finish - it brings you right back here.</p>
               </div>
             )}
 
@@ -78,7 +78,7 @@ export default function WelcomePage() {
             {/* Done → connect instructions */}
             {done && (
               <div className="space-y-3 text-sm">
-                <p className="text-emerald-700">Account ready — your subscription is active. 🎉</p>
+                <p className="text-emerald-700">Account ready - your subscription is active. 🎉</p>
                 <p className="text-muted-foreground">Connect your AI agent to:</p>
                 <code className="block text-xs bg-muted border rounded p-2 break-all">{ENDPOINT}</code>
                 <p className="text-muted-foreground">

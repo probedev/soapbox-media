@@ -11,7 +11,7 @@ export default function MethodologyPage() {
       <section className="px-6 pt-10 pb-16 max-w-3xl mx-auto">
         <h1 className="text-3xl md:text-4xl font-semibold tracking-tight">Methodology</h1>
         <p className="text-gray-600 mt-3 leading-relaxed">
-          This page documents exactly how every number on Soapbox is computed — the data sources,
+          This page documents exactly how every number on Soapbox is computed - the data sources,
           the math, the channel list, and the known limitations. If a figure appears on the site,
           its derivation is here. The pipeline runs once daily, so every figure reflects the
           content ingested as of the most recent run.
@@ -52,11 +52,11 @@ export default function MethodologyPage() {
         <p className="text-gray-700 mt-4 leading-relaxed">
           Two deliberate choices keep this honest. First, every voice is weighted by its{" "}
           <strong>audience reach</strong> (the <code className="text-sm">log10</code> above), so a
-          5M-subscriber show counts for more than a 50K one — the Index reflects what audiences
+          5M-subscriber show counts for more than a 50K one - the Index reflects what audiences
           actually hear, not a one-channel-one-vote average. Second, each channel is{" "}
           <strong>capped at 3 episodes per day</strong>, so a high-frequency publisher can&apos;t
           flood the Index by sheer posting volume. The result measures <em>stance per unit of
-          audience</em> — where a channel leans and how big its audience is — not who posts most
+          audience</em> - where a channel leans and how big its audience is - not who posts most
           often.
         </p>
 
@@ -85,13 +85,13 @@ export default function MethodologyPage() {
         <p className="text-gray-700 mt-4 leading-relaxed">
           <strong>YouTube channels</strong> use subscriber counts from the YouTube Data API,
           refreshed automatically every day during the ingest pass. These are measured values
-          straight from the platform — current, consistent, and not subject to our judgment.
+          straight from the platform - current, consistent, and not subject to our judgment.
         </p>
         <p className="text-gray-700 mt-4 leading-relaxed">
           <strong>Podcasts</strong> have no equivalent. No public per-show audience measurement
           exists at panel scale: the professional sources (Edison, Triton) are enterprise-gated
           and cover only top-chart shows, and when we tested commercial aggregators&apos; audience
-          fields against shows with publicly corroborated numbers, the values were unusable —
+          fields against shows with publicly corroborated numbers, the values were unusable -
           one put a 7M-listener show at 100 listeners. So podcast reach is{" "}
           <strong>editorial</strong>: an estimated weekly US audience, set by hand and bracketed
           to coarse tiers (150k, 300k, 500k, 1M, …) rather than presented with false precision.
@@ -108,7 +108,7 @@ export default function MethodologyPage() {
         <p className="text-gray-700 mt-4 leading-relaxed">
           Why this is tolerable: the Index weights by <code className="text-sm">log10(reach)</code>,
           which compresses estimation error. If we&apos;re wrong about a show&apos;s audience by 2×,
-          its weight moves by about 0.3 (log10 of 2), or roughly 5% of a typical weight — not 2×.
+          its weight moves by about 0.3 (log10 of 2), or roughly 5% of a typical weight - not 2×.
           The ordering across tiers matters far more than precision within a tier, and the
           ordering is what the anchoring protects.
         </p>
@@ -120,11 +120,11 @@ export default function MethodologyPage() {
         </p>
         <ul className="text-gray-700 mt-3 leading-relaxed list-disc pl-5 space-y-2">
           <li>
-            <strong>Independent</strong> — creator and digital-native outlets (e.g. Breaking Points,
+            <strong>Independent</strong> - creator and digital-native outlets (e.g. Breaking Points,
             The Young Turks, the Shapiro/Walsh shows). The audience is there for the politics.
           </li>
           <li>
-            <strong>Legacy</strong> — traditional media institutions&apos; presence on the platform
+            <strong>Legacy</strong> - traditional media institutions&apos; presence on the platform
             (e.g. Fox News, MSNBC, NPR, PBS). We curate legacy to politics-heavy channels so reach
             stands in for political audience, not general-news viewership.
           </li>
@@ -169,7 +169,7 @@ export default function MethodologyPage() {
         <ul className="list-disc pl-6 mt-3 space-y-2 text-gray-700 leading-relaxed">
           <li>
             <strong>Transcript coverage</strong>: a small fraction of episodes can&apos;t be
-            transcribed — a podcast feed without a published transcript, or a video without
+            transcribed - a podcast feed without a published transcript, or a video without
             captions. Those episodes are still ingested and listed but contribute no Soapbox Score
             until a transcript becomes available.
           </li>

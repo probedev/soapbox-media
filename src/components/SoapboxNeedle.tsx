@@ -6,7 +6,7 @@ interface SoapboxNeedleProps {
 }
 
 /**
- * The Soapbox Index needle — a half-circle gauge from L 10 to R 10.
+ * The Soapbox Index needle - a half-circle gauge from L 10 to R 10.
  * Pure SVG, no client-side state. Re-renders cleanly on prop change.
  */
 export function SoapboxNeedle({ value, width = 420, height = 260 }: SoapboxNeedleProps) {

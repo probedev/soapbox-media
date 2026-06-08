@@ -46,7 +46,7 @@ export default function ConsentPage() {
     setRedirectTo(window.location.href);
     const id = new URLSearchParams(window.location.search).get("authorization_id");
     setAuthId(id);
-    if (!id) { setStatus("error"); setError("Missing authorization_id — open this page from your AI client's connect flow."); }
+    if (!id) { setStatus("error"); setError("Missing authorization_id - open this page from your AI client's connect flow."); }
   }, []);
 
   const loadDetails = useCallback(async (id: string) => {

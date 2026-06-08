@@ -1,15 +1,15 @@
 /**
- * MCP authentication — dual-mode, during the OAuth migration.
+ * MCP authentication - dual-mode, during the OAuth migration.
  *
  *  1. OAuth 2.1 (the real path): Supabase Auth is the authorization server.
  *     It issues asymmetric JWTs; we validate them here as a resource server
- *     via JWKS — no shared secret. This is what claude.ai / ChatGPT web
+ *     via JWKS - no shared secret. This is what claude.ai / ChatGPT web
  *     connectors use (discovery → PKCE → bearer JWT).
  *  2. Static keys (legacy): the comma-separated MCP_ACCESS_KEYS bearer keys
  *     issued to demo customers keep working so nothing breaks mid-migration.
  *     Remove this path once everyone's moved to OAuth.
  *
- * Spec: MCP authorization 2025-11-25 — resource server MUST validate the
+ * Spec: MCP authorization 2025-11-25 - resource server MUST validate the
  * bearer token AND verify it was minted for THIS server (RFC 8707 audience).
  * The audience claim is set by a Supabase Custom Access Token Hook to
  * MCP_RESOURCE_URL; until that hook is configured, the JWT path fails closed
@@ -31,7 +31,7 @@ const SUPABASE_ISSUER = `${env.supabaseUrl}/auth/v1`;
 export const AUTH_SERVER_URL = SUPABASE_ISSUER;
 export const RESOURCE_METADATA_PATH = "/.well-known/oauth-protected-resource";
 
-// Cached remote key set — jose handles fetch + rotation.
+// Cached remote key set - jose handles fetch + rotation.
 const jwks = createRemoteJWKSet(new URL(`${SUPABASE_ISSUER}/.well-known/jwks.json`));
 
 /** The legacy static-key allowlist (comma-separated). Fails closed when unset. */
@@ -74,7 +74,7 @@ export async function verifyMcpToken(
       audience: MCP_RESOURCE_URL,
     });
     // Entitlement gating: grant the `mcp` scope (which the route requires) only
-    // to paid subscribers — OR everyone while MCP_OPEN_BETA is on. Non-entitled
+    // to paid subscribers - OR everyone while MCP_OPEN_BETA is on. Non-entitled
     // authenticated users get []  → withMcpAuth returns 403 insufficient_scope
     // (a clean "subscription required", not an auth failure).
     const access = await hasToolAccess(payload.sub as string);

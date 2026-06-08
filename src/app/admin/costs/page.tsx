@@ -139,7 +139,7 @@ function RunRow({ run }: { run: UsageLogRow }) {
           failures > 0 ? "text-amber-700" : "text-gray-400"
         }`}
       >
-        {failures > 0 ? `${failures} failed` : "—"}
+        {failures > 0 ? `${failures} failed` : "-"}
       </div>
       <div className="text-sm tabular-nums text-right font-semibold text-gray-900">
         {formatUsd(Number(run.anthropic_cost_usd) || 0)}
