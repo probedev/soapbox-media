@@ -35,6 +35,7 @@ import type { EmergingReceiptsResponse } from "@/app/api/emerging/[id]/receipts/
 
 const COL_WIDTH: Record<string, string> = {
   expander: "3%",
+  rank: "4%",
   weight: "11%",
   topicCount: "11%",
   episodeCount: "11%",
@@ -70,6 +71,15 @@ function formatDate(iso: string): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return "";
   return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+}
+
+/** Source channel's editorial lean as a colored chip, matching the site convention
+ *  (blue = Left, red = Right, gray = Middle). These off-taxonomy topics aren't
+ *  scored, so we color by who is saying it rather than by a sentiment value. */
+function leanChip(lean: string): { text: string; cls: string } {
+  if (lean === "L") return { text: "L", cls: "bg-blue-100 text-blue-800" };
+  if (lean === "R") return { text: "R", cls: "bg-red-100 text-red-800" };
+  return { text: "M", cls: "bg-muted text-ink-body" };
 }
 
 /** Lazy-loaded episode receipts for one emerging-topic candidate. */
@@ -115,32 +125,49 @@ function ReceiptsPanel({ candidateId, label }: { candidateId: string; label: str
       <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2.5">
         Receipts · what shows actually said about {label}
       </div>
-      <ul className="space-y-2.5">
-        {receipts.map((r, i) => (
-          <li key={i} className="text-xs">
-            <span className="text-ink-muted leading-snug">
-              <span className="text-ink-faint">&ldquo;</span>
-              {r.quote}
-              <span className="text-ink-faint">&rdquo;</span>
-            </span>
-            <a
-              href={r.episodeUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="mt-1 flex items-center gap-1.5 text-ink-faint hover:text-ink-body"
+      <div className="space-y-2.5">
+        {receipts.map((r, i) => {
+          const chip = leanChip(r.lean);
+          return (
+            <div
+              key={i}
+              className="grid grid-cols-[2rem_minmax(0,1fr)] items-start gap-3 text-xs"
             >
-              <span className="font-medium text-ink-muted shrink-0">{r.channel}</span>
-              <span aria-hidden>·</span>
-              <span className="truncate">{r.episodeTitle}</span>
-              <span className="tabular-nums shrink-0">· {formatDate(r.publishedAt)}</span>
-              <ExternalLink className="w-3 h-3 shrink-0" />
-            </a>
-          </li>
-        ))}
-      </ul>
+              <span
+                className={cn(
+                  "inline-flex items-center justify-center rounded px-1.5 py-0.5 font-semibold",
+                  chip.cls,
+                )}
+                title={`${r.channel} (${chip.text})`}
+              >
+                {chip.text}
+              </span>
+              <div className="min-w-0">
+                <span className="text-ink-muted leading-snug">
+                  <span className="text-ink-faint">&ldquo;</span>
+                  {r.quote}
+                  <span className="text-ink-faint">&rdquo;</span>
+                </span>
+                <a
+                  href={r.episodeUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-1 flex items-center gap-1.5 text-ink-faint hover:text-ink-body"
+                >
+                  <span className="font-medium text-ink-muted shrink-0">{r.channel}</span>
+                  <span aria-hidden>·</span>
+                  <span className="truncate">{r.episodeTitle}</span>
+                  <span className="tabular-nums shrink-0">· {formatDate(r.publishedAt)}</span>
+                  <ExternalLink className="w-3 h-3 shrink-0" />
+                </a>
+              </div>
+            </div>
+          );
+        })}
+      </div>
       <p className="text-[10px] text-ink-faint mt-3">
-        Auto-detected topic, machine-clustered from off-taxonomy mentions; not yet a tracked Soapbox
-        issue. Quotes are excerpts, never full transcripts.
+        Auto-detected and machine-clustered from off-taxonomy mentions; not yet a tracked Soapbox
+        issue. Chip shows the source channel&apos;s lean. Quotes are excerpts, never full transcripts.
       </p>
     </div>
   );
@@ -167,8 +194,16 @@ const columns: ColumnDef<EmergingIssue>[] = [
     ),
   },
   {
+    id: "rank",
+    header: "#",
+    enableSorting: false,
+    cell: ({ row }) => (
+      <div className="tabular-nums font-semibold text-ink-muted">{row.original.rank}</div>
+    ),
+  },
+  {
     accessorKey: "label",
-    header: "Emerging topic",
+    header: "Emerging issue",
     enableSorting: false,
     cell: ({ row }) => (
       <div className="min-w-0">
@@ -279,7 +314,7 @@ export function EmergingIssuesTable({ data }: { data: EmergingIssue[] }) {
           ) : (
             <TableRow>
               <TableCell colSpan={columns.length} className="h-24 text-center text-muted-foreground">
-                No emerging topics right now. Check back after the next daily refresh.
+                No emerging issues right now. Check back after the next daily refresh.
               </TableCell>
             </TableRow>
           )}

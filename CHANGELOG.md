@@ -7,6 +7,22 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
+## v0.13.1 · 2026-06-09
+
+### Changed
+
+- **/emerging polish from live review.** (1) Renamed the page from "Emerging
+  topics" to **"Emerging issues"** throughout - "Topics" is the reserved
+  category level in the taxonomy; these candidates are issue-level. (2) Added a
+  **rank column** (1, 2, 3 ... by weight, the canonical trending order). (3)
+  Added an **"Updated {date}" badge** above the table (newest candidate
+  created_at = last daily refresh). (4) **Redesigned the expanded receipts** to
+  match the site's other receipts panels (EpisodeMentions / channel-issue): a
+  grid with a colored chip + quote + episode link, instead of the flat gray
+  list. Since off-taxonomy mentions aren't sentiment-scored, the chip colors by
+  the **source channel's lean** (blue L / red R / gray M) - honest, and it
+  restores the visual variety. New `lean` field on `/api/emerging/[id]/receipts`.
+
 ## v0.13.0 · 2026-06-09
 
 ### Added

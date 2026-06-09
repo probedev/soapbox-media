@@ -15,6 +15,8 @@ export interface EmergingReceipt {
   /** Transcript excerpt the model flagged. Never the full transcript. */
   quote: string;
   channel: string;
+  /** Source channel's editorial lean: "L" | "M" | "R". Colors the receipt chip. */
+  lean: string;
   episodeTitle: string;
   episodeUrl: string;
   publishedAt: string;
@@ -40,7 +42,7 @@ export async function GET(
       `quote,
        episode:episodes!discovery_topics_episode_id_fkey!inner (
          title, source_url, published_at,
-         channel:channels!episodes_channel_id_fkey!inner ( name, reach )
+         channel:channels!episodes_channel_id_fkey!inner ( name, reach, political_lean )
        )`,
     )
     .eq("candidate_id", params.id)
@@ -53,6 +55,7 @@ export async function GET(
   interface Row {
     quote: string;
     channel: string;
+    lean: string;
     episodeTitle: string;
     episodeUrl: string;
     publishedAt: string;
@@ -67,6 +70,7 @@ export async function GET(
     rows.push({
       quote,
       channel: ch.name,
+      lean: ch.political_lean || "M",
       episodeTitle: e.title || "(untitled)",
       episodeUrl: e.source_url || "#",
       publishedAt: e.published_at,
@@ -84,6 +88,7 @@ export async function GET(
     receipts.push({
       quote: r.quote,
       channel: r.channel,
+      lean: r.lean,
       episodeTitle: r.episodeTitle,
       episodeUrl: r.episodeUrl,
       publishedAt: r.publishedAt,

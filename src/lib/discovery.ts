@@ -277,6 +277,8 @@ export async function getDiscoveryCandidates(
 /** Lean public shape for the /emerging board (pending candidates only). */
 export interface EmergingIssue {
   id: string;
+  /** 1-based rank by weight (the canonical trending order). */
+  rank: number;
   label: string;
   summary: string | null;
   topicCount: number;
@@ -285,34 +287,47 @@ export interface EmergingIssue {
   weight: number;
 }
 
+export interface EmergingIssuesResult {
+  issues: EmergingIssue[];
+  /** When the current pending set was last rebuilt (max created_at), or null. */
+  lastUpdated: string | null;
+}
+
 /**
- * Public emerging-topic board: pending discovery candidates ranked by weight.
- * These are auto-detected, machine-clustered topics NOT yet in the taxonomy and
+ * Public emerging-issue board: pending discovery candidates ranked by weight.
+ * These are auto-detected, machine-clustered issues NOT yet in the taxonomy and
  * NOT hand-curated. Showing the raw signal publicly is fine; promotion into a
  * real persistent issue stays human-gated (/admin/discovery). Refreshed daily by
  * the discover cron. Ignored/promoted/merged candidates are excluded (only
- * `pending` surfaces here).
+ * `pending` surfaces here). `lastUpdated` = newest created_at (the whole pending
+ * set is rebuilt in one run, so this is effectively the last refresh time).
  */
-export async function getEmergingIssues(): Promise<EmergingIssue[]> {
+export async function getEmergingIssues(): Promise<EmergingIssuesResult> {
   const db = createServiceClient();
   const { data, error } = await db
     .from("discovery_candidates")
-    .select("id, label, summary, topic_count, episode_count, channel_count, weight")
+    .select("id, label, summary, topic_count, episode_count, channel_count, weight, created_at")
     .eq("status", "pending")
     .order("weight", { ascending: false });
   if (error) {
     console.error("getEmergingIssues:", error.message);
-    return [];
+    return { issues: [], lastUpdated: null };
   }
-  return (data || []).map((r: any) => ({
-    id: r.id,
-    label: r.label,
-    summary: r.summary,
-    topicCount: r.topic_count,
-    episodeCount: r.episode_count,
-    channelCount: r.channel_count,
-    weight: Number(r.weight),
-  }));
+  let lastUpdated: string | null = null;
+  const issues: EmergingIssue[] = (data || []).map((r: any, i: number) => {
+    if (r.created_at && (!lastUpdated || r.created_at > lastUpdated)) lastUpdated = r.created_at;
+    return {
+      id: r.id,
+      rank: i + 1,
+      label: r.label,
+      summary: r.summary,
+      topicCount: r.topic_count,
+      episodeCount: r.episode_count,
+      channelCount: r.channel_count,
+      weight: Number(r.weight),
+    };
+  });
+  return { issues, lastUpdated };
 }
 
 /** Active taxonomy issues - for the "merge into" dropdown. */
