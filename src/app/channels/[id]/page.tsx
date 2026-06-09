@@ -6,17 +6,12 @@ import { Footer } from "@/components/Footer";
 import { Header } from "@/components/Header";
 import { IndexAreaChart } from "@/components/IndexAreaChart";
 import { EpisodeDataTable } from "@/components/EpisodeDataTable";
+import { ChannelIssueBreakdown } from "@/components/ChannelIssueBreakdown";
 import { getEpisodeTableRows } from "@/lib/episodes";
 import { notFound } from "next/navigation";
 import { ExternalLink } from "lucide-react";
 
 export const dynamic = "force-dynamic";
-
-function formatLean(v: number): string {
-  if (v > 0.05) return `R+${v.toFixed(1)}`;
-  if (v < -0.05) return `L+${Math.abs(v).toFixed(1)}`;
-  return "0.0";
-}
 
 function leanColor(v: number): string {
   if (v > 0.05) return "text-red-600";
@@ -151,34 +146,7 @@ export default async function ChannelPage({
               No classifications for this channel yet.
             </div>
           ) : (
-            <Card className="divide-y divide-border">
-              {data.issues.map((issue) => {
-                const pct = ((issue.lean + 10) / 20) * 100;
-                return (
-                  <a
-                    key={issue.issue_slug}
-                    href={`/issues/${issue.issue_slug}`}
-                    className="block px-4 py-3 hover:bg-subtle transition"
-                  >
-                    <div className="flex items-center justify-between gap-3">
-                      <span className="font-medium">{issue.issue_name}</span>
-                      <span className={`text-sm font-semibold tabular-nums whitespace-nowrap ${leanColor(issue.lean)}`}>
-                        {formatLean(issue.lean)}
-                      </span>
-                    </div>
-                    <div className="mt-2 relative h-1.5 rounded-full bg-gradient-to-r from-blue-500 via-gray-200 to-red-500">
-                      <div
-                        className="absolute top-1/2 w-2.5 h-2.5 rounded-full bg-primary border-2 border-white"
-                        style={{ left: `${pct}%`, transform: "translate(-50%, -50%)" }}
-                      />
-                    </div>
-                    <div className="text-xs text-muted-foreground mt-1.5 tabular-nums">
-                      {issue.numMentions} mentions · weight {issue.weight.toLocaleString()}
-                    </div>
-                  </a>
-                );
-              })}
-            </Card>
+            <ChannelIssueBreakdown channelId={params.id} issues={data.issues} />
           )}
         </div>
       </section>

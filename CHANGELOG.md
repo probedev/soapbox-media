@@ -7,6 +7,24 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
+## v0.12.0 · 2026-06-09
+
+### Added
+
+- **Channel page: per-issue mentions expand inline instead of linking away.**
+  Each issue row on a channel page (`/channels/[id]`) was a link to the
+  system-wide issue page. It now expands in place to reveal the exact scored
+  mentions for *that channel on that issue* - the same supporting-quote +
+  sentiment + intensity receipts already shown per episode, plus the source
+  episode (title, date, outbound link), ordered strongest-first
+  (|sentiment| x intensity). Lazy-loaded on expand from a new route
+  `/api/channels/[id]/issues/[slug]/mentions`, scoped to the same last-30-days
+  window as the mention count on the row (counts match: the route starts from
+  `sentiment_scores` with the same channel/issue/window filters and no cohort
+  filter, mirroring `getChannelDrillDown`). The system-wide issue page is still
+  reachable via a link inside the expanded panel. Mirrors the existing
+  `EpisodeMentions` expansion design (`ChannelIssueBreakdown` component).
+
 ## v0.11.1 · 2026-06-09
 
 ### Fixed
