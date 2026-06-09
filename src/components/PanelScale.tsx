@@ -13,6 +13,7 @@
  */
 import { Mic, Tv } from "lucide-react";
 import { getPanelStats } from "@/lib/aggregate";
+import { Card } from "@/components/ui/card";
 
 function relativeTime(iso: string | null): string {
   if (!iso) return "-";
@@ -43,14 +44,14 @@ interface StatProps {
 function Stat({ value, label, sublabel }: StatProps) {
   return (
     <div>
-      <div className="text-3xl md:text-4xl font-semibold tracking-tight tabular-nums text-gray-900">
+      <div className="text-3xl md:text-4xl font-semibold tracking-tight tabular-nums text-foreground">
         {value}
       </div>
-      <div className="text-xs uppercase tracking-wider text-gray-500 mt-2 font-medium">
+      <div className="text-xs uppercase tracking-wider text-muted-foreground mt-2 font-medium">
         {label}
       </div>
       {sublabel && (
-        <div className="text-[11px] text-gray-400 mt-0.5">{sublabel}</div>
+        <div className="text-[11px] text-ink-faint mt-0.5">{sublabel}</div>
       )}
     </div>
   );
@@ -67,15 +68,15 @@ export async function PanelScale() {
     `${stats.platformSplit.youtube} YouTube · ${stats.platformSplit.podcast} Podcast`;
 
   return (
-    <div className="border border-gray-200 rounded-lg bg-white p-6 mt-6">
+    <Card className="p-6 mt-6">
       <div className="flex items-baseline justify-between mb-5 gap-3 flex-wrap">
-        <h2 className="text-sm font-semibold uppercase tracking-wider text-gray-600">
+        <h2 className="text-sm font-semibold uppercase tracking-wider text-ink-muted">
           Panel scale
         </h2>
         {/* Freshness signal is YT-specific. Podcast reach is intentionally
             editorial (PodScan's audience_size is unreliable; see v0.6.58
             CHANGELOG) so we don't claim podcasts are auto-refreshed. */}
-        <span className="text-[11px] text-gray-500 tabular-nums">
+        <span className="text-[11px] text-muted-foreground tabular-nums">
           {stats.lastReachSync
             ? `YouTube subs refreshed ${relativeTime(stats.lastReachSync)} · podcast reach editorial`
             : "composition · not processing"}
@@ -107,8 +108,8 @@ export async function PanelScale() {
       </div>
 
       {stats.channelsByCohort.legacy > 0 && (
-        <div className="mt-5 pt-4 border-t border-gray-100 flex flex-wrap items-center gap-x-6 gap-y-2 text-xs text-gray-600">
-          <span className="text-[10px] uppercase tracking-wider text-gray-500">
+        <div className="mt-5 pt-4 border-t border-muted flex flex-wrap items-center gap-x-6 gap-y-2 text-xs text-ink-muted">
+          <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
             By cohort
           </span>
           <span className="flex items-center gap-1.5">
@@ -131,6 +132,6 @@ export async function PanelScale() {
           </span>
         </div>
       )}
-    </div>
+    </Card>
   );
 }

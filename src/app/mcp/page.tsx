@@ -64,7 +64,7 @@ const TOOLS: { name: string; what: string }[] = [
 
 function CodeBlock({ children }: { children: string }) {
   return (
-    <pre className="mt-3 p-4 bg-gray-50 border border-gray-200 rounded-md font-mono text-xs text-gray-800 leading-relaxed overflow-x-auto whitespace-pre-wrap">
+    <pre className="mt-3 p-4 bg-subtle border border-border rounded-md font-mono text-xs text-ink-strong leading-relaxed overflow-x-auto whitespace-pre-wrap">
       {children}
     </pre>
   );
@@ -79,17 +79,17 @@ export default function McpPage() {
         <h1 className="text-3xl md:text-4xl font-semibold tracking-tight">
           Soapbox for AI agents
         </h1>
-        <p className="text-gray-600 mt-3 leading-relaxed">
+        <p className="text-ink-muted mt-3 leading-relaxed">
           Everything on this site - the Index, the issue trends, the channel stances - is computed
           from a dataset of scored, quoted, source-linked issue mentions across high-reach political
           podcasts and YouTube shows. The charts answer the questions we thought to ask. Your
           questions are different, and there are more of them than any dashboard can hold.
         </p>
-        <p className="text-gray-700 mt-4 leading-relaxed">
+        <p className="text-ink-body mt-4 leading-relaxed">
           So we expose the dataset directly to AI agents over{" "}
           <a
             href="https://modelcontextprotocol.io"
-            className="underline hover:text-gray-900"
+            className="underline hover:text-foreground"
             rel="noopener noreferrer"
           >
             MCP
@@ -99,19 +99,19 @@ export default function McpPage() {
           with verbatim quotes and source links.
         </p>
 
-        <div className="mt-6 p-5 border border-gray-300 bg-gray-50 rounded-lg">
+        <div className="mt-6 p-5 border border-input bg-subtle rounded-lg">
           <div className="flex items-baseline gap-2">
-            <span className="text-2xl font-semibold text-gray-900">$300</span>
-            <span className="text-gray-500 text-sm">/month · full MCP access</span>
+            <span className="text-2xl font-semibold text-foreground">$300</span>
+            <span className="text-muted-foreground text-sm">/month · full MCP access</span>
           </div>
-          <p className="text-sm text-gray-600 mt-1 mb-3">
+          <p className="text-sm text-ink-muted mt-1 mb-3">
             Subscribe and we&apos;ll email you a link to set your password and connect your agent. Cancel anytime.
           </p>
           <SubscribeButton />
         </div>
 
         <h2 className="text-xl font-semibold mt-12">Who this is for</h2>
-        <p className="text-gray-700 mt-3 leading-relaxed">
+        <p className="text-ink-body mt-3 leading-relaxed">
           Campaign teams deciding what to answer and where. Media buyers placing spots against
           stance, not just demographics. Political consultants and pollsters who want a leading
           indicator on issue salience. Comms shops building clips memos at 6am. Journalists and
@@ -120,30 +120,30 @@ export default function McpPage() {
         </p>
 
         <h2 className="text-xl font-semibold mt-12">Ask it anything</h2>
-        <p className="text-gray-700 mt-3 leading-relaxed">
+        <p className="text-ink-body mt-3 leading-relaxed">
           These are real questions the dataset can answer today - each one resolves to a couple of
           tool calls your agent makes on your behalf:
         </p>
         <div className="mt-5 space-y-4">
           {EXAMPLE_QUERIES.map((q) => (
-            <div key={q.who} className="border border-gray-200 rounded-md p-4">
-              <div className="text-xs font-mono uppercase tracking-wide text-gray-400">{q.who}</div>
-              <p className="text-gray-800 mt-1 leading-relaxed">&ldquo;{q.ask}&rdquo;</p>
+            <div key={q.who} className="border border-border rounded-md p-4">
+              <div className="text-xs font-mono uppercase tracking-wide text-ink-faint">{q.who}</div>
+              <p className="text-ink-strong mt-1 leading-relaxed">&ldquo;{q.ask}&rdquo;</p>
             </div>
           ))}
         </div>
 
         <h2 className="text-xl font-semibold mt-12">What&apos;s underneath: nine tools</h2>
-        <p className="text-gray-700 mt-3 leading-relaxed">
+        <p className="text-ink-body mt-3 leading-relaxed">
           Your agent discovers these automatically on connect. Every tool is read-only.
         </p>
         <div className="mt-4 overflow-x-auto">
           <Table className="border-collapse">
             <TableBody>
               {TOOLS.map((t) => (
-                <TableRow key={t.name} className="border-t border-gray-200 align-top hover:bg-transparent">
-                  <TableCell className="py-3 pr-4 font-mono text-xs whitespace-nowrap text-gray-800">{t.name}</TableCell>
-                  <TableCell className="py-3 text-gray-700 leading-relaxed">{t.what}</TableCell>
+                <TableRow key={t.name} className="border-t border-border align-top hover:bg-transparent">
+                  <TableCell className="py-3 pr-4 font-mono text-xs whitespace-nowrap text-ink-strong">{t.name}</TableCell>
+                  <TableCell className="py-3 text-ink-body leading-relaxed">{t.what}</TableCell>
                 </TableRow>
               ))}
             </TableBody>
@@ -151,22 +151,22 @@ export default function McpPage() {
         </div>
 
         <h2 className="text-xl font-semibold mt-12">The data, and its boundaries</h2>
-        <p className="text-gray-700 mt-3 leading-relaxed">
+        <p className="text-ink-body mt-3 leading-relaxed">
           Every mention is a verbatim quote extracted at classification time, scored for sentiment
           (−5 strongly left-aligned to +5 strongly right-aligned) and intensity (1–5), and linked
           to its source episode. Aggregates use the same reach- and intensity-weighted math as the
           public site - the full derivation is on the{" "}
-          <a href="/methodology" className="underline hover:text-gray-900">methodology page</a>,
+          <a href="/methodology" className="underline hover:text-foreground">methodology page</a>,
           and your agent can pull it live via <code className="text-sm">get_methodology</code>.
         </p>
-        <p className="text-gray-700 mt-4 leading-relaxed">
+        <p className="text-ink-body mt-4 leading-relaxed">
           One hard boundary: <strong>full transcripts are never exposed</strong> - through this API
           or anywhere else. You get mention-level excerpts and a link to the source episode. This
           is both a licensing obligation to our transcript providers and house policy.
         </p>
 
         <h2 className="text-xl font-semibold mt-12">Connect your agent</h2>
-        <p className="text-gray-700 mt-3 leading-relaxed">
+        <p className="text-ink-body mt-3 leading-relaxed">
           The server speaks streamable-HTTP MCP at{" "}
           <code className="text-sm break-all">{ENDPOINT}</code>. You authenticate by signing in with
           your Soapbox subscription account (OAuth) - your client opens a browser to log in and
@@ -179,7 +179,7 @@ export default function McpPage() {
         </CodeBlock>
 
         <h3 className="text-base font-semibold mt-8">Claude Desktop</h3>
-        <p className="text-gray-700 mt-2 text-sm leading-relaxed">
+        <p className="text-ink-body mt-2 text-sm leading-relaxed">
           Add to <code className="text-xs">claude_desktop_config.json</code> (Settings → Developer
           → Edit Config), via the <code className="text-xs">mcp-remote</code> bridge:
         </p>
@@ -195,7 +195,7 @@ export default function McpPage() {
         </CodeBlock>
 
         <h3 className="text-base font-semibold mt-8">Cursor</h3>
-        <p className="text-gray-700 mt-2 text-sm leading-relaxed">
+        <p className="text-ink-body mt-2 text-sm leading-relaxed">
           Add to <code className="text-xs">.cursor/mcp.json</code> (project) or{" "}
           <code className="text-xs">~/.cursor/mcp.json</code> (global):
         </p>
@@ -218,21 +218,21 @@ export default function McpPage() {
         </CodeBlock>
 
         <h3 className="text-base font-semibold mt-8">claude.ai and ChatGPT connectors</h3>
-        <p className="text-gray-700 mt-2 text-sm leading-relaxed">
+        <p className="text-ink-body mt-2 text-sm leading-relaxed">
           Add a custom connector with the URL above. The connector runs the OAuth sign-in in your
           browser - log in with your subscription account and approve, and it&apos;s connected.
         </p>
 
         <h2 className="text-xl font-semibold mt-12">Get access</h2>
-        <p className="text-gray-700 mt-3 leading-relaxed">
+        <p className="text-ink-body mt-3 leading-relaxed">
           $300/month for full MCP access. Subscribe below - no account needed up front; after
           payment we email you a link to set your password, then connect your agent with the steps
           above. Cancel anytime.
         </p>
-        <div className="mt-4 p-5 border border-gray-300 bg-gray-50 rounded-lg flex items-center justify-between gap-4 flex-wrap">
+        <div className="mt-4 p-5 border border-input bg-subtle rounded-lg flex items-center justify-between gap-4 flex-wrap">
           <div>
-            <span className="text-2xl font-semibold text-gray-900">$300</span>
-            <span className="text-gray-500 text-sm">/month</span>
+            <span className="text-2xl font-semibold text-foreground">$300</span>
+            <span className="text-muted-foreground text-sm">/month</span>
           </div>
           <SubscribeButton />
         </div>

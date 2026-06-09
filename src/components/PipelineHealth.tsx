@@ -1,4 +1,5 @@
 import type { UsageLogRow } from "@/lib/usage";
+import { Card } from "@/components/ui/card";
 import {
   Table,
   TableBody,
@@ -31,14 +32,14 @@ const CELL_CLASS: Record<StageStatus, string> = {
   ok: "bg-emerald-500",
   warn: "bg-amber-400",
   fail: "bg-red-500",
-  idle: "bg-gray-200",
+  idle: "bg-border",
 };
 
 const STATUS_BADGE: Record<StageStatus, string> = {
   ok: "bg-emerald-100 text-emerald-800",
   warn: "bg-amber-100 text-amber-800",
   fail: "bg-red-100 text-red-800",
-  idle: "bg-gray-100 text-gray-600",
+  idle: "bg-muted text-ink-muted",
 };
 
 /** Did a stage throw? raw_summary holds the per-stage `ok` boolean. */
@@ -140,12 +141,12 @@ const STATUS_WORD: Record<StageStatus, string> = {
 export function PipelineHealth({ runs }: { runs: UsageLogRow[] }) {
   if (!runs || runs.length === 0) {
     return (
-      <div className="border border-gray-200 rounded-lg bg-white p-6">
-        <h2 className="text-sm font-semibold uppercase tracking-wider text-gray-600">
+      <Card className="p-6">
+        <h2 className="text-sm font-semibold uppercase tracking-wider text-ink-muted">
           Pipeline health
         </h2>
-        <p className="text-sm text-gray-500 mt-3">No pipeline runs recorded yet.</p>
-      </div>
+        <p className="text-sm text-muted-foreground mt-3">No pipeline runs recorded yet.</p>
+      </Card>
     );
   }
 
@@ -155,12 +156,12 @@ export function PipelineHealth({ runs }: { runs: UsageLogRow[] }) {
   const tableRuns = runs.slice(0, 20);
 
   return (
-    <div className="border border-gray-200 rounded-lg bg-white p-6">
+    <Card className="p-6">
       <div className="flex items-baseline justify-between mb-5 gap-3 flex-wrap">
-        <h2 className="text-sm font-semibold uppercase tracking-wider text-gray-600">
+        <h2 className="text-sm font-semibold uppercase tracking-wider text-ink-muted">
           Pipeline health
         </h2>
-        <span className="text-[11px] text-gray-500 flex items-center gap-2">
+        <span className="text-[11px] text-muted-foreground flex items-center gap-2">
           <span>Last run {relTime(latest.ran_at)}</span>
           <span
             className={`px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wide ${STATUS_BADGE[latestStatus]}`}
@@ -179,13 +180,13 @@ export function PipelineHealth({ runs }: { runs: UsageLogRow[] }) {
           const okCount = recent.filter((r) => stageStatus(r, key) === "ok").length;
           const trend = [...recent].reverse(); // oldest → newest, left → right
           return (
-            <div key={key} className="border border-gray-200 rounded-md p-3">
-              <div className="text-[10px] uppercase tracking-wider text-gray-500">
+            <div key={key} className="border border-border rounded-md p-3">
+              <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
                 {label}
               </div>
               <div className="flex items-center gap-1.5 mt-1">
                 <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${CELL_CLASS[cur]}`} />
-                <span className="text-sm font-semibold capitalize text-gray-900">
+                <span className="text-sm font-semibold capitalize text-foreground">
                   {STATUS_WORD[cur]}
                 </span>
               </div>
@@ -195,13 +196,13 @@ export function PipelineHealth({ runs }: { runs: UsageLogRow[] }) {
                   return (
                     <span
                       key={r.id}
-                      className={`w-2.5 h-2.5 rounded-sm ${CELL_CLASS[s]}`}
+                      className={`w-2.5 h-2.5 rounded-md ${CELL_CLASS[s]}`}
                       title={`${shortDate(r.ran_at)} ${shortTime(r.ran_at)} - ${STATUS_WORD[s]}`}
                     />
                   );
                 })}
               </div>
-              <div className="text-[10px] text-gray-400 mt-2">
+              <div className="text-[10px] text-ink-faint mt-2">
                 {okCount} of last {recent.length} runs healthy
               </div>
             </div>
@@ -213,14 +214,14 @@ export function PipelineHealth({ runs }: { runs: UsageLogRow[] }) {
       <div className="mt-6 overflow-x-auto">
         <Table className="text-xs">
           <TableHeader>
-            <TableRow className="text-gray-500 text-left border-b border-gray-200 hover:bg-transparent">
-              <TableHead className="font-medium py-2 pr-3 h-auto text-gray-500">When</TableHead>
-              <TableHead className="font-medium py-2 pr-3 h-auto text-gray-500">Source</TableHead>
-              <TableHead className="font-medium py-2 pr-3 h-auto text-gray-500">Ingest</TableHead>
-              <TableHead className="font-medium py-2 pr-3 h-auto text-gray-500">Transcribe</TableHead>
-              <TableHead className="font-medium py-2 pr-3 h-auto text-gray-500">Classify</TableHead>
-              <TableHead className="font-medium py-2 pr-3 h-auto text-gray-500">Score</TableHead>
-              <TableHead className="font-medium py-2 pr-3 h-auto text-gray-500">Status</TableHead>
+            <TableRow className="text-muted-foreground text-left border-b border-border hover:bg-transparent">
+              <TableHead className="font-medium py-2 pr-3 h-auto text-muted-foreground">When</TableHead>
+              <TableHead className="font-medium py-2 pr-3 h-auto text-muted-foreground">Source</TableHead>
+              <TableHead className="font-medium py-2 pr-3 h-auto text-muted-foreground">Ingest</TableHead>
+              <TableHead className="font-medium py-2 pr-3 h-auto text-muted-foreground">Transcribe</TableHead>
+              <TableHead className="font-medium py-2 pr-3 h-auto text-muted-foreground">Classify</TableHead>
+              <TableHead className="font-medium py-2 pr-3 h-auto text-muted-foreground">Score</TableHead>
+              <TableHead className="font-medium py-2 pr-3 h-auto text-muted-foreground">Status</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody className="tabular-nums">
@@ -231,15 +232,15 @@ export function PipelineHealth({ runs }: { runs: UsageLogRow[] }) {
               const cFail = (row.classify_failures || 0) > 0;
               const iFail = (row.ingest_failures || 0) > 0;
               return (
-                <TableRow key={row.id} className="border-b border-gray-100 align-top hover:bg-transparent">
+                <TableRow key={row.id} className="border-b border-muted align-top hover:bg-transparent">
                   <TableCell className="py-2 pr-3 whitespace-nowrap">
-                    <span className="text-gray-900">{relTime(row.ran_at)}</span>
-                    <span className="text-gray-400 ml-1">
+                    <span className="text-foreground">{relTime(row.ran_at)}</span>
+                    <span className="text-ink-faint ml-1">
                       {shortDate(row.ran_at)} {shortTime(row.ran_at)}
                     </span>
                   </TableCell>
                   <TableCell className="py-2 pr-3">
-                    <span className="text-[10px] uppercase tracking-wide text-gray-500">
+                    <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
                       {row.source}
                     </span>
                   </TableCell>
@@ -249,18 +250,18 @@ export function PipelineHealth({ runs }: { runs: UsageLogRow[] }) {
                   </TableCell>
                   <TableCell className="py-2 pr-3 whitespace-nowrap">
                     <span className="text-emerald-700">{row.transcribe_succeeded}✓</span>{" "}
-                    <span className={tFail ? "text-red-600" : "text-gray-400"}>
+                    <span className={tFail ? "text-red-600" : "text-ink-faint"}>
                       {row.transcribe_failed}✗
                     </span>
                   </TableCell>
                   <TableCell className="py-2 pr-3 whitespace-nowrap">
                     {row.classify_processed} proc
-                    <span className="text-gray-400"> · {row.classify_mentions} ment.</span>
+                    <span className="text-ink-faint"> · {row.classify_mentions} ment.</span>
                     {cFail && <span className="text-red-600 ml-1">{row.classify_failures} err</span>}
                   </TableCell>
                   <TableCell className="py-2 pr-3 whitespace-nowrap">
                     <span className="text-emerald-700">{row.score_succeeded}✓</span>{" "}
-                    <span className={sFail ? "text-red-600" : "text-gray-400"}>
+                    <span className={sFail ? "text-red-600" : "text-ink-faint"}>
                       {row.score_failed}✗
                     </span>
                   </TableCell>
@@ -282,6 +283,6 @@ export function PipelineHealth({ runs }: { runs: UsageLogRow[] }) {
           </TableBody>
         </Table>
       </div>
-    </div>
+    </Card>
   );
 }

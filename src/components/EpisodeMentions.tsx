@@ -18,10 +18,10 @@ import type { EpisodeMention, EpisodeMentionsResponse } from "@/lib/episodes";
 /** Sentiment as an L+/R+ chip, matching the site-wide lean convention
  *  (negative = Left/blue, positive = Right/red). */
 function sentimentChip(sentiment: number | null): { text: string; cls: string } {
-  if (sentiment == null) return { text: "unscored", cls: "bg-gray-100 text-gray-500" };
+  if (sentiment == null) return { text: "unscored", cls: "bg-muted text-muted-foreground" };
   if (sentiment > 0) return { text: `R+${sentiment.toFixed(1)}`, cls: "bg-red-100 text-red-800" };
   if (sentiment < 0) return { text: `L+${Math.abs(sentiment).toFixed(1)}`, cls: "bg-blue-100 text-blue-800" };
-  return { text: "0.0", cls: "bg-gray-100 text-gray-600" };
+  return { text: "0.0", cls: "bg-muted text-ink-muted" };
 }
 
 function IntensityMeter({ intensity }: { intensity: number | null }) {
@@ -31,7 +31,7 @@ function IntensityMeter({ intensity }: { intensity: number | null }) {
       {[1, 2, 3, 4, 5].map((i) => (
         <span
           key={i}
-          className={cn("h-1.5 w-1.5 rounded-full", i <= n ? "bg-gray-700" : "bg-gray-200")}
+          className={cn("h-1.5 w-1.5 rounded-full", i <= n ? "bg-ink-body" : "bg-border")}
         />
       ))}
     </span>
@@ -60,7 +60,7 @@ export function EpisodeMentions({ episodeId }: { episodeId: string }) {
   }, [episodeId]);
 
   if (state.status === "loading") {
-    return <div className="px-4 py-3 text-xs text-gray-400">Loading classifications…</div>;
+    return <div className="px-4 py-3 text-xs text-ink-faint">Loading classifications…</div>;
   }
   if (state.status === "error") {
     return (
@@ -73,7 +73,7 @@ export function EpisodeMentions({ episodeId }: { episodeId: string }) {
   const { mentions, netLean, numIssues } = state.data!;
   if (mentions.length === 0) {
     return (
-      <div className="px-4 py-3 text-xs text-gray-500 italic">
+      <div className="px-4 py-3 text-xs text-muted-foreground italic">
         No taxonomy issues detected - this episode was off-topic for the issue set.
       </div>
     );
@@ -81,8 +81,8 @@ export function EpisodeMentions({ episodeId }: { episodeId: string }) {
 
   const net = sentimentChip(netLean);
   return (
-    <div className="px-4 py-3 bg-gray-50/70 border-t border-gray-100">
-      <div className="text-[10px] uppercase tracking-wider text-gray-500 mb-2.5">
+    <div className="px-4 py-3 bg-subtle/70 border-t border-muted">
+      <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2.5">
         What we classified &amp; scored ·{" "}
         <span className="tabular-nums">{mentions.length}</span> mention
         {mentions.length === 1 ? "" : "s"} across{" "}
@@ -109,7 +109,7 @@ export function EpisodeMentions({ episodeId }: { episodeId: string }) {
               <a
                 href={`/issues/${m.issueSlug}`}
                 title={m.issueName}
-                className="font-medium text-gray-800 hover:underline truncate"
+                className="font-medium text-ink-strong hover:underline truncate"
               >
                 {m.issueName}
               </a>
@@ -122,17 +122,17 @@ export function EpisodeMentions({ episodeId }: { episodeId: string }) {
                 {chip.text}
               </span>
               <IntensityMeter intensity={m.intensity} />
-              <span className="text-gray-600 leading-snug">
-                <span className="text-gray-400">&ldquo;</span>
+              <span className="text-ink-muted leading-snug">
+                <span className="text-ink-faint">&ldquo;</span>
                 {m.quote}
-                <span className="text-gray-400">&rdquo;</span>
+                <span className="text-ink-faint">&rdquo;</span>
               </span>
             </div>
           );
         })}
       </div>
 
-      <p className="text-[10px] text-gray-400 mt-3">
+      <p className="text-[10px] text-ink-faint mt-3">
         Sentiment is −5 (left) … +5 (right) for that issue; intensity is the model&apos;s 1–5
         conviction. Quotes are excerpts, never full transcripts.
       </p>

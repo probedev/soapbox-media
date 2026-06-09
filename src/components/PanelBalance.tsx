@@ -13,6 +13,7 @@
  * AND podcast is one audience unit, not two.
  */
 import { cn } from "@/lib/utils";
+import { Card } from "@/components/ui/card";
 
 interface ShowLike {
   political_lean: "L" | "M" | "R";
@@ -147,12 +148,12 @@ export function PanelBalance({ shows }: PanelBalanceProps) {
   const showAsymmetryNote = ratio >= 1.25 && biggest !== smallest;
 
   return (
-    <div className="border border-gray-200 rounded-lg bg-white p-5 mt-6">
+    <Card className="p-5 mt-6">
       <div className="flex items-baseline justify-between mb-4 gap-3 flex-wrap">
-        <h2 className="text-sm font-semibold uppercase tracking-wider text-gray-600">
+        <h2 className="text-sm font-semibold uppercase tracking-wider text-ink-muted">
           Panel balance
         </h2>
-        <span className="text-[11px] text-gray-500">
+        <span className="text-[11px] text-muted-foreground">
           what we track · not what they say
         </span>
       </div>
@@ -160,10 +161,10 @@ export function PanelBalance({ shows }: PanelBalanceProps) {
       <div className="space-y-3">
         <div>
           <div className="flex items-baseline justify-between mb-1.5">
-            <span className="text-[10px] uppercase tracking-wider text-gray-500">
+            <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
               Shows
             </span>
-            <span className="text-[11px] text-gray-500 tabular-nums">
+            <span className="text-[11px] text-muted-foreground tabular-nums">
               {totalShows} total
             </span>
           </div>
@@ -171,10 +172,10 @@ export function PanelBalance({ shows }: PanelBalanceProps) {
         </div>
         <div>
           <div className="flex items-baseline justify-between mb-1.5">
-            <span className="text-[10px] uppercase tracking-wider text-gray-500">
+            <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
               Combined audience reach
             </span>
-            <span className="text-[11px] text-gray-500 tabular-nums">
+            <span className="text-[11px] text-muted-foreground tabular-nums">
               {compactReach(totalReach)} total
             </span>
           </div>
@@ -183,9 +184,9 @@ export function PanelBalance({ shows }: PanelBalanceProps) {
 
         {hasCohortSplit && (
           <>
-            <div className="pt-2 border-t border-gray-100">
+            <div className="pt-2 border-t border-muted">
               <div className="flex items-baseline justify-between mb-1.5">
-                <span className="text-[10px] uppercase tracking-wider text-gray-500">
+                <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
                   Shows by cohort
                 </span>
               </div>
@@ -193,7 +194,7 @@ export function PanelBalance({ shows }: PanelBalanceProps) {
             </div>
             <div>
               <div className="flex items-baseline justify-between mb-1.5">
-                <span className="text-[10px] uppercase tracking-wider text-gray-500">
+                <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
                   Reach by cohort
                 </span>
               </div>
@@ -203,7 +204,7 @@ export function PanelBalance({ shows }: PanelBalanceProps) {
         )}
       </div>
 
-      <p className="text-xs text-gray-600 mt-4 leading-relaxed">
+      <p className="text-xs text-ink-muted mt-4 leading-relaxed">
         Show counts are intentionally balanced across the editorial spectrum.
         {showAsymmetryNote && (
           <>
@@ -215,12 +216,12 @@ export function PanelBalance({ shows }: PanelBalanceProps) {
             <span className="tabular-nums">{compactReach(avg[smallest])}</span>{" "}
             for {sideLabel(smallest)}), so total reach skews {biggest}. The
             Soapbox Index weights every mention by{" "}
-            <code className="text-[11px] bg-gray-100 px-1 rounded">log10(reach)</code>,
+            <code className="text-[11px] bg-muted px-1 rounded">log10(reach)</code>,
             which dampens this asymmetry but doesn&apos;t erase it - worth
             knowing when reading the Index number.
           </>
         )}
       </p>
-    </div>
+    </Card>
   );
 }

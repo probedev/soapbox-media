@@ -20,27 +20,27 @@ export function IssuePreview({ slug, name, lean, volume, trend }: IssuePreviewPr
       ? `L+${Math.abs(clamped).toFixed(1)}`
       : "Even";
   const leanColor =
-    clamped > 0 ? "text-red-600" : clamped < 0 ? "text-blue-600" : "text-gray-600";
+    clamped > 0 ? "text-red-600" : clamped < 0 ? "text-blue-600" : "text-ink-muted";
   const markerPct = ((clamped + 10) / 20) * 100;
 
   return (
     <a
       href={`/issues/${slug}`}
-      className="block border border-gray-200 rounded-lg p-4 bg-white hover:border-gray-400 hover:shadow-sm transition"
+      className="block border border-border rounded-lg p-4 bg-card hover:border-ink-faint hover:shadow-sm transition"
     >
       <div className="flex items-start justify-between gap-2">
-        <div className="font-medium text-gray-900">{name}</div>
+        <div className="font-medium text-foreground">{name}</div>
         <div className={`text-sm font-semibold whitespace-nowrap tabular-nums ${leanColor}`}>
           {leanLabel}
         </div>
       </div>
       <div className="mt-4 relative h-2 rounded-full bg-gradient-to-r from-blue-500 via-gray-200 to-red-500">
         <div
-          className="absolute top-1/2 w-3 h-3 rounded-full bg-gray-900 border-2 border-white shadow"
+          className="absolute top-1/2 w-3 h-3 rounded-full bg-primary border-2 border-white shadow"
           style={{ left: `${markerPct}%`, transform: "translate(-50%, -50%)" }}
         />
       </div>
-      <div className="mt-3 flex items-center justify-between text-xs text-gray-500">
+      <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground">
         <span className="tabular-nums">Volume {volume.toLocaleString()}</span>
         {trend && trend.length >= 2 && (
           <Sparkline

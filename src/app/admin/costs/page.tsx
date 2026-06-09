@@ -1,4 +1,5 @@
 import { getUsageSummary, type UsageLogRow } from "@/lib/usage";
+import { Card } from "@/components/ui/card";
 import { AdminNav } from "@/components/AdminNav";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
@@ -39,16 +40,16 @@ function Stat({ value, label, sublabel, warn }: StatProps) {
     <div>
       <div
         className={`text-3xl md:text-4xl font-semibold tracking-tight tabular-nums ${
-          warn ? "text-amber-600" : "text-gray-900"
+          warn ? "text-amber-600" : "text-foreground"
         }`}
       >
         {value}
       </div>
-      <div className="text-xs uppercase tracking-wider text-gray-500 mt-2 font-medium">
+      <div className="text-xs uppercase tracking-wider text-muted-foreground mt-2 font-medium">
         {label}
       </div>
       {sublabel && (
-        <div className="text-[11px] text-gray-400 mt-0.5">{sublabel}</div>
+        <div className="text-[11px] text-ink-faint mt-0.5">{sublabel}</div>
       )}
     </div>
   );
@@ -127,21 +128,21 @@ function RunRow({ run }: { run: UsageLogRow }) {
 
   return (
     <div className="px-4 py-3 grid grid-cols-[140px_1fr_70px_80px_70px] items-center gap-3 text-sm">
-      <div className="text-gray-700 tabular-nums">{formatDate(run.ran_at)}</div>
-      <div className="text-xs text-gray-600 font-mono truncate">
-        {stagesSummary || <span className="text-gray-400">no work</span>}
+      <div className="text-ink-body tabular-nums">{formatDate(run.ran_at)}</div>
+      <div className="text-xs text-ink-muted font-mono truncate">
+        {stagesSummary || <span className="text-ink-faint">no work</span>}
       </div>
-      <div className="text-xs text-gray-500 tabular-nums text-right">
+      <div className="text-xs text-muted-foreground tabular-nums text-right">
         {formatDuration(run.duration_ms)}
       </div>
       <div
         className={`text-xs tabular-nums text-right ${
-          failures > 0 ? "text-amber-700" : "text-gray-400"
+          failures > 0 ? "text-amber-700" : "text-ink-faint"
         }`}
       >
         {failures > 0 ? `${failures} failed` : "-"}
       </div>
-      <div className="text-sm tabular-nums text-right font-semibold text-gray-900">
+      <div className="text-sm tabular-nums text-right font-semibold text-foreground">
         {formatUsd(Number(run.anthropic_cost_usd) || 0)}
       </div>
     </div>
@@ -163,14 +164,14 @@ export default async function AdminCostsPage() {
         <h1 className="text-3xl md:text-4xl font-semibold tracking-tight">
           Costs
         </h1>
-        <p className="text-gray-600 mt-3 leading-relaxed max-w-2xl">
+        <p className="text-ink-muted mt-3 leading-relaxed max-w-2xl">
           Anthropic token spend per pipeline run. Captured automatically each
           time the daily cron fires. PodScan, Vercel, and Supabase are flat
           monthly fees and not yet broken out here.
         </p>
 
         {/* Headline stats */}
-        <div className="mt-10 border border-gray-200 rounded-lg bg-white p-6">
+        <Card className="mt-10 p-6">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
             <Stat
               value={formatUsd(u.todayCost)}
@@ -186,14 +187,14 @@ export default async function AdminCostsPage() {
               warn={overBudget || nearBudget}
             />
           </div>
-        </div>
+        </Card>
 
         {/* Budget bar */}
         <div className="mt-3">
-          <div className="text-xs uppercase tracking-wider text-gray-500 mb-1.5">
+          <div className="text-xs uppercase tracking-wider text-muted-foreground mb-1.5">
             Monthly burn vs ${MONTHLY_BUDGET.toLocaleString()} budget
           </div>
-          <div className="relative h-2 rounded-full bg-gray-100 overflow-hidden">
+          <div className="relative h-2 rounded-full bg-muted overflow-hidden">
             <div
               className={`absolute inset-y-0 left-0 ${
                 overBudget
@@ -211,19 +212,19 @@ export default async function AdminCostsPage() {
         <div className="mt-12">
           <div className="flex items-baseline justify-between mb-3">
             <h2 className="text-lg font-semibold">Daily cost (last 30 days)</h2>
-            <span className="text-xs text-gray-500">
+            <span className="text-xs text-muted-foreground">
               {u.totalRuns.toLocaleString()} runs total in log
             </span>
           </div>
           {u.dailySeries.every((d) => d.cost === 0) ? (
-            <div className="text-sm text-gray-500 italic border border-gray-200 rounded-lg p-6 bg-white">
+            <Card className="text-sm text-muted-foreground italic p-6">
               No usage data yet. Once the cron runs (or you trigger a manual
               run), bars will populate here.
-            </div>
+            </Card>
           ) : (
-            <div className="border border-gray-200 rounded-lg bg-white p-4">
+            <Card className="p-4">
               <DailyCostChart series={u.dailySeries} />
-            </div>
+            </Card>
           )}
         </div>
 
@@ -231,17 +232,17 @@ export default async function AdminCostsPage() {
         <div className="mt-12">
           <div className="flex items-baseline justify-between mb-3">
             <h2 className="text-lg font-semibold">Recent runs</h2>
-            <span className="text-xs text-gray-500">
+            <span className="text-xs text-muted-foreground">
               showing {u.recentRuns.length} of {u.totalRuns.toLocaleString()}
             </span>
           </div>
           {u.recentRuns.length === 0 ? (
-            <div className="text-sm text-gray-500 italic border border-gray-200 rounded-lg p-6 bg-white">
+            <Card className="text-sm text-muted-foreground italic p-6">
               No runs recorded yet.
-            </div>
+            </Card>
           ) : (
-            <div className="border border-gray-200 rounded-lg bg-white divide-y divide-gray-200">
-              <div className="px-4 py-2 grid grid-cols-[140px_1fr_70px_80px_70px] gap-3 text-[10px] uppercase tracking-wider text-gray-400 bg-gray-50">
+            <Card className="divide-y divide-border">
+              <div className="px-4 py-2 grid grid-cols-[140px_1fr_70px_80px_70px] gap-3 text-[10px] uppercase tracking-wider text-ink-faint bg-subtle">
                 <div>Started</div>
                 <div>Stages</div>
                 <div className="text-right">Duration</div>
@@ -251,7 +252,7 @@ export default async function AdminCostsPage() {
               {u.recentRuns.map((run) => (
                 <RunRow key={run.id} run={run} />
               ))}
-            </div>
+            </Card>
           )}
         </div>
       </section>

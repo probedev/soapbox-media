@@ -74,7 +74,7 @@ function formatDuration(seconds: number | null): string {
 
 const LEAN: Record<string, { label: string; cls: string }> = {
   L: { label: "Left", cls: "bg-blue-100 text-blue-800" },
-  M: { label: "Middle", cls: "bg-gray-100 text-gray-700" },
+  M: { label: "Middle", cls: "bg-muted text-ink-body" },
   R: { label: "Right", cls: "bg-red-100 text-red-800" },
 };
 
@@ -88,12 +88,12 @@ const STATUS: Record<Stage, { label: string; dot: string }> = {
   done: { label: "Done", dot: "bg-emerald-500" },
   failed: { label: "Failed", dot: "bg-red-500" },
   partial: { label: "Partial", dot: "bg-amber-400" },
-  pending: { label: "Pending", dot: "bg-gray-300" },
+  pending: { label: "Pending", dot: "bg-input" },
   "no-signal": {
     label: "No political signal · issue taxonomy didn't match",
-    dot: "border border-gray-400 bg-transparent",
+    dot: "border border-ink-faint bg-transparent",
   },
-  na: { label: "Not applicable", dot: "bg-gray-200" },
+  na: { label: "Not applicable", dot: "bg-border" },
 };
 
 const STAGE_RANK: Record<Stage, number> = {
@@ -125,7 +125,7 @@ function Legend() {
   // and the downstream stages are gated, which is rare and self-explanatory
   // (red dot upstream).
   return (
-    <div className="flex items-center gap-3 text-[10px] text-gray-500 flex-wrap justify-end">
+    <div className="flex items-center gap-3 text-[10px] text-muted-foreground flex-wrap justify-end">
       {(["done", "failed", "partial", "pending", "no-signal"] as Stage[]).map(
         (s) => (
           <span key={s} className="flex items-center gap-1">
@@ -141,7 +141,7 @@ function Legend() {
 /** Category-column legend: the L/M/R lean badges. */
 function LeanLegend() {
   return (
-    <div className="flex items-center gap-3 text-[10px] text-gray-500">
+    <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
       {(["L", "M", "R"] as const).map((l) => (
         <span key={l} className="flex items-center gap-1">
           <span
@@ -235,7 +235,7 @@ const columns: ColumnDef<EpisodeTableRow>[] = [
           size="icon"
           onClick={row.getToggleExpandedHandler()}
           aria-label={row.getIsExpanded() ? "Hide classifications" : "Show classifications"}
-          className="flex h-6 w-6 items-center justify-center rounded-none p-0 text-gray-400 hover:bg-transparent hover:text-gray-700"
+          className="flex h-6 w-6 items-center justify-center rounded-none p-0 text-ink-faint hover:bg-transparent hover:text-ink-body"
         >
           {row.getIsExpanded() ? (
             <ChevronDown className="h-4 w-4" />
@@ -275,7 +275,7 @@ const columns: ColumnDef<EpisodeTableRow>[] = [
     accessorKey: "published_at",
     header: ({ column }) => <SortHeader label="Date" column={column} />,
     cell: ({ row }) => (
-      <span className="whitespace-nowrap tabular-nums text-gray-600">
+      <span className="whitespace-nowrap tabular-nums text-ink-muted">
         {formatDate(row.getValue("published_at"))}
       </span>
     ),
@@ -287,7 +287,7 @@ const columns: ColumnDef<EpisodeTableRow>[] = [
       <a
         href={`/channels/${row.original.channel_id}`}
         title={row.getValue("channel_name") as string}
-        className="block truncate text-gray-700 hover:text-gray-900 hover:underline"
+        className="block truncate text-ink-body hover:text-foreground hover:underline"
       >
         {row.getValue("channel_name")}
       </a>
@@ -302,10 +302,10 @@ const columns: ColumnDef<EpisodeTableRow>[] = [
         target="_blank"
         rel="noopener noreferrer"
         title={row.getValue("title") as string}
-        className="flex items-center gap-1 min-w-0 font-medium text-gray-900 hover:underline"
+        className="flex items-center gap-1 min-w-0 font-medium text-foreground hover:underline"
       >
         <span className="truncate">{row.getValue("title")}</span>
-        <ExternalLink className="h-3 w-3 shrink-0 text-gray-400" />
+        <ExternalLink className="h-3 w-3 shrink-0 text-ink-faint" />
       </a>
     ),
   },
@@ -313,7 +313,7 @@ const columns: ColumnDef<EpisodeTableRow>[] = [
     accessorKey: "platform",
     header: ({ column }) => <SortHeader label="Type" column={column} />,
     cell: ({ row }) => (
-      <span className="text-[10px] uppercase tracking-wider text-gray-500">
+      <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
         {row.getValue("platform") === "youtube" ? "YouTube" : "Podcast"}
       </span>
     ),
@@ -322,7 +322,7 @@ const columns: ColumnDef<EpisodeTableRow>[] = [
     accessorKey: "duration_sec",
     header: ({ column }) => <SortHeader label="Length" column={column} />,
     cell: ({ row }) => (
-      <span className="tabular-nums text-gray-500">
+      <span className="tabular-nums text-muted-foreground">
         {formatDuration(row.getValue("duration_sec"))}
       </span>
     ),
@@ -506,7 +506,7 @@ export function EpisodeDataTable({
       {/* Toolbar */}
       <div className="flex items-center justify-between gap-3 mb-3">
         <div className="relative w-full max-w-xs">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-400" />
+          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-ink-faint" />
           <Input
             placeholder="Search title or channel…"
             value={search}
@@ -552,7 +552,7 @@ export function EpisodeDataTable({
       </div>
 
       {/* Table */}
-      <div className="rounded-lg border border-gray-200 bg-white">
+      <div className="rounded-lg border border-border bg-card">
         <Table className="table-fixed">
           <TableHeader>
             {table.getHeaderGroups().map((hg) => (
@@ -578,7 +578,7 @@ export function EpisodeDataTable({
           <TableBody>
             {serverSide && server.loading && server.rows.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={activeColumns.length} className="h-24 text-center text-gray-400">
+                <TableCell colSpan={activeColumns.length} className="h-24 text-center text-ink-faint">
                   Loading episodes…
                 </TableCell>
               </TableRow>
@@ -609,7 +609,7 @@ export function EpisodeDataTable({
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={activeColumns.length} className="h-24 text-center text-gray-500">
+                <TableCell colSpan={activeColumns.length} className="h-24 text-center text-muted-foreground">
                   No episodes match your search.
                 </TableCell>
               </TableRow>
@@ -619,7 +619,7 @@ export function EpisodeDataTable({
       </div>
 
       {/* Pagination */}
-      <div className="flex items-center justify-between gap-3 mt-3 text-xs text-gray-500">
+      <div className="flex items-center justify-between gap-3 mt-3 text-xs text-muted-foreground">
         <div className="flex items-center gap-4">
           <span className="tabular-nums">
             {start.toLocaleString()}–{end.toLocaleString()} of{" "}

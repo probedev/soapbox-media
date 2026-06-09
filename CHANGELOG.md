@@ -7,6 +7,44 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
+## v0.11.0 · 2026-06-08
+
+### Changed
+
+- **Visual consistency pass + design-token migration.** The whole site (public
+  and admin) now reads color from one semantic token palette instead of ~620
+  scattered literal Tailwind grays.
+  - **Token foundation:** `globals.css` stock shadcn tokens were retuned from
+    pure-neutral to the exact Tailwind v3 `gray` ramp (HSL), and an extended
+    `ink-*` text ramp (strong/body/muted/faint/faintest) + a `subtle` surface
+    were added (wired in `tailwind.config.ts`) to preserve the page's 6-step
+    text hierarchy that stock shadcn (2 text tokens) would flatten. Every token
+    value is pinned to the literal gray it replaces, so light mode is
+    pixel-identical.
+  - **Gray to token migration:** ~620 `text/bg/border/divide-gray-*` utilities
+    mapped to `text-foreground` / `text-ink-*` / `text-muted-foreground` /
+    `bg-card` / `bg-muted` / `bg-subtle` / `border-border` / `border-input`
+    etc. via one centralized mapping table. Dark CTAs (`bg-gray-900`) now use
+    `bg-primary`.
+  - **Dark-mode scaffold:** an inverted `.dark` token block was added (dormant -
+    not wired to a toggle yet), so theming is now a one-knob override.
+  - **Card adoption:** 29 hand-rolled card containers across 18 files now use the
+    shadcn `<Card>`, giving cards a uniform subtle `shadow-sm`. Clickable `<a>`
+    cards and the login `<form>` card keep their elements (Card cannot be an
+    anchor/form) but match the styling.
+  - **Radius + focus unified:** stray `rounded-sm`/`rounded-xl` collapsed into
+    the `rounded-md`/`rounded-lg` scale; per-input `focus:ring-gray-300`
+    overrides removed so every control uses the shadcn `focus-visible:ring-ring`
+    treatment.
+
+### Note
+
+- Light mode is intended to be pixel-identical except for the one deliberate
+  polish: previously-flat cards now carry a uniform subtle shadow. The chart
+  `--chart-*` lean palette and the custom SVG gauges are unchanged. The OG image
+  (`opengraph-image.tsx`, inline-hex via Satori) was deliberately excluded from
+  tokenization since Satori does not resolve CSS variables.
+
 ## v0.10.0 · 2026-06-08
 
 ### Changed

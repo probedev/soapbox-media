@@ -17,7 +17,7 @@ export default async function AdminPipelinePage() {
         <h1 className="text-2xl md:text-3xl font-semibold tracking-tight">
           Pipeline health
         </h1>
-        <p className="text-gray-600 mt-2 text-sm leading-relaxed max-w-3xl">
+        <p className="text-ink-muted mt-2 text-sm leading-relaxed max-w-3xl">
           Per-stage health of the daily cron and recent run detail. Internal
           view - the public /log page shows scale and episode receipts only.
         </p>

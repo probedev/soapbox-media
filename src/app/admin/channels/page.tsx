@@ -1,4 +1,5 @@
 import { createServiceClient } from "@/lib/db";
+import { Card } from "@/components/ui/card";
 import { AdminNav } from "@/components/AdminNav";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
@@ -34,7 +35,7 @@ export default async function AdminChannelsPage() {
       <section className="px-6 pt-8 pb-16 max-w-5xl mx-auto">
         <AdminNav active="channels" />
         <h1 className="text-2xl md:text-3xl font-semibold tracking-tight">Channels</h1>
-        <p className="text-gray-600 mt-2 text-sm leading-relaxed max-w-3xl">
+        <p className="text-ink-muted mt-2 text-sm leading-relaxed max-w-3xl">
           Add a new alt-media channel to the panel. Enter a YouTube handle or
           URL; we resolve it via the YT API, validate the **300K subscriber
           floor**, insert it, and deep-ingest the last 30 episodes so it
@@ -46,10 +47,10 @@ export default async function AdminChannelsPage() {
         </div>
 
         <div className="mt-10">
-          <h2 className="text-sm font-semibold uppercase tracking-wider text-gray-600 mb-3">
+          <h2 className="text-sm font-semibold uppercase tracking-wider text-ink-muted mb-3">
             20 most recently added
           </h2>
-          <div className="border border-gray-200 rounded-lg bg-white divide-y divide-gray-200">
+          <Card className="divide-y divide-border">
             {recent.map((c) => (
               <div
                 key={c.id}
@@ -62,21 +63,21 @@ export default async function AdminChannelsPage() {
                         ? "bg-blue-100 text-blue-800"
                         : c.political_lean === "R"
                         ? "bg-red-100 text-red-800"
-                        : "bg-gray-100 text-gray-700"
+                        : "bg-muted text-ink-body"
                     }`}
                   >
                     {c.political_lean}
                   </span>
                   <span className="font-medium truncate">{c.name}</span>
-                  <span className="text-xs text-gray-500">{c.platform}</span>
+                  <span className="text-xs text-muted-foreground">{c.platform}</span>
                 </div>
-                <div className="text-xs text-gray-500 tabular-nums whitespace-nowrap">
+                <div className="text-xs text-muted-foreground tabular-nums whitespace-nowrap">
                   {c.reach.toLocaleString()} · {new Date(c.created_at).toLocaleDateString()}
                   {!c.active && <span className="ml-2 text-red-500">inactive</span>}
                 </div>
               </div>
             ))}
-          </div>
+          </Card>
         </div>
       </section>
       <Footer />

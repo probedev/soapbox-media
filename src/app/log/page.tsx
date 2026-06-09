@@ -14,15 +14,15 @@ export default async function LogPage() {
       <Header activePage="activity" />
 
       <section className="px-6 pt-10 pb-16 max-w-5xl mx-auto">
-        <div className="text-xs uppercase tracking-wider text-gray-500 mb-1">
-          <a href="/" className="hover:text-gray-700">
+        <div className="text-xs uppercase tracking-wider text-muted-foreground mb-1">
+          <a href="/" className="hover:text-ink-body">
             ← Soapbox Index
           </a>
         </div>
         <h1 className="text-3xl md:text-4xl font-semibold tracking-tight">
           Activity log
         </h1>
-        <p className="text-gray-600 mt-3 leading-relaxed max-w-3xl">
+        <p className="text-ink-muted mt-3 leading-relaxed max-w-3xl">
           Receipts, in the open. The scale of what we&apos;ve analyzed, and
           every episode the pipeline has ingested - with exactly how far each
           one made it through transcription, issue classification, and
@@ -36,7 +36,7 @@ export default async function LogPage() {
 
         {/* Episode receipts - sortable / searchable table */}
         <div className="mt-10">
-          <h2 className="text-sm font-semibold uppercase tracking-wider text-gray-600 mb-3">
+          <h2 className="text-sm font-semibold uppercase tracking-wider text-ink-muted mb-3">
             Episode receipts
           </h2>
           <EpisodeDataTable serverSide />

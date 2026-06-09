@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Card } from "@/components/ui/card";
 import {
   Select,
   SelectContent,
@@ -26,7 +27,7 @@ function slugify(s: string): string {
 }
 
 const inputClass =
-  "w-full border border-gray-300 rounded-md px-2.5 py-1.5 text-sm h-auto focus:outline-none focus:ring-2 focus:ring-gray-300 focus-visible:ring-2 focus-visible:ring-gray-300 focus-visible:ring-offset-0";
+  "w-full border border-input rounded-md px-2.5 py-1.5 text-sm h-auto";
 
 export function DiscoveryClient({
   candidates,
@@ -97,7 +98,7 @@ export function DiscoveryClient({
   return (
     <div>
       <div className="flex items-center justify-between mb-4">
-        <div className="text-sm text-gray-500">
+        <div className="text-sm text-muted-foreground">
           {candidates.length} pending candidate{candidates.length === 1 ? "" : "s"}
         </div>
         <Button variant="outline" size="sm" onClick={doRefresh} disabled={pending}>
@@ -106,19 +107,19 @@ export function DiscoveryClient({
       </div>
 
       {candidates.length === 0 ? (
-        <div className="border border-gray-200 rounded-lg bg-white p-8 text-center text-sm text-gray-500">
+        <Card className="p-8 text-center text-sm text-muted-foreground">
           No pending candidates. As classify harvests off-taxonomy topics, run
           &ldquo;Refresh candidates&rdquo; (or wait for the weekly job) to cluster them.
-        </div>
+        </Card>
       ) : (
         <div className="space-y-3">
           {candidates.map((c) => (
-            <div key={c.id} className="border border-gray-200 rounded-lg bg-white p-4">
+            <Card key={c.id} className="p-4">
               <div className="flex items-start justify-between gap-4">
                 <div className="min-w-0">
-                  <div className="font-semibold text-gray-900">{c.label}</div>
-                  {c.summary && <div className="text-sm text-gray-600 mt-0.5">{c.summary}</div>}
-                  <div className="text-xs text-gray-500 mt-1.5 tabular-nums">
+                  <div className="font-semibold text-foreground">{c.label}</div>
+                  {c.summary && <div className="text-sm text-ink-muted mt-0.5">{c.summary}</div>}
+                  <div className="text-xs text-muted-foreground mt-1.5 tabular-nums">
                     weight {c.weight.toLocaleString()} · {c.topic_count} mentions ·{" "}
                     {c.episode_count} episodes · {c.channel_count} channels
                   </div>
@@ -132,7 +133,7 @@ export function DiscoveryClient({
                     size="sm"
                     disabled={pending}
                     onClick={() => doIgnore(c.id)}
-                    className="text-gray-500"
+                    className="text-muted-foreground"
                   >
                     Ignore
                   </Button>
@@ -140,10 +141,10 @@ export function DiscoveryClient({
               </div>
 
               {c.example_quotes.length > 0 && (
-                <ul className="mt-3 space-y-1.5 border-l-2 border-gray-100 pl-3">
+                <ul className="mt-3 space-y-1.5 border-l-2 border-muted pl-3">
                   {c.example_quotes.map((q, i) => (
-                    <li key={i} className="text-xs text-gray-600">
-                      <span className="text-gray-400">{q.channel}:</span> &ldquo;{q.quote}&rdquo;
+                    <li key={i} className="text-xs text-ink-muted">
+                      <span className="text-ink-faint">{q.channel}:</span> &ldquo;{q.quote}&rdquo;
                     </li>
                   ))}
                 </ul>
@@ -155,7 +156,7 @@ export function DiscoveryClient({
                   value={mergeSel[c.id] || ""}
                   onValueChange={(v) => setMergeSel((m) => ({ ...m, [c.id]: v }))}
                 >
-                  <SelectTrigger className="h-auto border border-gray-300 rounded-md px-2 py-1 text-xs text-gray-700 max-w-[16rem] focus:ring-2 focus:ring-gray-300 focus:ring-offset-0">
+                  <SelectTrigger className="h-auto border border-input rounded-md px-2 py-1 text-xs text-ink-body max-w-[16rem]">
                     <SelectValue placeholder="Merge into existing issue…" />
                   </SelectTrigger>
                   <SelectContent>
@@ -169,7 +170,7 @@ export function DiscoveryClient({
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="text-gray-500"
+                  className="text-muted-foreground"
                   disabled={pending || !mergeSel[c.id]}
                   onClick={() => doMerge(c.id)}
                 >
@@ -179,11 +180,11 @@ export function DiscoveryClient({
 
               {/* Promote form */}
               {openPromote === c.id && (
-                <div className="mt-4 border-t border-gray-100 pt-4 space-y-2.5">
-                  <div className="text-xs uppercase tracking-wider text-gray-500">
+                <div className="mt-4 border-t border-muted pt-4 space-y-2.5">
+                  <div className="text-xs uppercase tracking-wider text-muted-foreground">
                     Promote to a new issue
                   </div>
-                  <Label className="text-xs text-gray-600 block font-normal leading-normal">
+                  <Label className="text-xs text-ink-muted block font-normal leading-normal">
                     Parent topic
                     <Select
                       value={form.topic}
@@ -202,7 +203,7 @@ export function DiscoveryClient({
                     </Select>
                   </Label>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                    <Label className="text-xs text-gray-600 font-normal leading-normal">
+                    <Label className="text-xs text-ink-muted font-normal leading-normal">
                       Name
                       <Input
                         className={inputClass}
@@ -210,7 +211,7 @@ export function DiscoveryClient({
                         onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
                       />
                     </Label>
-                    <Label className="text-xs text-gray-600 font-normal leading-normal">
+                    <Label className="text-xs text-ink-muted font-normal leading-normal">
                       Slug
                       <Input
                         className={inputClass}
@@ -219,7 +220,7 @@ export function DiscoveryClient({
                       />
                     </Label>
                   </div>
-                  <Label className="text-xs text-gray-600 block font-normal leading-normal">
+                  <Label className="text-xs text-ink-muted block font-normal leading-normal">
                     Definition
                     <Textarea
                       className={`${inputClass} min-h-0`}
@@ -271,7 +272,7 @@ export function DiscoveryClient({
                   </div>
                 </div>
               )}
-            </div>
+            </Card>
           ))}
         </div>
       )}

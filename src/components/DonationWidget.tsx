@@ -7,6 +7,7 @@
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 
 const PRESETS = [10, 25, 50, 100];
@@ -35,15 +36,15 @@ export function DonationWidget({ lean = "" }: { lean?: string }) {
   };
 
   return (
-    <div className="border border-gray-200 rounded-xl p-5 bg-white shadow-sm">
+    <Card className="p-5">
       {/* frequency */}
-      <div className="flex rounded-md border border-gray-200 p-0.5 mb-4 text-sm">
+      <div className="flex rounded-md border border-border p-0.5 mb-4 text-sm">
         {[["one-time", false], ["monthly", true]].map(([label, val]) => (
           <Button
             key={label as string}
             variant="ghost"
             onClick={() => setRecurring(val as boolean)}
-            className={`flex-1 h-auto rounded py-1.5 text-sm font-medium transition ${recurring === val ? "bg-gray-900 text-white hover:bg-gray-900 hover:text-white" : "text-gray-600 hover:text-gray-900"}`}
+            className={`flex-1 h-auto rounded py-1.5 text-sm font-medium transition ${recurring === val ? "bg-primary text-white hover:bg-primary hover:text-white" : "text-ink-muted hover:text-foreground"}`}
           >
             {label}
           </Button>
@@ -57,7 +58,7 @@ export function DonationWidget({ lean = "" }: { lean?: string }) {
             key={p}
             variant="outline"
             onClick={() => { setAmount(p); setCustom(""); }}
-            className={`h-auto rounded-md border py-2 text-sm font-medium transition ${!custom && amount === p ? "border-gray-900 bg-gray-900 text-white hover:bg-gray-900 hover:text-white" : "border-gray-300 text-gray-700 hover:border-gray-400 hover:bg-background hover:text-gray-700"}`}
+            className={`h-auto rounded-md border py-2 text-sm font-medium transition ${!custom && amount === p ? "border-foreground bg-primary text-white hover:bg-primary hover:text-white" : "border-input text-ink-body hover:border-ink-faint hover:bg-background hover:text-ink-body"}`}
           >
             ${p}
           </Button>
@@ -66,11 +67,11 @@ export function DonationWidget({ lean = "" }: { lean?: string }) {
 
       {/* custom */}
       <div className="relative mb-4">
-        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">$</span>
+        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-faint">$</span>
         <Input
           type="number" min={1} step={1} placeholder="Other amount"
           value={custom} onChange={(e) => setCustom(e.target.value)}
-          className="h-auto w-full border border-gray-300 rounded-md pl-7 pr-3 py-2 text-sm"
+          className="h-auto w-full border border-input rounded-md pl-7 pr-3 py-2 text-sm"
         />
       </div>
 
@@ -79,13 +80,13 @@ export function DonationWidget({ lean = "" }: { lean?: string }) {
       <Button
         onClick={donate}
         disabled={busy || !dollars || dollars < 1}
-        className="h-auto w-full rounded-md bg-gray-900 text-white py-2.5 text-sm font-medium hover:bg-gray-800 disabled:opacity-50 transition"
+        className="h-auto w-full rounded-md bg-primary text-white py-2.5 text-sm font-medium hover:bg-primary/90 disabled:opacity-50 transition"
       >
         {busy ? "…" : `Contribute $${dollars || 0}${recurring ? "/mo" : ""}`}
       </Button>
-      <p className="text-[11px] text-gray-400 mt-3 text-center">
+      <p className="text-[11px] text-ink-faint mt-3 text-center">
         Supports Soapbox.media&apos;s operations. Not a political contribution and not tax-deductible.
       </p>
-    </div>
+    </Card>
   );
 }

@@ -40,7 +40,7 @@ export function CohortBadge({
       <TooltipTrigger asChild>
         <span
           aria-label={meta.label}
-          className={cn("inline-flex items-center text-gray-400", className)}
+          className={cn("inline-flex items-center text-ink-faint", className)}
         >
           <Icon className="h-3.5 w-3.5" />
         </span>

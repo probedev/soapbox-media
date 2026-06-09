@@ -41,13 +41,13 @@ function leanLabel(lean: number): { text: string; className: string } {
   const mag = Math.abs(lean).toFixed(1);
   if (lean <= -0.05) return { text: `L+${mag}`, className: "text-blue-700" };
   if (lean >= 0.05) return { text: `R+${mag}`, className: "text-red-700" };
-  return { text: "0.0", className: "text-gray-500" };
+  return { text: "0.0", className: "text-muted-foreground" };
 }
 
 function barColor(lean: number): string {
   if (lean <= -0.05) return "bg-blue-500";
   if (lean >= 0.05) return "bg-red-500";
-  return "bg-gray-400";
+  return "bg-ink-faint";
 }
 
 export function IssueActivityByTopic({
@@ -59,19 +59,19 @@ export function IssueActivityByTopic({
   const maxMentions = Math.max(...rows.map((r) => r.mentions), 1);
 
   return (
-    <div className="border border-gray-200 bg-white rounded-lg p-5">
+    <div className="border border-border bg-card rounded-lg p-5">
       <div className="flex items-baseline justify-between mb-1">
-        <div className="text-xs uppercase tracking-wider text-gray-500">
+        <div className="text-xs uppercase tracking-wider text-muted-foreground">
           What&apos;s being talked about
         </div>
-        <div className="text-xs text-gray-400">last {windowDays} days</div>
+        <div className="text-xs text-ink-faint">last {windowDays} days</div>
       </div>
-      <div className="text-sm text-gray-600 mb-4">
-        <span className="font-semibold tabular-nums text-gray-900">
+      <div className="text-sm text-ink-muted mb-4">
+        <span className="font-semibold tabular-nums text-foreground">
           {totalMentions.toLocaleString()}
         </span>{" "}
         mentions across{" "}
-        <span className="font-semibold tabular-nums text-gray-900">{rows.length}</span>{" "}
+        <span className="font-semibold tabular-nums text-foreground">{rows.length}</span>{" "}
         topics
       </div>
 
@@ -81,7 +81,7 @@ export function IssueActivityByTopic({
             const widthPct = (r.mentions / maxMentions) * 100;
             const lean = leanLabel(r.lean);
             const label = (
-              <span className="text-sm font-medium text-gray-900 truncate">{r.name}</span>
+              <span className="text-sm font-medium text-foreground truncate">{r.name}</span>
             );
             return (
               <TableRow
@@ -90,7 +90,7 @@ export function IssueActivityByTopic({
               >
                 <TableCell className="p-0 truncate">
                   {r.slug ? (
-                    <a href={`/topics/${r.slug}`} className="hover:text-gray-600">
+                    <a href={`/topics/${r.slug}`} className="hover:text-ink-muted">
                       {label}
                     </a>
                   ) : (
@@ -99,7 +99,7 @@ export function IssueActivityByTopic({
                 </TableCell>
 
                 {/* mention-volume bar */}
-                <TableCell className="p-0 relative h-5 rounded bg-gray-100 overflow-hidden">
+                <TableCell className="p-0 relative h-5 rounded bg-muted overflow-hidden">
                   <div
                     className={cn("absolute inset-y-0 left-0 rounded", barColor(r.lean))}
                     style={{ width: `${Math.max(widthPct, 2)}%` }}
@@ -108,7 +108,7 @@ export function IssueActivityByTopic({
                 </TableCell>
 
                 <TableCell className="p-0 flex items-baseline gap-2 text-xs justify-end">
-                  <span className="tabular-nums text-gray-700 min-w-[3rem] text-right">
+                  <span className="tabular-nums text-ink-body min-w-[3rem] text-right">
                     {r.mentions.toLocaleString()}
                   </span>
                   <span className={cn("tabular-nums font-semibold min-w-[3rem]", lean.className)}>
@@ -121,7 +121,7 @@ export function IssueActivityByTopic({
         </TableBody>
       </Table>
 
-      <p className="text-[11px] text-gray-400 mt-4 leading-relaxed">
+      <p className="text-[11px] text-ink-faint mt-4 leading-relaxed">
         Bar length is mention count over the last {windowDays} days; the tint and L/R figure
         show each topic&apos;s volume-weighted lean. The full taxonomy is below.
       </p>

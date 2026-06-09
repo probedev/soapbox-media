@@ -21,7 +21,7 @@ export default async function AdminDiscoveryPage() {
         <h1 className="text-2xl md:text-3xl font-semibold tracking-tight">
           Issue discovery
         </h1>
-        <p className="text-gray-600 mt-2 text-sm leading-relaxed max-w-3xl">
+        <p className="text-ink-muted mt-2 text-sm leading-relaxed max-w-3xl">
           Emerging political topics the shows are discussing that aren&apos;t in
           the taxonomy yet, clustered from off-taxonomy mentions and ranked by
           reach &times; recency. Promote a candidate into the taxonomy (you write

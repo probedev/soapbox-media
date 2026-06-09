@@ -15,9 +15,9 @@ export function WeeklyHeadline({ text, href }: WeeklyHeadlineProps) {
   if (text) {
     const content = (
       <>
-        <p className="text-lg md:text-xl text-gray-800 leading-relaxed">{text}</p>
+        <p className="text-lg md:text-xl text-ink-strong leading-relaxed">{text}</p>
         {href && (
-          <div className="text-[11px] uppercase tracking-wider text-gray-500 mt-3 group-hover:text-gray-900 transition">
+          <div className="text-[11px] uppercase tracking-wider text-muted-foreground mt-3 group-hover:text-foreground transition">
             See the per-issue breakdown →
           </div>
         )}
@@ -37,7 +37,7 @@ export function WeeklyHeadline({ text, href }: WeeklyHeadlineProps) {
   }
 
   return (
-    <p className="text-base md:text-lg text-gray-500 leading-relaxed text-center max-w-2xl mx-auto italic">
+    <p className="text-base md:text-lg text-muted-foreground leading-relaxed text-center max-w-2xl mx-auto italic">
       The auto-generated headline will appear here once the daily pipeline
       assembles it, surfacing which issue dominated alt-media in the trailing
       window, which channels drove the Soapbox Index movement, and the

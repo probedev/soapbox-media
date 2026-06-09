@@ -18,11 +18,11 @@ export function SubNeedle({
   const color = value >= 0 ? "text-red-600" : "text-blue-600";
   return (
     <div className="flex flex-col items-center">
-      <div className="text-xs uppercase tracking-wider text-gray-500 mb-1">{label}</div>
+      <div className="text-xs uppercase tracking-wider text-muted-foreground mb-1">{label}</div>
       <SoapboxNeedle value={hasData ? value : 0} width={180} height={117} />
       <div
         className={`text-2xl font-semibold tabular-nums ${
-          hasData ? color : "text-gray-300"
+          hasData ? color : "text-ink-faintest"
         }`}
       >
         {hasData ? `${dir}${Math.abs(value).toFixed(1)}` : "-"}

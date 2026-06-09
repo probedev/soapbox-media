@@ -1,4 +1,5 @@
 import { getSystemStats } from "@/lib/aggregate";
+import { Card } from "@/components/ui/card";
 
 function compactNumber(n: number): string {
   if (n >= 1_000_000_000) return `${(n / 1_000_000_000).toFixed(1)}B`;
@@ -44,13 +45,13 @@ interface StatProps {
 function Stat({ value, label, sublabel }: StatProps) {
   return (
     <div>
-      <div className="text-3xl md:text-4xl font-semibold tracking-tight tabular-nums text-gray-900">
+      <div className="text-3xl md:text-4xl font-semibold tracking-tight tabular-nums text-foreground">
         {value}
       </div>
-      <div className="text-xs uppercase tracking-wider text-gray-500 mt-2 font-medium">
+      <div className="text-xs uppercase tracking-wider text-muted-foreground mt-2 font-medium">
         {label}
       </div>
-      {sublabel && <div className="text-[11px] text-gray-400 mt-0.5">{sublabel}</div>}
+      {sublabel && <div className="text-[11px] text-ink-faint mt-0.5">{sublabel}</div>}
     </div>
   );
 }
@@ -66,12 +67,12 @@ export async function SystemStats() {
   // rather than "is the pipeline running?". Shows-tracked stays here as
   // the denominator that contextualizes the processing numbers.
   return (
-    <div className="border border-gray-200 rounded-lg bg-white p-6">
+    <Card className="p-6">
       <div className="flex items-baseline justify-between mb-5 gap-3 flex-wrap">
-        <h2 className="text-sm font-semibold uppercase tracking-wider text-gray-600">
+        <h2 className="text-sm font-semibold uppercase tracking-wider text-ink-muted">
           System scale
         </h2>
-        <span className="text-[11px] text-gray-500 tabular-nums">
+        <span className="text-[11px] text-muted-foreground tabular-nums">
           Latest data {relativeTime(stats.lastUpdated)}
         </span>
       </div>
@@ -97,6 +98,6 @@ export async function SystemStats() {
           sublabel={`Across ${stats.activeIssues} issues, all sentiment-scored`}
         />
       </div>
-    </div>
+    </Card>
   );
 }

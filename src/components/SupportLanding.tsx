@@ -21,13 +21,13 @@ export function SupportLanding({ v }: { v: SupportVariant }) {
     <main className="min-h-screen">
       <Header />
       <section className="px-6 pt-12 pb-16 max-w-3xl mx-auto">
-        <p className="text-xs font-mono uppercase tracking-widest text-gray-400">{v.eyebrow}</p>
+        <p className="text-xs font-mono uppercase tracking-widest text-ink-faint">{v.eyebrow}</p>
         <h1 className="text-3xl md:text-4xl font-semibold tracking-tight mt-2">{v.headline}</h1>
 
         <div className="grid md:grid-cols-2 gap-10 mt-8 items-start">
           {/* The appeal */}
-          <div className="space-y-4 text-gray-700 leading-relaxed">
-            <p className="text-gray-800">{v.pitch}</p>
+          <div className="space-y-4 text-ink-body leading-relaxed">
+            <p className="text-ink-strong">{v.pitch}</p>
             <p>
               Think back over this past year of politics - the speeches, the podcasts, the clips that
               raced across your feed. How often did you want a straight answer to a simple question:
@@ -47,7 +47,7 @@ export function SupportLanding({ v }: { v: SupportVariant }) {
               today.</strong> There are no small contributions; every reader who chips in keeps the
               scoreboard honest.
             </p>
-            <p className="text-gray-900 font-medium">Thank you.</p>
+            <p className="text-foreground font-medium">Thank you.</p>
           </div>
 
           {/* The ask */}
@@ -56,7 +56,7 @@ export function SupportLanding({ v }: { v: SupportVariant }) {
           </div>
         </div>
 
-        <p className="text-xs text-gray-400 mt-10">
+        <p className="text-xs text-ink-faint mt-10">
           Contributions support Soapbox.media (Breakfastball LLC) and its operations. This is not a
           political contribution to any candidate or committee, and it is not tax-deductible.
         </p>
