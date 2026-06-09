@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Card } from "@/components/ui/card";
 import {
   Select,
   SelectContent,
@@ -16,7 +17,7 @@ import {
 import { addChannelAction, previewChannelAction } from "./actions";
 
 const inputClass =
-  "w-full border border-gray-300 rounded-md px-2.5 py-1.5 text-sm h-auto focus:outline-none focus:ring-2 focus:ring-gray-300 focus-visible:ring-2 focus-visible:ring-gray-300 focus-visible:ring-offset-0";
+  "w-full border border-input rounded-md px-2.5 py-1.5 text-sm h-auto";
 
 interface SuccessNote {
   name: string;
@@ -101,10 +102,10 @@ export function AddChannelClient() {
   const canSubmit = !busy && !!handle.trim() && !!lean && !!rationale.trim();
 
   return (
-    <div className="border border-gray-200 rounded-lg bg-white p-5">
+    <Card className="p-5">
       <div className="text-sm font-semibold mb-3">Add a YouTube channel</div>
       <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto_auto_auto] gap-2.5 items-end">
-        <Label className="text-xs text-gray-600 block font-normal leading-normal">
+        <Label className="text-xs text-ink-muted block font-normal leading-normal">
           Handle or URL
           <Input
             type="text"
@@ -115,7 +116,7 @@ export function AddChannelClient() {
             disabled={busy}
           />
         </Label>
-        <Label className="text-xs text-gray-600 block font-normal leading-normal">
+        <Label className="text-xs text-ink-muted block font-normal leading-normal">
           Lean
           <Select
             value={lean}
@@ -132,7 +133,7 @@ export function AddChannelClient() {
             </SelectContent>
           </Select>
         </Label>
-        <Label className="text-xs text-gray-600 block font-normal leading-normal">
+        <Label className="text-xs text-ink-muted block font-normal leading-normal">
           Cohort
           <Select
             value={cohort}
@@ -154,7 +155,7 @@ export function AddChannelClient() {
       </div>
 
       {preview && (
-        <div className="mt-3 text-xs bg-gray-50 border border-gray-200 rounded-md px-3 py-2 text-gray-700">
+        <div className="mt-3 text-xs bg-subtle border border-border rounded-md px-3 py-2 text-ink-body">
           Resolved <strong>{preview.name}</strong> ({preview.subs.toLocaleString()} subs).
           {preview.alreadyInPanel && (
             <span className="text-amber-700"> ⚠ Already in the panel - adding will be rejected.</span>
@@ -165,7 +166,7 @@ export function AddChannelClient() {
         </div>
       )}
 
-      <Label className="text-xs text-gray-600 block mt-2.5 font-normal leading-normal">
+      <Label className="text-xs text-ink-muted block mt-2.5 font-normal leading-normal">
         Lean rationale - auto-drafted, edit before adding (appears on /channels)
         <Textarea
           rows={2}
@@ -181,7 +182,7 @@ export function AddChannelClient() {
           {pending ? "Adding…" : "Add channel"}
         </Button>
       </div>
-      <div className="text-[11px] text-gray-500 mt-2">
+      <div className="text-[11px] text-muted-foreground mt-2">
         Resolves via YT API. Requires ≥300K subscribers. &ldquo;Resolve &amp; draft&rdquo;
         auto-generates the description (Haiku) for you to edit. Deep-ingests 30 recent
         episodes; the cron processes them automatically.
@@ -197,6 +198,6 @@ export function AddChannelClient() {
           Ingested {ok.upserted}/{ok.kept} historical episodes ({ok.fetched} fetched, {ok.fetched - ok.kept} filtered as short). Transcribe + classify + score will follow.
         </div>
       )}
-    </div>
+    </Card>
   );
 }

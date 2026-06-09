@@ -21,7 +21,7 @@ export const maxDuration = 120;
 function Zone({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section className="mt-10">
-      <h2 className="text-xs font-mono uppercase tracking-widest text-gray-400 mb-4">{title}</h2>
+      <h2 className="text-xs font-mono uppercase tracking-widest text-ink-faint mb-4">{title}</h2>
       {children}
     </section>
   );
@@ -31,11 +31,11 @@ export default async function HomelabPage() {
   const d = await getHomelabData();
 
   return (
-    <main className="min-h-screen bg-gray-50">
+    <main className="min-h-screen bg-subtle">
       <AdminNav />
       <div className="max-w-6xl mx-auto px-6 py-10">
         <h1 className="text-2xl font-semibold tracking-tight">Home page lab</h1>
-        <p className="text-sm text-gray-500 mt-2 max-w-2xl">
+        <p className="text-sm text-muted-foreground mt-2 max-w-2xl">
           All 14 candidate cards rendered from live data ({d.rowCount.toLocaleString()} scored mentions,
           90-day pull). Pick the v1 cut and ordering; chosen cards get snapshot-backed production
           implementations. Zones mirror the proposed home-page information architecture.

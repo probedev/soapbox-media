@@ -37,7 +37,7 @@ function formatLean(v: number): string {
 function leanColor(v: number): string {
   if (v > 0.05) return "text-red-600";
   if (v < -0.05) return "text-blue-600";
-  return "text-gray-700";
+  return "text-ink-body";
 }
 
 /**
@@ -56,8 +56,8 @@ function formatVolumeRatio(r: number): string {
 function volumeColor(r: number): string {
   // Volume change is ideologically neutral - same gray either way. Slightly
   // dimmer when the ratio is unremarkable so the eye skips it.
-  if (r >= 1.05 || r <= 0.95) return "text-gray-700";
-  return "text-gray-400";
+  if (r >= 1.05 || r <= 0.95) return "text-ink-body";
+  return "text-ink-faint";
 }
 
 export function BiggestMovers({ movers }: BiggestMoversProps) {
@@ -70,17 +70,17 @@ export function BiggestMovers({ movers }: BiggestMoversProps) {
   return (
     <div>
       <h2 className="text-lg font-semibold mb-4">Biggest movers this week</h2>
-      <div className="border border-gray-200 rounded-lg overflow-hidden">
+      <div className="border border-border rounded-lg overflow-hidden">
         <Table>
           {/* Column sub-headings */}
           <TableHeader>
-            <TableRow className={`${cols} px-4 py-2 hover:bg-transparent border-gray-200`}>
-              <TableHead className="h-auto p-0 text-[10px] uppercase tracking-wider text-gray-400">Issue</TableHead>
-              <TableHead className="h-auto p-0 text-right text-[10px] uppercase tracking-wider text-gray-400 hidden sm:block">Last week</TableHead>
-              <TableHead className="h-auto p-0 text-right text-[10px] uppercase tracking-wider text-gray-400">This week</TableHead>
-              <TableHead className="h-auto p-0 text-right text-[10px] uppercase tracking-wider text-gray-400">Change</TableHead>
-              <TableHead className="h-auto p-0 text-right text-[10px] uppercase tracking-wider text-gray-400 hidden sm:block">Mentions</TableHead>
-              <TableHead className="h-auto p-0 text-right text-[10px] uppercase tracking-wider text-gray-400 hidden sm:block">Volume</TableHead>
+            <TableRow className={`${cols} px-4 py-2 hover:bg-transparent border-border`}>
+              <TableHead className="h-auto p-0 text-[10px] uppercase tracking-wider text-ink-faint">Issue</TableHead>
+              <TableHead className="h-auto p-0 text-right text-[10px] uppercase tracking-wider text-ink-faint hidden sm:block">Last week</TableHead>
+              <TableHead className="h-auto p-0 text-right text-[10px] uppercase tracking-wider text-ink-faint">This week</TableHead>
+              <TableHead className="h-auto p-0 text-right text-[10px] uppercase tracking-wider text-ink-faint">Change</TableHead>
+              <TableHead className="h-auto p-0 text-right text-[10px] uppercase tracking-wider text-ink-faint hidden sm:block">Mentions</TableHead>
+              <TableHead className="h-auto p-0 text-right text-[10px] uppercase tracking-wider text-ink-faint hidden sm:block">Volume</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -89,9 +89,9 @@ export function BiggestMovers({ movers }: BiggestMoversProps) {
               return (
                 <TableRow
                   key={m.slug}
-                  className={`${cols} items-center px-4 py-3 hover:bg-gray-50 transition border-gray-200 relative`}
+                  className={`${cols} items-center px-4 py-3 hover:bg-subtle transition border-border relative`}
                 >
-                  <TableCell className="p-0 font-medium text-gray-900 truncate">
+                  <TableCell className="p-0 font-medium text-foreground truncate">
                     <a href={`/issues/${m.slug}`} className="before:absolute before:inset-0">
                       {m.name}
                     </a>
@@ -104,10 +104,10 @@ export function BiggestMovers({ movers }: BiggestMoversProps) {
                   </TableCell>
                   {/* Neutral arrow = direction of movement on the L<->R axis,
                       decoupled from where the issue currently sits. */}
-                  <TableCell className="p-0 text-right text-sm tabular-nums text-gray-500 whitespace-nowrap">
+                  <TableCell className="p-0 text-right text-sm tabular-nums text-muted-foreground whitespace-nowrap">
                     {movedRight ? "→" : "←"} {Math.abs(m.delta).toFixed(1)}
                   </TableCell>
-                  <TableCell className="p-0 text-right text-sm tabular-nums text-gray-600 hidden sm:block">
+                  <TableCell className="p-0 text-right text-sm tabular-nums text-ink-muted hidden sm:block">
                     {m.currentMentions.toLocaleString()}
                   </TableCell>
                   <TableCell className={`p-0 text-right text-sm tabular-nums whitespace-nowrap hidden sm:block ${volumeColor(m.volumeRatio)}`}>
@@ -119,7 +119,7 @@ export function BiggestMovers({ movers }: BiggestMoversProps) {
           </TableBody>
         </Table>
       </div>
-      <p className="text-xs text-gray-500 mt-3 leading-relaxed">
+      <p className="text-xs text-muted-foreground mt-3 leading-relaxed">
         Issues earn a row for the biggest shifts this week on either axis: lean
         movement on the left–right scale (→ / ←) or a swing in attention
         (↑ / ↓ mention volume). An issue can move{" "}

@@ -37,7 +37,7 @@ export function SubscribeButton({ className = "", label = "Subscribe - $300/mo" 
       <Button
         onClick={go}
         disabled={busy}
-        className="inline-flex items-center justify-center rounded-md bg-gray-900 text-white text-sm font-medium px-5 py-2.5 hover:bg-gray-800 disabled:opacity-50 transition h-auto"
+        className="inline-flex items-center justify-center rounded-md bg-primary text-white text-sm font-medium px-5 py-2.5 hover:bg-primary/90 disabled:opacity-50 transition h-auto"
       >
         {busy ? "…" : label}
       </Button>

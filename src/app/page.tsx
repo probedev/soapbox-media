@@ -63,13 +63,13 @@ export default async function HomePage() {
 
       {/* Hero - needle + headline number + sparkline + trust strip */}
       <section className="px-6 pt-12 pb-10 max-w-5xl mx-auto text-center">
-        <div className="uppercase text-xs font-semibold tracking-wider text-gray-500 mb-2">
+        <div className="uppercase text-xs font-semibold tracking-wider text-muted-foreground mb-2">
           The Soapbox Index · updated daily
         </div>
         <h1 className="text-3xl md:text-4xl font-semibold tracking-tight">
           Where is online political media leaning right now?
         </h1>
-        <p className="text-gray-600 mt-3 max-w-2xl mx-auto leading-relaxed">
+        <p className="text-ink-muted mt-3 max-w-2xl mx-auto leading-relaxed">
           Soapbox uses language models to quantify what political media on YouTube and
           podcasts says about US policy issues, and how{" "}
           <span className="font-medium">independent creators</span> and{" "}
@@ -86,7 +86,7 @@ export default async function HomePage() {
             {directionLabel}
             {Math.abs(data.index).toFixed(1)}
           </div>
-          <div className="text-sm text-gray-600 mt-3">
+          <div className="text-sm text-ink-muted mt-3">
             {data.hasData ? (
               <>
                 Online political media is leaning <span className="font-medium">{directionWord}</span> over the last {data.windowDays} days.{" "}
@@ -101,13 +101,13 @@ export default async function HomePage() {
                   </>
                 )}
                 {Math.abs(data.delta) === 0 && data.sparkline.length < 2 && (
-                  <span className="text-gray-400">
+                  <span className="text-ink-faint">
                     (period-over-period comparison available once we have a second window of data)
                   </span>
                 )}
               </>
             ) : (
-              <span className="text-gray-400">
+              <span className="text-ink-faint">
                 Pipeline online. Waiting for first sentiment scores.
               </span>
             )}
@@ -116,7 +116,7 @@ export default async function HomePage() {
 
         {PUBLIC_COHORTS.length > 1 && snapshot?.cohorts && (
           <div className="mt-8">
-            <div className="text-xs uppercase tracking-wider text-gray-400 mb-3">
+            <div className="text-xs uppercase tracking-wider text-ink-faint mb-3">
               Independent vs Legacy
             </div>
             <div className="grid grid-cols-2 gap-6 max-w-sm mx-auto">
@@ -131,7 +131,7 @@ export default async function HomePage() {
                 hasData={snapshot.cohorts.legacy.hasData}
               />
             </div>
-            <p className="text-xs text-gray-500 mt-3">
+            <p className="text-xs text-muted-foreground mt-3">
               Independent creators vs legacy media, same issues, same scoring.
             </p>
           </div>
@@ -159,7 +159,7 @@ export default async function HomePage() {
       </section>
 
       {/* Why is the Index where it is? - per-issue contribution breakdown */}
-      <section className="border-t border-gray-200 bg-gray-50">
+      <section className="border-t border-border bg-subtle">
         <div className="max-w-3xl mx-auto px-6 py-12">
           <IssueContributionsChart windowDays={HOMEPAGE_WINDOW_DAYS} breakdown={breakdown} />
         </div>
@@ -167,7 +167,7 @@ export default async function HomePage() {
 
       {/* Biggest movers */}
       {data.movers.length > 0 && (
-        <section className="border-t border-gray-200 bg-white">
+        <section className="border-t border-border bg-card">
           <div className="max-w-3xl mx-auto px-6 py-12">
             {/* Cap (and ranking) live in getDashboardData so every consumer
                 of `data.movers` agrees on the leaderboard length. */}
@@ -178,7 +178,7 @@ export default async function HomePage() {
 
       {/* Trending Names (BETA) - named-entity burst tease */}
       {trending && trending.entities.length > 0 && (
-        <section className="border-t border-gray-200 bg-white">
+        <section className="border-t border-border bg-card">
           <div className="max-w-3xl mx-auto px-6 py-12">
             <TrendingNames data={trending} />
           </div>
@@ -186,18 +186,18 @@ export default async function HomePage() {
       )}
 
       {/* Top issues */}
-      <section className="border-t border-gray-200 bg-gray-50">
+      <section className="border-t border-border bg-subtle">
         <div className="max-w-5xl mx-auto px-6 py-12">
           <div className="flex items-baseline justify-between mb-6">
             <h2 className="text-lg font-semibold">
               {data.hasData ? `Top issues · last ${data.windowDays} days` : "Top issues"}
             </h2>
-            <a href="/issues" className="text-sm text-gray-600 hover:text-gray-900">
+            <a href="/issues" className="text-sm text-ink-muted hover:text-foreground">
               All issues →
             </a>
           </div>
           {data.issues.length === 0 ? (
-            <div className="text-sm text-gray-500 italic">
+            <div className="text-sm text-muted-foreground italic">
               No issue classifications yet. Run the classify + score pipeline to populate.
             </div>
           ) : (

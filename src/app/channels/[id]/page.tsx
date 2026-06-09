@@ -1,5 +1,6 @@
 import { getChannelDrillDown } from "@/lib/aggregate";
 import { getChannelExternalUrl } from "@/lib/channelLinks";
+import { Card } from "@/components/ui/card";
 import { createServiceClient } from "@/lib/db";
 import { Footer } from "@/components/Footer";
 import { Header } from "@/components/Header";
@@ -20,7 +21,7 @@ function formatLean(v: number): string {
 function leanColor(v: number): string {
   if (v > 0.05) return "text-red-600";
   if (v < -0.05) return "text-blue-600";
-  return "text-gray-700";
+  return "text-ink-body";
 }
 
 function leanBadge(lean: "L" | "M" | "R"): string {
@@ -30,7 +31,7 @@ function leanBadge(lean: "L" | "M" | "R"): string {
     case "R":
       return "bg-red-100 text-red-800";
     default:
-      return "bg-gray-100 text-gray-700";
+      return "bg-muted text-ink-body";
   }
 }
 
@@ -73,10 +74,10 @@ export default async function ChannelPage({
       <Header />
 
       <section className="px-6 pt-10 pb-8 max-w-4xl mx-auto">
-        <div className="text-xs uppercase tracking-wider text-gray-500 mb-1 flex items-center gap-3">
-          <a href="/" className="hover:text-gray-700">← Soapbox Index</a>
-          <span aria-hidden className="text-gray-400">·</span>
-          <a href="/channels" className="hover:text-gray-700">All channels</a>
+        <div className="text-xs uppercase tracking-wider text-muted-foreground mb-1 flex items-center gap-3">
+          <a href="/" className="hover:text-ink-body">← Soapbox Index</a>
+          <span aria-hidden className="text-ink-faint">·</span>
+          <a href="/channels" className="hover:text-ink-body">All channels</a>
         </div>
         <div className="flex items-baseline gap-3 flex-wrap">
           <h1 className="text-3xl md:text-4xl font-semibold tracking-tight">{data.channel_name}</h1>
@@ -86,14 +87,14 @@ export default async function ChannelPage({
             {leanLabelWord(data.channel_lean)}
           </span>
         </div>
-        <div className="text-sm text-gray-600 mt-2 tabular-nums flex items-center gap-4 flex-wrap">
+        <div className="text-sm text-ink-muted mt-2 tabular-nums flex items-center gap-4 flex-wrap">
           <span>Reach: {data.channel_reach.toLocaleString()}</span>
           {ext && ext.url !== "#" && (
             <a
               href={ext.url}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 px-3 py-1 border border-gray-300 rounded-md text-xs font-medium text-gray-700 hover:bg-gray-50 hover:border-gray-400 transition"
+              className="inline-flex items-center gap-1.5 px-3 py-1 border border-input rounded-md text-xs font-medium text-ink-body hover:bg-subtle hover:border-ink-faint transition"
             >
               {ext.label}
               <ExternalLink className="w-3 h-3" />
@@ -102,8 +103,8 @@ export default async function ChannelPage({
         </div>
 
         {/* Net lean */}
-        <div className="mt-8 border border-gray-200 rounded-lg p-6 bg-white">
-          <div className="text-xs uppercase tracking-wider text-gray-500 mb-1">
+        <Card className="mt-8 p-6">
+          <div className="text-xs uppercase tracking-wider text-muted-foreground mb-1">
             Net Soapbox Score across all issues (last 30 days)
           </div>
           <div className="flex items-baseline gap-4">
@@ -111,20 +112,20 @@ export default async function ChannelPage({
               {directionLabel}
               {Math.abs(data.netLean).toFixed(1)}
             </div>
-            <div className="text-sm text-gray-500">
+            <div className="text-sm text-muted-foreground">
               {data.numClassifications.toLocaleString()} mentions across {data.numEpisodes} episodes
             </div>
           </div>
           <div className="mt-5 relative h-2 rounded-full bg-gradient-to-r from-blue-500 via-gray-200 to-red-500 max-w-md">
             <div
-              className="absolute top-1/2 w-3 h-3 rounded-full bg-gray-900 border-2 border-white shadow"
+              className="absolute top-1/2 w-3 h-3 rounded-full bg-primary border-2 border-white shadow"
               style={{ left: `${markerPct}%`, transform: "translate(-50%, -50%)" }}
             />
           </div>
 
           {data.trend.values.length >= 2 && (
-            <div className="mt-6 pt-6 border-t border-gray-100">
-              <div className="text-xs uppercase tracking-wider text-gray-500 mb-3">
+            <div className="mt-6 pt-6 border-t border-muted">
+              <div className="text-xs uppercase tracking-wider text-muted-foreground mb-3">
                 How this channel has trended
               </div>
               <IndexAreaChart
@@ -135,29 +136,29 @@ export default async function ChannelPage({
               />
             </div>
           )}
-        </div>
+        </Card>
       </section>
 
       {/* Issue breakdown */}
-      <section className="border-t border-gray-200 bg-gray-50">
+      <section className="border-t border-border bg-subtle">
         <div className="max-w-4xl mx-auto px-6 py-10">
           <div className="flex items-baseline justify-between mb-4">
             <h2 className="text-lg font-semibold">Issues this channel has covered</h2>
-            <span className="text-xs text-gray-500">last 30 days, sorted by volume</span>
+            <span className="text-xs text-muted-foreground">last 30 days, sorted by volume</span>
           </div>
           {data.issues.length === 0 ? (
-            <div className="text-sm text-gray-500 italic">
+            <div className="text-sm text-muted-foreground italic">
               No classifications for this channel yet.
             </div>
           ) : (
-            <div className="border border-gray-200 rounded-lg bg-white divide-y divide-gray-200">
+            <Card className="divide-y divide-border">
               {data.issues.map((issue) => {
                 const pct = ((issue.lean + 10) / 20) * 100;
                 return (
                   <a
                     key={issue.issue_slug}
                     href={`/issues/${issue.issue_slug}`}
-                    className="block px-4 py-3 hover:bg-gray-50 transition"
+                    className="block px-4 py-3 hover:bg-subtle transition"
                   >
                     <div className="flex items-center justify-between gap-3">
                       <span className="font-medium">{issue.issue_name}</span>
@@ -167,23 +168,23 @@ export default async function ChannelPage({
                     </div>
                     <div className="mt-2 relative h-1.5 rounded-full bg-gradient-to-r from-blue-500 via-gray-200 to-red-500">
                       <div
-                        className="absolute top-1/2 w-2.5 h-2.5 rounded-full bg-gray-900 border-2 border-white"
+                        className="absolute top-1/2 w-2.5 h-2.5 rounded-full bg-primary border-2 border-white"
                         style={{ left: `${pct}%`, transform: "translate(-50%, -50%)" }}
                       />
                     </div>
-                    <div className="text-xs text-gray-500 mt-1.5 tabular-nums">
+                    <div className="text-xs text-muted-foreground mt-1.5 tabular-nums">
                       {issue.numMentions} mentions · weight {issue.weight.toLocaleString()}
                     </div>
                   </a>
                 );
               })}
-            </div>
+            </Card>
           )}
         </div>
       </section>
 
       {/* Recent episodes - transparency surface, links out to original sources */}
-      <section className="border-t border-gray-200 bg-white">
+      <section className="border-t border-border bg-card">
         <div className="max-w-4xl mx-auto px-6 py-10">
           <div className="flex items-baseline justify-between mb-4">
             <h2 className="text-lg font-semibold">Recent episodes</h2>

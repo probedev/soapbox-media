@@ -6,6 +6,7 @@ import {
   type IssueGapRow,
   type CandidateVoice,
 } from "@/lib/audit";
+import { Card } from "@/components/ui/card";
 import { AdminNav } from "@/components/AdminNav";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
@@ -19,7 +20,7 @@ function leanBadge(lean: "L" | "M" | "R"): string {
     case "R":
       return "bg-red-100 text-red-800";
     default:
-      return "bg-gray-100 text-gray-700";
+      return "bg-muted text-ink-body";
   }
 }
 
@@ -48,8 +49,8 @@ function ChannelCadenceTable({ rows }: { rows: ChannelAuditRow[] }) {
 
   return (
     <>
-      <div className="border border-gray-200 rounded-lg bg-white">
-        <div className="px-3 py-2 grid grid-cols-[1fr_70px_70px_70px_70px_70px_70px] gap-3 text-[10px] uppercase tracking-wider text-gray-400 bg-gray-50 border-b border-gray-200">
+      <Card>
+        <div className="px-3 py-2 grid grid-cols-[1fr_70px_70px_70px_70px_70px_70px] gap-3 text-[10px] uppercase tracking-wider text-ink-faint bg-subtle border-b border-border">
           <div>Channel</div>
           <div className="text-right">Reach</div>
           <div className="text-right">Eps/14d</div>
@@ -62,7 +63,7 @@ function ChannelCadenceTable({ rows }: { rows: ChannelAuditRow[] }) {
           <a
             key={c.id}
             href={`/channels/${c.id}`}
-            className="px-3 py-2 grid grid-cols-[1fr_70px_70px_70px_70px_70px_70px] gap-3 items-center text-sm hover:bg-gray-50 border-b border-gray-100 last:border-b-0"
+            className="px-3 py-2 grid grid-cols-[1fr_70px_70px_70px_70px_70px_70px] gap-3 items-center text-sm hover:bg-subtle border-b border-muted last:border-b-0"
           >
             <div className="flex items-center gap-2 min-w-0">
               <span
@@ -70,16 +71,16 @@ function ChannelCadenceTable({ rows }: { rows: ChannelAuditRow[] }) {
               >
                 {c.political_lean}
               </span>
-              <span className="truncate font-medium text-gray-900">
+              <span className="truncate font-medium text-foreground">
                 {c.name}
                 {isDup(c.name) && (
-                  <span className="ml-1 text-[10px] text-gray-400 uppercase tracking-wider">
+                  <span className="ml-1 text-[10px] text-ink-faint uppercase tracking-wider">
                     ({platformAbbrev(c.platform)})
                   </span>
                 )}
               </span>
             </div>
-            <div className="text-right text-xs text-gray-500 tabular-nums">
+            <div className="text-right text-xs text-muted-foreground tabular-nums">
               {c.reach >= 1_000_000
                 ? `${(c.reach / 1_000_000).toFixed(1)}M`
                 : c.reach >= 1_000
@@ -87,15 +88,15 @@ function ChannelCadenceTable({ rows }: { rows: ChannelAuditRow[] }) {
                 : c.reach}
             </div>
             <div className="text-right tabular-nums">{c.episodes_14d}</div>
-            <div className="text-right text-xs text-gray-500 tabular-nums">
+            <div className="text-right text-xs text-muted-foreground tabular-nums">
               {formatDate(c.last_published_at)}
             </div>
             <div className="text-right tabular-nums">{c.classifications_14d}</div>
             <div className="text-right tabular-nums">{c.distinct_issues_14d}</div>
-            <div className="text-right text-xs text-gray-500">{c.platform}</div>
+            <div className="text-right text-xs text-muted-foreground">{c.platform}</div>
           </a>
         ))}
-      </div>
+      </Card>
 
       {dormant.length > 0 && (
         <div className="mt-6">
@@ -118,14 +119,14 @@ function ChannelCadenceTable({ rows }: { rows: ChannelAuditRow[] }) {
                   <span className="truncate font-medium">
                     {c.name}
                     {isDup(c.name) && (
-                      <span className="ml-1 text-[10px] text-gray-400 uppercase tracking-wider">
+                      <span className="ml-1 text-[10px] text-ink-faint uppercase tracking-wider">
                         ({platformAbbrev(c.platform)})
                       </span>
                     )}
                   </span>
-                  <span className="text-xs text-gray-500">({c.platform})</span>
+                  <span className="text-xs text-muted-foreground">({c.platform})</span>
                 </div>
-                <div className="text-xs text-gray-500 tabular-nums">
+                <div className="text-xs text-muted-foreground tabular-nums">
                   last: {formatDate(c.last_published_at)}
                 </div>
               </a>
@@ -139,8 +140,8 @@ function ChannelCadenceTable({ rows }: { rows: ChannelAuditRow[] }) {
 
 function IssueGapTable({ rows }: { rows: IssueGapRow[] }) {
   return (
-    <div className="border border-gray-200 rounded-lg bg-white divide-y divide-gray-200">
-      <div className="px-3 py-2 grid grid-cols-[1fr_60px_60px_60px_80px] gap-3 text-[10px] uppercase tracking-wider text-gray-400 bg-gray-50">
+    <Card className="divide-y divide-border">
+      <div className="px-3 py-2 grid grid-cols-[1fr_60px_60px_60px_80px] gap-3 text-[10px] uppercase tracking-wider text-ink-faint bg-subtle">
         <div>Issue</div>
         <div className="text-right">L</div>
         <div className="text-right">M</div>
@@ -154,7 +155,7 @@ function IssueGapTable({ rows }: { rows: IssueGapRow[] }) {
           <a
             key={i.slug}
             href={`/issues/${i.slug}`}
-            className="px-3 py-2 grid grid-cols-[1fr_60px_60px_60px_80px] gap-3 items-center text-sm hover:bg-gray-50"
+            className="px-3 py-2 grid grid-cols-[1fr_60px_60px_60px_80px] gap-3 items-center text-sm hover:bg-subtle"
           >
             <div className="font-medium truncate">{i.name}</div>
             <div
@@ -162,7 +163,7 @@ function IssueGapTable({ rows }: { rows: IssueGapRow[] }) {
             >
               {i.l_mentions}
             </div>
-            <div className="text-right tabular-nums text-gray-500">{i.m_mentions}</div>
+            <div className="text-right tabular-nums text-muted-foreground">{i.m_mentions}</div>
             <div
               className={`text-right tabular-nums ${rLight ? "text-amber-600 font-semibold" : ""}`}
             >
@@ -170,7 +171,7 @@ function IssueGapTable({ rows }: { rows: IssueGapRow[] }) {
             </div>
             <div
               className={`text-right tabular-nums font-semibold ${
-                i.lean_gap > 0 ? "text-red-600" : i.lean_gap < 0 ? "text-blue-600" : "text-gray-500"
+                i.lean_gap > 0 ? "text-red-600" : i.lean_gap < 0 ? "text-blue-600" : "text-muted-foreground"
               }`}
             >
               {i.lean_gap > 0 ? "+" : ""}
@@ -179,7 +180,7 @@ function IssueGapTable({ rows }: { rows: IssueGapRow[] }) {
           </a>
         );
       })}
-    </div>
+    </Card>
   );
 }
 
@@ -191,14 +192,14 @@ function VoiceTable({ rows }: { rows: CandidateVoice[] }) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
       <div>
-        <h3 className="text-sm font-semibold text-gray-700 mb-2">
+        <h3 className="text-sm font-semibold text-ink-body mb-2">
           Candidates to consider adding ({candidates.length})
         </h3>
-        <p className="text-xs text-gray-500 mb-3">
+        <p className="text-xs text-muted-foreground mb-3">
           Names appearing in our existing transcripts that we don&apos;t yet track. Higher
           mention count = stronger candidate.
         </p>
-        <div className="border border-gray-200 rounded-lg bg-white divide-y divide-gray-200">
+        <Card className="divide-y divide-border">
           {candidates.map((v) => (
             <div
               key={v.name}
@@ -207,39 +208,39 @@ function VoiceTable({ rows }: { rows: CandidateVoice[] }) {
               <span className="font-medium">{v.name}</span>
               <span
                 className={`tabular-nums ${
-                  v.mentions >= 10 ? "text-amber-700 font-semibold" : "text-gray-500"
+                  v.mentions >= 10 ? "text-amber-700 font-semibold" : "text-muted-foreground"
                 }`}
               >
                 {v.mentions}
               </span>
             </div>
           ))}
-        </div>
+        </Card>
       </div>
 
       <div>
-        <h3 className="text-sm font-semibold text-gray-700 mb-2">
+        <h3 className="text-sm font-semibold text-ink-body mb-2">
           Tracked, for reference ({tracked.length})
         </h3>
-        <p className="text-xs text-gray-500 mb-3">
+        <p className="text-xs text-muted-foreground mb-3">
           How often each currently-tracked voice is referenced in our own transcripts.
           Helps spot most-cited voices in the alt-media conversation.
         </p>
-        <div className="border border-gray-200 rounded-lg bg-white divide-y divide-gray-200">
+        <Card className="divide-y divide-border">
           {tracked.map((v) => (
             <div
               key={v.name}
               className="px-3 py-2 flex items-center justify-between text-sm"
             >
-              <span className="font-medium text-gray-700">{v.name}</span>
-              <span className="tabular-nums text-gray-500">{v.mentions}</span>
+              <span className="font-medium text-ink-body">{v.name}</span>
+              <span className="tabular-nums text-muted-foreground">{v.mentions}</span>
             </div>
           ))}
-        </div>
+        </Card>
       </div>
 
       {zero.length > 0 && (
-        <div className="md:col-span-2 text-xs text-gray-500">
+        <div className="md:col-span-2 text-xs text-muted-foreground">
           No mentions found for: {zero.map((v) => v.name).join(", ")}.
         </div>
       )}
@@ -263,7 +264,7 @@ export default async function ChannelsAuditPage() {
         <h1 className="text-3xl md:text-4xl font-semibold tracking-tight">
           Channels audit
         </h1>
-        <p className="text-gray-600 mt-3 leading-relaxed max-w-3xl">
+        <p className="text-ink-muted mt-3 leading-relaxed max-w-3xl">
           Three views to guide channel curation: publishing cadence (who is
           posting, who has gone dormant), L/M/R coverage gaps by issue
           (which issues need more voices on one side), and a "mentioned but
@@ -274,7 +275,7 @@ export default async function ChannelsAuditPage() {
         <section className="mt-12">
           <div className="flex items-baseline justify-between mb-3">
             <h2 className="text-lg font-semibold">Publishing cadence</h2>
-            <span className="text-xs text-gray-500">last 14 days</span>
+            <span className="text-xs text-muted-foreground">last 14 days</span>
           </div>
           <ChannelCadenceTable rows={audit} />
         </section>
@@ -282,9 +283,9 @@ export default async function ChannelsAuditPage() {
         <section className="mt-16">
           <div className="flex items-baseline justify-between mb-3">
             <h2 className="text-lg font-semibold">L/M/R coverage gaps by issue</h2>
-            <span className="text-xs text-gray-500">all time, sorted by |gap|</span>
+            <span className="text-xs text-muted-foreground">all time, sorted by |gap|</span>
           </div>
-          <p className="text-sm text-gray-600 mb-3 max-w-2xl">
+          <p className="text-sm text-ink-muted mb-3 max-w-2xl">
             Mention counts per issue, bucketed by the political lean of the
             channel that produced the mention. A large gap doesn&apos;t
             necessarily indicate a problem (some issues genuinely break one way
@@ -298,9 +299,9 @@ export default async function ChannelsAuditPage() {
         <section className="mt-16">
           <div className="flex items-baseline justify-between mb-3">
             <h2 className="text-lg font-semibold">Mentioned voices</h2>
-            <span className="text-xs text-gray-500">scanning all classification supporting quotes</span>
+            <span className="text-xs text-muted-foreground">scanning all classification supporting quotes</span>
           </div>
-          <p className="text-sm text-gray-600 mb-5 max-w-2xl">
+          <p className="text-sm text-ink-muted mb-5 max-w-2xl">
             Curated list of alt-media voices. Counts reflect how often each
             name appears in our own transcript-derived supporting quotes.
             Untracked candidates with high mention counts are strong

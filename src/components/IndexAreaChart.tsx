@@ -157,10 +157,10 @@ export function IndexAreaChart({
         </AreaChart>
       </ChartContainer>
 
-      <div className="text-[10px] uppercase tracking-wider text-gray-400 mt-1 text-center">
+      <div className="text-[10px] uppercase tracking-wider text-ink-faint mt-1 text-center">
         Range{" "}
-        <span className="tabular-nums text-gray-600 font-medium normal-case">{minVal}</span> to{" "}
-        <span className="tabular-nums text-gray-600 font-medium normal-case">{maxVal}</span> ·
+        <span className="tabular-nums text-ink-muted font-medium normal-case">{minVal}</span> to{" "}
+        <span className="tabular-nums text-ink-muted font-medium normal-case">{maxVal}</span> ·
         rolling {windowDays}-day index
       </div>
     </div>

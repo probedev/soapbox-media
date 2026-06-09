@@ -10,7 +10,7 @@ export default function MethodologyPage() {
 
       <section className="px-6 pt-10 pb-16 max-w-3xl mx-auto">
         <h1 className="text-3xl md:text-4xl font-semibold tracking-tight">Methodology</h1>
-        <p className="text-gray-600 mt-3 leading-relaxed">
+        <p className="text-ink-muted mt-3 leading-relaxed">
           This page documents exactly how every number on Soapbox is computed - the data sources,
           the math, the channel list, and the known limitations. If a figure appears on the site,
           its derivation is here. The pipeline runs once daily, so every figure reflects the
@@ -18,7 +18,7 @@ export default function MethodologyPage() {
         </p>
 
         <h2 className="text-xl font-semibold mt-12">What we measure</h2>
-        <p className="text-gray-700 mt-3 leading-relaxed">
+        <p className="text-ink-body mt-3 leading-relaxed">
           We track a curated set of high-reach political channels on YouTube and podcasts
           and analyze what they&apos;re saying about a defined set of political issues. We classify
           each substantive issue mention, then score it on alignment with the left or right
@@ -26,13 +26,13 @@ export default function MethodologyPage() {
         </p>
 
         <h2 className="text-xl font-semibold mt-12">The Soapbox Index</h2>
-        <p className="text-gray-700 mt-3 leading-relaxed">
+        <p className="text-ink-body mt-3 leading-relaxed">
           The headline number on the home page. It compresses every issue mention across every
           channel from <strong>the trailing 7-day window ending today</strong> into one signed
           value. The window slides forward each day as the cron runs, so the Index always reflects
           the most recent week of content but updates daily as new episodes are ingested.
         </p>
-        <div className="mt-4 p-5 bg-gray-50 border border-gray-200 rounded-md font-mono text-sm text-gray-800 leading-relaxed">
+        <div className="mt-4 p-5 bg-subtle border border-border rounded-md font-mono text-sm text-ink-strong leading-relaxed">
           reach_factor = log10(max(channel_reach, 10))
           <br />
           weight = intensity × reach_factor
@@ -44,12 +44,12 @@ export default function MethodologyPage() {
           <br />
           soapbox_index = clip(weighted_lean × 2, -10, +10)
         </div>
-        <p className="text-gray-700 mt-4 leading-relaxed">
+        <p className="text-ink-body mt-4 leading-relaxed">
           A reading of <span className="font-semibold text-red-600">R+1.2</span> means the
           channels we track, weighted by audience reach and intensity of expression, are net 1.2
           points right of center on the -10/+10 scale this week.
         </p>
-        <p className="text-gray-700 mt-4 leading-relaxed">
+        <p className="text-ink-body mt-4 leading-relaxed">
           Two deliberate choices keep this honest. First, every voice is weighted by its{" "}
           <strong>audience reach</strong> (the <code className="text-sm">log10</code> above), so a
           5M-subscriber show counts for more than a 50K one - the Index reflects what audiences
@@ -60,34 +60,34 @@ export default function MethodologyPage() {
           often.
         </p>
 
-        <p className="text-gray-700 mt-4 leading-relaxed">
+        <p className="text-ink-body mt-4 leading-relaxed">
           The per-issue breakdown that explains today&apos;s Index lives on the{" "}
-          <a href="/" className="underline hover:text-gray-900">home page</a>, where it
+          <a href="/" className="underline hover:text-foreground">home page</a>, where it
           stays aligned with the headline number.
         </p>
 
         <h2 className="text-xl font-semibold mt-12">Channel selection</h2>
-        <p className="text-gray-700 mt-3 leading-relaxed">
+        <p className="text-ink-body mt-3 leading-relaxed">
           Channels are curated by the founding team and balanced across Left, Middle, and Right
           political-publishing posture, <em>not</em> by individual host beliefs. The list reflects
           share-of-voice on the platform, which skews structurally right-of-center in published
           reach. Pretending the split is even would be dishonest measurement; the imbalance is the
           finding, not a bug. Every channel&apos;s classification rationale is available on the
-          relevant <a href="/channels" className="underline hover:text-gray-900">channels page</a>.
+          relevant <a href="/channels" className="underline hover:text-foreground">channels page</a>.
         </p>
 
         <h2 className="text-xl font-semibold mt-12">Audience reach: how we measure it</h2>
-        <p className="text-gray-700 mt-3 leading-relaxed">
+        <p className="text-ink-body mt-3 leading-relaxed">
           Reach is the weighting input in the Index formula above, so it deserves its own
           disclosure. The two platforms are measured differently, because the data available for
           them is fundamentally different.
         </p>
-        <p className="text-gray-700 mt-4 leading-relaxed">
+        <p className="text-ink-body mt-4 leading-relaxed">
           <strong>YouTube channels</strong> use subscriber counts from the YouTube Data API,
           refreshed automatically every day during the ingest pass. These are measured values
           straight from the platform - current, consistent, and not subject to our judgment.
         </p>
-        <p className="text-gray-700 mt-4 leading-relaxed">
+        <p className="text-ink-body mt-4 leading-relaxed">
           <strong>Podcasts</strong> have no equivalent. No public per-show audience measurement
           exists at panel scale: the professional sources (Edison, Triton) are enterprise-gated
           and cover only top-chart shows, and when we tested commercial aggregators&apos; audience
@@ -96,7 +96,7 @@ export default function MethodologyPage() {
           <strong>editorial</strong>: an estimated weekly US audience, set by hand and bracketed
           to coarse tiers (150k, 300k, 500k, 1M, …) rather than presented with false precision.
         </p>
-        <p className="text-gray-700 mt-4 leading-relaxed">
+        <p className="text-ink-body mt-4 leading-relaxed">
           Estimates are anchored to the ~28 shows whose audiences are publicly corroborated
           (Edison rankings, publisher announcements), and the remaining panel is placed on that
           scale using multiple signals: chart positions, ratings volume, public rankers,
@@ -105,7 +105,7 @@ export default function MethodologyPage() {
           panel-add time and recalibrated periodically; the most recent full-panel pass was
           June&nbsp;2026.
         </p>
-        <p className="text-gray-700 mt-4 leading-relaxed">
+        <p className="text-ink-body mt-4 leading-relaxed">
           Why this is tolerable: the Index weights by <code className="text-sm">log10(reach)</code>,
           which compresses estimation error. If we&apos;re wrong about a show&apos;s audience by 2×,
           its weight moves by about 0.3 (log10 of 2), or roughly 5% of a typical weight - not 2×.
@@ -114,11 +114,11 @@ export default function MethodologyPage() {
         </p>
 
         <h2 className="text-xl font-semibold mt-12">Cohorts: independent vs legacy</h2>
-        <p className="text-gray-700 mt-3 leading-relaxed">
+        <p className="text-ink-body mt-3 leading-relaxed">
           We track two cohorts of channel on the same platform (YouTube and podcasts), scored the
           same way:
         </p>
-        <ul className="text-gray-700 mt-3 leading-relaxed list-disc pl-5 space-y-2">
+        <ul className="text-ink-body mt-3 leading-relaxed list-disc pl-5 space-y-2">
           <li>
             <strong>Independent</strong> - creator and digital-native outlets (e.g. Breaking Points,
             The Young Turks, the Shapiro/Walsh shows). The audience is there for the politics.
@@ -129,16 +129,16 @@ export default function MethodologyPage() {
             stands in for political audience, not general-news viewership.
           </li>
         </ul>
-        <p className="text-gray-700 mt-3 leading-relaxed">
+        <p className="text-ink-body mt-3 leading-relaxed">
           The headline Index blends both cohorts, weighted by audience as above; the two
-          sub-needles on the <a href="/" className="underline hover:text-gray-900">home page</a> show
+          sub-needles on the <a href="/" className="underline hover:text-foreground">home page</a> show
           each cohort on its own, so the split that the blended number averages over stays visible.
           Legacy follows the same 3-episodes/day cap as everyone else, so a high-volume newsroom
           can&apos;t dominate by posting frequency.
         </p>
 
         <h2 className="text-xl font-semibold mt-12">Issue taxonomy</h2>
-        <p className="text-gray-700 mt-3 leading-relaxed">
+        <p className="text-ink-body mt-3 leading-relaxed">
           A set of 16 issues: Immigration, Inflation, Israel–Gaza, Ukraine, China policy,
           Trump/GOP, Democratic leadership, Transgender/LGBTQ policy, Crime, Election integrity, AI
           policy, Free speech, Education/DEI, Abortion, Climate, and the Iran conflict. For each
@@ -148,11 +148,11 @@ export default function MethodologyPage() {
         </p>
 
         <h2 className="text-xl font-semibold mt-12">Classification and scoring</h2>
-        <p className="text-gray-700 mt-3 leading-relaxed">
+        <p className="text-ink-body mt-3 leading-relaxed">
           For every episode we ingest, we pull a transcript (PodScan for podcasts; YouTube
           auto-captions for video). We then run two LLM passes:
         </p>
-        <ul className="list-disc pl-6 mt-3 space-y-2 text-gray-700 leading-relaxed">
+        <ul className="list-disc pl-6 mt-3 space-y-2 text-ink-body leading-relaxed">
           <li>
             <strong>Classify</strong> (Claude Sonnet 4.6): read the full transcript, return a list
             of <em>substantive</em> issue mentions with a supporting quote each. Passing
@@ -166,7 +166,7 @@ export default function MethodologyPage() {
         </ul>
 
         <h2 className="text-xl font-semibold mt-12">Known limitations</h2>
-        <ul className="list-disc pl-6 mt-3 space-y-2 text-gray-700 leading-relaxed">
+        <ul className="list-disc pl-6 mt-3 space-y-2 text-ink-body leading-relaxed">
           <li>
             <strong>Transcript coverage</strong>: a small fraction of episodes can&apos;t be
             transcribed - a podcast feed without a published transcript, or a video without
@@ -199,7 +199,7 @@ export default function MethodologyPage() {
         </ul>
 
         <h2 className="text-xl font-semibold mt-12">Update cadence</h2>
-        <p className="text-gray-700 mt-3 leading-relaxed">
+        <p className="text-ink-body mt-3 leading-relaxed">
           The full pipeline (ingest → transcribe → classify → score) runs as a single scheduled
           job at 6 AM Eastern, daily. New episodes from the past day are ingested, transcribed,
           classified, and scored. The Soapbox Index, issue contributions, channel drill-downs,
@@ -210,7 +210,7 @@ export default function MethodologyPage() {
         </p>
 
         <h2 className="text-xl font-semibold mt-12">Why this exists</h2>
-        <p className="text-gray-700 mt-3 leading-relaxed">
+        <p className="text-ink-body mt-3 leading-relaxed">
           Political influence has moved from cable and print to podcasts and YouTube. Polling and
           legacy media-monitoring don&apos;t capture this. Soapbox is built so consumers, creators,
           and political operatives all have a way to see past their own algorithmic bubble.

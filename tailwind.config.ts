@@ -48,6 +48,18 @@ const config: Config = {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
+        // Extended neutral text ramp (preserves the 6-step gray text hierarchy
+        // the pages use; stock shadcn only ships foreground + muted-foreground).
+        // Used as text-ink-strong / text-ink-body / etc.
+        ink: {
+          strong: "hsl(var(--ink-strong))",
+          body: "hsl(var(--ink-body))",
+          muted: "hsl(var(--ink-muted))",
+          faint: "hsl(var(--ink-faint))",
+          faintest: "hsl(var(--ink-faintest))",
+        },
+        // Lightest neutral surface (gray-50): bg-subtle, zebra/hover rows.
+        subtle: "hsl(var(--subtle))",
       },
       borderRadius: {
         lg: "var(--radius)",

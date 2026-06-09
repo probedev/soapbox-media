@@ -25,16 +25,16 @@ export function TrustStrip({
   });
 
   return (
-    <div className="text-xs text-gray-500 flex flex-wrap items-center justify-center gap-x-3 gap-y-1">
+    <div className="text-xs text-muted-foreground flex flex-wrap items-center justify-center gap-x-3 gap-y-1">
       <span>{asOfLabel}</span>
       <span aria-hidden>·</span>
       <span>
-        <span className="font-semibold text-gray-700 tabular-nums">{numChannels}</span>{" "}
+        <span className="font-semibold text-ink-body tabular-nums">{numChannels}</span>{" "}
         channels
       </span>
       <span aria-hidden>·</span>
       <span>
-        <span className="font-semibold text-gray-700 tabular-nums">
+        <span className="font-semibold text-ink-body tabular-nums">
           {numEpisodes.toLocaleString()}
         </span>{" "}
         episodes tracked

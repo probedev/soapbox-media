@@ -39,8 +39,8 @@ function Segmented({
           className={cn(
             "h-9 min-w-[2.25rem] px-2 rounded-md border text-sm font-normal tabular-nums transition",
             value === v
-              ? "border-gray-900 bg-gray-900 text-white hover:bg-gray-900 hover:text-white"
-              : "border-gray-300 text-gray-700 hover:bg-transparent hover:border-gray-500",
+              ? "border-foreground bg-primary text-white hover:bg-primary hover:text-white"
+              : "border-input text-ink-body hover:bg-transparent hover:border-muted-foreground",
           )}
         >
           {format(v)}
@@ -158,7 +158,7 @@ export function LabelClient() {
         <h1 className="text-3xl font-semibold tracking-tight">
           Scoring calibration
         </h1>
-        <p className="text-gray-600 mt-3 leading-relaxed">
+        <p className="text-ink-muted mt-3 leading-relaxed">
           Thanks for helping calibrate Soapbox. You&apos;ll score short quotes
           from political shows on two scales the platform uses. We compare your
           independent judgment against the model&apos;s to find where it&apos;s
@@ -166,9 +166,9 @@ export function LabelClient() {
           finish in one sitting.
         </p>
 
-        <div className="mt-6 space-y-5 text-sm text-gray-700 leading-relaxed">
+        <div className="mt-6 space-y-5 text-sm text-ink-body leading-relaxed">
           <div>
-            <div className="font-semibold text-gray-900">Sentiment (−5…+5)</div>
+            <div className="font-semibold text-foreground">Sentiment (−5…+5)</div>
             <p className="mt-1">
               How strongly the quote aligns with the <strong>LEFT</strong> vs.{" "}
               <strong>RIGHT</strong> position <em>on the specific issue shown</em>
@@ -180,7 +180,7 @@ export function LabelClient() {
             </p>
           </div>
           <div>
-            <div className="font-semibold text-gray-900">Intensity (1…5)</div>
+            <div className="font-semibold text-foreground">Intensity (1…5)</div>
             <p className="mt-1">
               How strongly it&apos;s expressed - 1 = passing remark, 5 = the
               passionate central argument. Independent of sentiment: a passing
@@ -188,34 +188,34 @@ export function LabelClient() {
             </p>
           </div>
           <div>
-            <div className="font-semibold text-gray-900">Confidence (1…3)</div>
+            <div className="font-semibold text-foreground">Confidence (1…3)</div>
             <p className="mt-1">
               1 = guessing, 2 = reasonably sure, 3 = very confident.
             </p>
           </div>
-          <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 space-y-3">
-            <div className="text-xs uppercase tracking-wider text-gray-500 font-medium">
+          <div className="rounded-lg border border-border bg-subtle p-4 space-y-3">
+            <div className="text-xs uppercase tracking-wider text-muted-foreground font-medium">
               Calibration examples
             </div>
             <p>
-              <span className="text-gray-500">Immigration, “…border is fine…
+              <span className="text-muted-foreground">Immigration, “…border is fine…
               destroying wages of working-class Americans.”</span>{" "}
               → <strong>+4</strong>, intensity 3 (strong R, deliberate).
             </p>
             <p>
-              <span className="text-gray-500">Free speech, “…once you give
+              <span className="text-muted-foreground">Free speech, “…once you give
               platforms power to decide what&apos;s true, they&apos;ll abuse
               it.”</span>{" "}
               → <strong>+3</strong>, intensity 3 (strong R, acknowledges the L
               concern).
             </p>
             <p>
-              <span className="text-gray-500">Trump/GOP, “lots to criticize on
+              <span className="text-muted-foreground">Trump/GOP, “lots to criticize on
               tariffs, but not the disaster the media claims.”</span>{" "}
               → <strong>+1</strong>, intensity 2 (mild R, qualified).
             </p>
           </div>
-          <ul className="list-disc pl-5 space-y-1 text-gray-600">
+          <ul className="list-disc pl-5 space-y-1 text-ink-muted">
             <li>Score only what&apos;s in the quote. If you can&apos;t tell, score 0 and lower confidence.</li>
             <li>Sarcasm / quoting an opponent: score what they actually mean.</li>
             <li>If the quote seems mis-filed under its issue, note it and score 0.</li>
@@ -224,7 +224,7 @@ export function LabelClient() {
         </div>
 
         <div className="mt-6">
-          <Label className="block text-sm font-medium text-gray-700 mb-1 leading-normal">
+          <Label className="block text-sm font-medium text-ink-body mb-1 leading-normal">
             Your name
           </Label>
           <Input
@@ -233,7 +233,7 @@ export function LabelClient() {
             placeholder="e.g. Jordan Lee"
             className="max-w-xs"
           />
-          <p className="text-xs text-gray-500 mt-1">
+          <p className="text-xs text-muted-foreground mt-1">
             Used only to save and resume your answers.
           </p>
         </div>
@@ -252,7 +252,7 @@ export function LabelClient() {
     return (
       <div className="text-center py-16">
         <h1 className="text-2xl font-semibold tracking-tight">All done - thank you!</h1>
-        <p className="text-gray-600 mt-3">
+        <p className="text-ink-muted mt-3">
           You&apos;ve scored {doneCount} of {total} items. Your responses are
           saved. You can close this tab.
         </p>
@@ -266,21 +266,21 @@ export function LabelClient() {
   return (
     <div>
       {/* Progress */}
-      <div className="flex items-center justify-between text-xs text-gray-500 mb-2">
+      <div className="flex items-center justify-between text-xs text-muted-foreground mb-2">
         <span>
           Item {doneCount + 1} of {total}
         </span>
         <span className="tabular-nums">{progressPct}% complete</span>
       </div>
-      <div className="h-1.5 rounded-full bg-gray-200 mb-6">
+      <div className="h-1.5 rounded-full bg-border mb-6">
         <div
-          className="h-1.5 rounded-full bg-gray-900 transition-all"
+          className="h-1.5 rounded-full bg-primary transition-all"
           style={{ width: `${progressPct}%` }}
         />
       </div>
 
       {/* Item context */}
-      <div className="text-xs text-gray-500 flex items-center gap-2">
+      <div className="text-xs text-muted-foreground flex items-center gap-2">
         <span>{leanSource(current.channel_lean)}</span>
         {current.episode_date && (
           <>
@@ -289,21 +289,21 @@ export function LabelClient() {
           </>
         )}
       </div>
-      <div className="mt-1 text-sm font-semibold text-gray-900">
+      <div className="mt-1 text-sm font-semibold text-foreground">
         Issue: {current.issue_name}
       </div>
       <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
         <div className="rounded-md border border-blue-200 bg-blue-50 p-2">
           <span className="font-semibold text-blue-800">LEFT (−)</span>
-          <div className="text-gray-700 mt-0.5">{current.issue_left_position}</div>
+          <div className="text-ink-body mt-0.5">{current.issue_left_position}</div>
         </div>
         <div className="rounded-md border border-red-200 bg-red-50 p-2">
           <span className="font-semibold text-red-800">RIGHT (+)</span>
-          <div className="text-gray-700 mt-0.5">{current.issue_right_position}</div>
+          <div className="text-ink-body mt-0.5">{current.issue_right_position}</div>
         </div>
       </div>
 
-      <blockquote className="mt-4 border-l-4 border-gray-300 pl-4 py-1 text-gray-900 leading-relaxed">
+      <blockquote className="mt-4 border-l-4 border-input pl-4 py-1 text-foreground leading-relaxed">
         “{current.quote}”
       </blockquote>
 
@@ -311,8 +311,8 @@ export function LabelClient() {
       <div className="mt-6 space-y-5">
         <div>
           <div className="flex items-baseline justify-between">
-            <Label className="text-sm font-medium text-gray-700 leading-normal">Sentiment</Label>
-            <span className="text-[11px] text-gray-400">−5 Left · 0 neutral · +5 Right</span>
+            <Label className="text-sm font-medium text-ink-body leading-normal">Sentiment</Label>
+            <span className="text-[11px] text-ink-faint">−5 Left · 0 neutral · +5 Right</span>
           </div>
           <div className="mt-1.5">
             <Segmented
@@ -326,8 +326,8 @@ export function LabelClient() {
         </div>
 
         <div>
-          <Label className="text-sm font-medium text-gray-700 leading-normal">Intensity</Label>
-          <span className="text-[11px] text-gray-400 ml-2">1 passing · 5 central argument</span>
+          <Label className="text-sm font-medium text-ink-body leading-normal">Intensity</Label>
+          <span className="text-[11px] text-ink-faint ml-2">1 passing · 5 central argument</span>
           <div className="mt-1.5">
             <Segmented
               values={INTENSITY_VALUES}
@@ -339,8 +339,8 @@ export function LabelClient() {
         </div>
 
         <div>
-          <Label className="text-sm font-medium text-gray-700 leading-normal">Confidence</Label>
-          <span className="text-[11px] text-gray-400 ml-2">1 guessing · 3 very confident</span>
+          <Label className="text-sm font-medium text-ink-body leading-normal">Confidence</Label>
+          <span className="text-[11px] text-ink-faint ml-2">1 guessing · 3 very confident</span>
           <div className="mt-1.5">
             <Segmented
               values={CONFIDENCE_VALUES}
@@ -352,8 +352,8 @@ export function LabelClient() {
         </div>
 
         <div>
-          <Label className="text-sm font-medium text-gray-700 leading-normal">
-            Notes <span className="text-gray-400 font-normal">(optional)</span>
+          <Label className="text-sm font-medium text-ink-body leading-normal">
+            Notes <span className="text-ink-faint font-normal">(optional)</span>
           </Label>
           <Textarea
             value={notes}

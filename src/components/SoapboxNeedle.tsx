@@ -79,7 +79,7 @@ export function SoapboxNeedle({ value, width = 420, height = 260 }: SoapboxNeedl
       <text x={cx - r} y={cy + 28} textAnchor="middle" className="fill-blue-600" fontSize="14" fontWeight="600">
         L 10
       </text>
-      <text x={cx} y={cy - r - 14} textAnchor="middle" className="fill-gray-500" fontSize="13">
+      <text x={cx} y={cy - r - 14} textAnchor="middle" className="fill-muted-foreground" fontSize="13">
         0
       </text>
       <text x={cx + r} y={cy + 28} textAnchor="middle" className="fill-red-600" fontSize="14" fontWeight="600">

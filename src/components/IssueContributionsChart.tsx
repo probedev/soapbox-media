@@ -4,6 +4,7 @@ import {
   type IssueContribution,
 } from "@/lib/aggregate";
 import { Table, TableBody, TableCell, TableRow } from "@/components/ui/table";
+import { Card } from "@/components/ui/card";
 
 function formatLean(direction: "L" | "R" | "neutral", magnitude: number): string {
   if (direction === "neutral") return "0.0";
@@ -13,7 +14,7 @@ function formatLean(direction: "L" | "R" | "neutral", magnitude: number): string
 function leanColor(direction: "L" | "R" | "neutral"): string {
   if (direction === "L") return "text-blue-600";
   if (direction === "R") return "text-red-600";
-  return "text-gray-600";
+  return "text-ink-muted";
 }
 
 function ContributionRow({
@@ -30,8 +31,8 @@ function ContributionRow({
   const sentimentLabel = formatLean(direction, Math.abs(issue.avgSentiment));
 
   return (
-    <TableRow className="group relative grid grid-cols-[1fr_2.5fr_140px] items-center gap-4 py-1.5 hover:bg-gray-50 px-2 -mx-2 rounded transition border-0">
-      <TableCell className="p-0 text-sm font-medium text-gray-900 text-right truncate">
+    <TableRow className="group relative grid grid-cols-[1fr_2.5fr_140px] items-center gap-4 py-1.5 hover:bg-subtle px-2 -mx-2 rounded transition border-0">
+      <TableCell className="p-0 text-sm font-medium text-foreground text-right truncate">
         {/* Stretched link makes the whole row navigable while keeping one href. */}
         <a
           href={`/issues/${issue.slug}`}
@@ -43,7 +44,7 @@ function ContributionRow({
 
       {/* Centered horizontal bar with zero axis */}
       <TableCell className="p-0 relative h-6">
-        <div className="absolute inset-y-0 left-1/2 w-px bg-gray-300" aria-hidden />
+        <div className="absolute inset-y-0 left-1/2 w-px bg-input" aria-hidden />
         {isL && (
           <div
             className="absolute top-0.5 bottom-0.5 bg-blue-500 rounded-l"
@@ -62,7 +63,7 @@ function ContributionRow({
         <span className={`font-semibold tabular-nums ${leanColor(direction)} min-w-[2.75rem]`}>
           {sentimentLabel}
         </span>
-        <span className="text-gray-500 tabular-nums">
+        <span className="text-muted-foreground tabular-nums">
           {issue.numClassifications} mentions
         </span>
       </TableCell>
@@ -85,7 +86,7 @@ export async function IssueContributionsChart({
 
   if (data.issues.length === 0) {
     return (
-      <div className="text-sm text-gray-500 italic">
+      <div className="text-sm text-muted-foreground italic">
         No classifications in the last {windowDays} days. Run the classify + score pipeline to
         populate this chart.
       </div>
@@ -102,7 +103,7 @@ export async function IssueContributionsChart({
 
   return (
     <div>
-      <div className="text-xs uppercase tracking-wider text-gray-500 mb-2">
+      <div className="text-xs uppercase tracking-wider text-muted-foreground mb-2">
         Why is the Index where it is?
       </div>
       <div className="text-2xl font-semibold leading-tight">
@@ -110,7 +111,7 @@ export async function IssueContributionsChart({
         <span className={`tabular-nums ${indexColor}`}>{indexLabel}</span> over the last{" "}
         {windowDays} days.
       </div>
-      <p className="text-gray-700 mt-3 leading-relaxed">
+      <p className="text-ink-body mt-3 leading-relaxed">
         {lPullers.length > 0 && (
           <>
             <span className="font-medium">Pulling left</span>:{" "}
@@ -137,7 +138,7 @@ export async function IssueContributionsChart({
         )}
       </p>
 
-      <div className="mt-6 border border-gray-200 rounded-lg p-4 bg-white">
+      <Card className="mt-6 p-4">
         <Table>
           <TableBody className="[&_tr:last-child]:border-0">
             {data.issues.map((issue) => (
@@ -149,7 +150,7 @@ export async function IssueContributionsChart({
             ))}
           </TableBody>
         </Table>
-        <div className="mt-4 grid grid-cols-[1fr_2.5fr_140px] gap-4 text-[10px] uppercase tracking-wider text-gray-400">
+        <div className="mt-4 grid grid-cols-[1fr_2.5fr_140px] gap-4 text-[10px] uppercase tracking-wider text-ink-faint">
           <div className="text-right">{data.totalClassifications.toLocaleString()} mentions</div>
           <div className="flex justify-between">
             <span>← Pulls L</span>
@@ -157,16 +158,16 @@ export async function IssueContributionsChart({
           </div>
           <div />
         </div>
-      </div>
+      </Card>
 
-      <p className="text-xs text-gray-500 mt-4 leading-relaxed">
-        Each bar shows <strong className="font-semibold text-gray-700">how much that issue moved
+      <p className="text-xs text-muted-foreground mt-4 leading-relaxed">
+        Each bar shows <strong className="font-semibold text-ink-body">how much that issue moved
         the Soapbox Index</strong> over the last {windowDays} days - longer means a bigger push,
         and the side shows which way it pushed. The number is the issue&apos;s{" "}
-        <strong className="font-semibold text-gray-700">average lean</strong> - which way it tilts
+        <strong className="font-semibold text-ink-body">average lean</strong> - which way it tilts
         per mention. The two can disagree: an issue discussed a lot but mildly can move the Index
         more than one discussed rarely but intensely.{" "}
-        <a href="/methodology" className="underline hover:text-gray-700">How this is calculated →</a>{" "}
+        <a href="/methodology" className="underline hover:text-ink-body">How this is calculated →</a>{" "}
         Click any issue for the channel-level breakdown.
       </p>
     </div>

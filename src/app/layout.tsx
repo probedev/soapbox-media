@@ -32,7 +32,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className={GeistSans.className}>
-      <body className="bg-white text-gray-900 antialiased">
+      <body className="bg-card text-foreground antialiased">
         <PostHogProvider>{children}</PostHogProvider>
       </body>
     </html>

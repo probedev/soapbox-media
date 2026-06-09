@@ -19,7 +19,7 @@ function leanBadge(lean: "L" | "M" | "R"): string {
     case "R":
       return "bg-red-100 text-red-800";
     default:
-      return "bg-gray-100 text-gray-700";
+      return "bg-muted text-ink-body";
   }
 }
 
@@ -128,25 +128,25 @@ export default async function ChannelsListPage() {
 
       <TooltipProvider delayDuration={150}>
       <section className="px-6 pt-10 pb-16 max-w-5xl mx-auto">
-        <div className="text-xs uppercase tracking-wider text-gray-500 mb-1">
-          <a href="/" className="hover:text-gray-700">
+        <div className="text-xs uppercase tracking-wider text-muted-foreground mb-1">
+          <a href="/" className="hover:text-ink-body">
             ← Soapbox Index
           </a>
         </div>
         <h1 className="text-3xl md:text-4xl font-semibold tracking-tight">
           Channels we track
         </h1>
-        <p className="text-gray-600 mt-3 leading-relaxed max-w-3xl">
+        <p className="text-ink-muted mt-3 leading-relaxed max-w-3xl">
           {shows.length} hand-curated alt-media political shows, balanced across
           Left, Middle, and Right publishing posture. YouTube subscriber counts
           refresh daily during the ingest pass; podcast audience estimates are
           editorial and reviewed at panel-add time. Lean classifications are
           editorial and reviewed quarterly. See the{" "}
-          <a href="/methodology" className="underline hover:text-gray-900">
+          <a href="/methodology" className="underline hover:text-foreground">
             methodology page
           </a>{" "}
           for selection criteria, or the{" "}
-          <a href="/log" className="underline hover:text-gray-900">
+          <a href="/log" className="underline hover:text-foreground">
             pipeline log
           </a>{" "}
           for system scale and daily health.
@@ -176,7 +176,7 @@ export default async function ChannelsListPage() {
                   : bucket === "R"
                   ? "Right-leaning"
                   : "Middle / cross-cutting"}{" "}
-                <span className="text-gray-400 text-sm font-normal">
+                <span className="text-ink-faint text-sm font-normal">
                   ({byLean[bucket].length})
                 </span>
               </h2>
@@ -189,14 +189,14 @@ export default async function ChannelsListPage() {
                 return (
                   <div
                     key={show.name}
-                    className="relative border border-gray-200 bg-white rounded-lg hover:border-gray-400 hover:shadow-sm transition group"
+                    className="relative border border-border bg-card rounded-lg hover:border-ink-faint hover:shadow-sm transition group"
                   >
                     <a
                       href={`/channels/${show.canonical_id}`}
                       className="block p-4 pr-20"
                     >
                       <div className="flex items-start justify-between gap-2">
-                        <div className="font-medium text-gray-900 flex items-center gap-2">
+                        <div className="font-medium text-foreground flex items-center gap-2">
                           <span
                             className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${leanBadge(show.political_lean)}`}
                           >
@@ -208,14 +208,14 @@ export default async function ChannelsListPage() {
                           {show.name}
                         </div>
                       </div>
-                      <div className="text-xs text-gray-500 mt-1 tabular-nums">
+                      <div className="text-xs text-muted-foreground mt-1 tabular-nums">
                         Reach: {show.maxReach.toLocaleString()}
-                        <span className="ml-2 text-[10px] uppercase tracking-wider text-gray-400">
+                        <span className="ml-2 text-[10px] uppercase tracking-wider text-ink-faint">
                           {platformText}
                         </span>
                       </div>
                       {show.classification_rationale && (
-                        <div className="text-xs text-gray-600 mt-2 leading-snug line-clamp-2">
+                        <div className="text-xs text-ink-muted mt-2 leading-snug line-clamp-2">
                           {show.classification_rationale}
                         </div>
                       )}
@@ -236,7 +236,7 @@ export default async function ChannelsListPage() {
                             rel="noopener noreferrer"
                             aria-label={`${ext.label} (${platformAbbrev(p.platform)})`}
                             title={`${ext.label} (${platformAbbrev(p.platform)})`}
-                            className="inline-flex items-center gap-0.5 text-gray-400 hover:text-gray-900 px-1 py-1 opacity-60 group-hover:opacity-100 transition"
+                            className="inline-flex items-center gap-0.5 text-ink-faint hover:text-foreground px-1 py-1 opacity-60 group-hover:opacity-100 transition"
                           >
                             <span className="text-[9px] font-semibold uppercase tracking-wider">
                               {platformAbbrev(p.platform)}

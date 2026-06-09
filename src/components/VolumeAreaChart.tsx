@@ -122,13 +122,13 @@ export function VolumeAreaChart({
         </AreaChart>
       </ChartContainer>
 
-      <div className="text-[10px] uppercase tracking-wider text-gray-400 mt-1 text-center">
+      <div className="text-[10px] uppercase tracking-wider text-ink-faint mt-1 text-center">
         Peak{" "}
-        <span className="tabular-nums text-gray-600 font-medium normal-case">
+        <span className="tabular-nums text-ink-muted font-medium normal-case">
           {peak.toLocaleString()}
         </span>{" "}
         · Low{" "}
-        <span className="tabular-nums text-gray-600 font-medium normal-case">
+        <span className="tabular-nums text-ink-muted font-medium normal-case">
           {trough.toLocaleString()}
         </span>{" "}
         · rolling {windowDays}-day mention count
