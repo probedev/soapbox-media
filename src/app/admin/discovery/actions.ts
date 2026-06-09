@@ -7,6 +7,7 @@ import {
   ignoreCandidate,
   buildDiscoveryCandidates,
   type PromoteInput,
+  type BuildResult,
 } from "@/lib/discovery";
 
 export async function promoteAction(input: PromoteInput) {
@@ -25,8 +26,15 @@ export async function ignoreAction(candidateId: string) {
   revalidatePath("/admin/discovery");
 }
 
-export async function refreshAction() {
-  const r = await buildDiscoveryCandidates();
-  revalidatePath("/admin/discovery");
-  return r;
+export async function refreshAction(): Promise<{ result?: BuildResult; error?: string }> {
+  try {
+    const result = await buildDiscoveryCandidates();
+    revalidatePath("/admin/discovery");
+    return { result };
+  } catch (e) {
+    // Surface clustering failures (e.g. model output truncation) instead of
+    // silently leaving the candidate list empty - the old swallow-and-return
+    // behavior is exactly what hid the max_tokens truncation bug.
+    return { error: (e as Error)?.message || String(e) };
+  }
 }

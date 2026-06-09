@@ -7,6 +7,46 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
+## v0.11.1 · 2026-06-09
+
+### Fixed
+
+- **Issue discovery silently regressed to zero candidates as topic volume grew.**
+  It worked at launch (42 candidates from ~106 topics, v0.6.39), but the Haiku
+  clustering pass ran with `max_tokens: 4096`. Once the off-taxonomy pile grew
+  to a full 250-label batch, the JSON output (dominated by `member_indices`
+  arrays) truncated mid-array; `extractJson` returned null and
+  `buildDiscoveryCandidates` returned `{candidatesCreated: 0}` with no error.
+  Because the rebuild deletes pending candidates *first*, the first post-
+  regression run wiped the originals and every run since produced 0 - so the
+  queue sat empty despite 14k+ harvested topics. Raised `max_tokens` to 16000
+  (~4x the truncation point, within Haiku's safe non-streaming range) and added
+  hard guards: clustering now throws on `stop_reason === "max_tokens"`, a null
+  parse, or a non-array result, so this can never fail silently again. A single
+  `npm run discover` now yields 82 candidates from 14,342 topics.
+
+### Changed
+
+- **Discovery clustering de-fragments near-duplicate labels before ranking.**
+  Topics were grouped by exact normalized string, so phrasing variants of one
+  theme ("la mayoral race spencer pratt" vs "spencer pratt la mayoral race")
+  counted as separate candidates and split a hot theme's frequency across the
+  top-250 cut. Grouping now uses a normalized token-set key (lowercase, strip
+  punctuation, drop stopwords, de-dupe + sort tokens) so word-order and
+  punctuation variants collapse; the most common surface form is shown to the
+  model. The LLM still does the semantic merge - this just stops obvious
+  duplicates from diluting the ranking.
+- **Review queue is capped to the most significant candidates.** A full rebuild
+  was producing ~82 candidates - too many to review. Clustering still runs over
+  the full top-250 label set, but only multi-channel themes
+  (`MIN_CANDIDATE_CHANNELS = 3`, drops single-show obsessions) ranked by weight
+  are persisted, capped at `MAX_PENDING_CANDIDATES = 40`. Topics in dropped
+  themes stay unclustered and are reconsidered next run, so nothing is buried.
+- **/admin/discovery surfaces the refresh result.** The "Refresh candidates"
+  button now shows a persistent status line ("Clustered N topics into M
+  candidates", a no-op note, or the error message) instead of silently
+  refreshing the (previously always-empty) list.
+
 ## v0.11.0 · 2026-06-08
 
 ### Changed

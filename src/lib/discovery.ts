@@ -38,6 +38,38 @@ function reachFactor(reach: number): number {
   return Math.log10(Math.max(reach, 10));
 }
 
+// Stopwords stripped when building the token-set grouping key. Kept tiny on
+// purpose - just the connective words that vary between phrasings of one theme.
+const THEME_STOPWORDS = new Set([
+  "the", "a", "an", "of", "and", "or", "to", "in", "on", "for", "with",
+  "at", "by", "from", "as", "s",
+]);
+
+/**
+ * Normalized token-set key for grouping near-duplicate off-taxonomy labels.
+ * Lowercases, strips punctuation, drops stopwords, de-dupes and sorts tokens,
+ * so word-order and punctuation variants of the same theme map to one key
+ * ("spencer pratt la mayoral race" == "la mayoral race spencer pratt"). This is
+ * a conservative pre-merge; the LLM still does the semantic clustering.
+ */
+function themeKey(label: string): string {
+  const toks = label
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, " ")
+    .split(/\s+/)
+    .filter((w) => w.length > 0 && !THEME_STOPWORDS.has(w));
+  return [...new Set(toks)].sort().join(" ");
+}
+
+// Review-queue shaping. We cluster the full top-250 label set for good merge
+// context, but an emerging *issue* should span at least a few independent
+// channels (not one show's hobby horse), and the queue has to stay reviewable.
+// So we only persist multi-channel themes, ranked by weight, capped to keep the
+// queue at a human-reviewable size. Topics in dropped themes stay unclustered
+// and get reconsidered on the next run (they're not buried).
+const MIN_CANDIDATE_CHANNELS = 3;
+const MAX_PENDING_CANDIDATES = 40;
+
 /** Load recent topics not yet attached to a (decided) candidate. */
 async function loadUnclusteredTopics(
   db: ReturnType<typeof createServiceClient>,
@@ -105,26 +137,52 @@ export async function buildDiscoveryCandidates(windowDays = 21): Promise<BuildRe
     return { topicsConsidered: 0, candidatesCreated: 0, inputTokens: 0, outputTokens: 0 };
   }
 
-  // Group topics by normalized label.
-  const groups = new Map<string, { rep: string; topicIds: string[] }>();
+  // Group topics by a normalized token-set key so trivial phrasing variants of
+  // the same theme collapse (word order, punctuation, stopwords). Exact-string
+  // grouping fragmented the signal: "la mayoral race spencer pratt" and
+  // "spencer pratt la mayoral race" counted as two distinct candidates, so a
+  // genuinely hot theme split across phrasings could miss the top-250 cut below.
+  const groups = new Map<string, { reps: Map<string, number>; topicIds: string[] }>();
   for (const t of topics) {
-    const norm = t.label.trim().toLowerCase();
-    if (!norm) continue;
-    const g = groups.get(norm) || { rep: t.label.trim(), topicIds: [] };
+    const raw = t.label.trim();
+    if (!raw) continue;
+    const key = themeKey(raw);
+    if (!key) continue;
+    const g = groups.get(key) || { reps: new Map<string, number>(), topicIds: [] };
     g.topicIds.push(t.id);
-    groups.set(norm, g);
+    g.reps.set(raw, (g.reps.get(raw) || 0) + 1);
+    groups.set(key, g);
   }
 
-  // Stable, count-desc order; cap to bound the clustering prompt.
-  const ordered = [...groups.values()].sort((a, b) => b.topicIds.length - a.topicIds.length).slice(0, 250);
+  // Stable, count-desc order; cap to bound the clustering prompt. The label
+  // shown to the model is the most common surface form within each group.
+  const ordered = [...groups.values()]
+    .map((g) => ({
+      rep: [...g.reps.entries()].sort((a, b) => b[1] - a[1])[0][0],
+      topicIds: g.topicIds,
+    }))
+    .sort((a, b) => b.topicIds.length - a.topicIds.length)
+    .slice(0, 250);
   const labelInputs: LabelInput[] = ordered.map((g) => ({ label: g.rep, count: g.topicIds.length }));
 
   const { themes, inputTokens, outputTokens } = await clusterTopics(labelInputs);
 
   const topicById = new Map(topics.map((t) => [t.id, t]));
   const now = Date.now();
-  let created = 0;
 
+  // Build candidate rows from the clustered themes WITHOUT writing yet, so we
+  // can rank by weight and keep only the most significant for the review queue.
+  interface Prepared {
+    label: string;
+    summary: string;
+    example_quotes: { quote: string; channel: string }[];
+    topic_count: number;
+    episode_count: number;
+    channel_count: number;
+    weight: number;
+    memberIds: string[];
+  }
+  const prepared: Prepared[] = [];
   for (const theme of themes) {
     // Member topics = union of topic ids for each member label group.
     const memberTopicIds = new Set<string>();
@@ -146,16 +204,37 @@ export async function buildDiscoveryCandidates(windowDays = 21): Promise<BuildRe
       .slice(0, 3)
       .map((m) => ({ quote: m.quote as string, channel: m.channel_name }));
 
+    prepared.push({
+      label: theme.canonical_label,
+      summary: theme.summary,
+      example_quotes,
+      topic_count: members.length,
+      episode_count: episodes.size,
+      channel_count: channels.size,
+      weight: Number(weight.toFixed(2)),
+      memberIds: members.map((m) => m.id),
+    });
+  }
+
+  // Keep only multi-channel themes, then the highest-weighted ones, so the queue
+  // surfaces genuinely shared emerging issues rather than every micro-cluster.
+  const selected = prepared
+    .filter((c) => c.channel_count >= MIN_CANDIDATE_CHANNELS)
+    .sort((a, b) => b.weight - a.weight)
+    .slice(0, MAX_PENDING_CANDIDATES);
+
+  let created = 0;
+  for (const c of selected) {
     const { data: ins, error: insErr } = await db
       .from("discovery_candidates")
       .insert({
-        label: theme.canonical_label,
-        summary: theme.summary,
-        example_quotes,
-        topic_count: members.length,
-        episode_count: episodes.size,
-        channel_count: channels.size,
-        weight: Number(weight.toFixed(2)),
+        label: c.label,
+        summary: c.summary,
+        example_quotes: c.example_quotes,
+        topic_count: c.topic_count,
+        episode_count: c.episode_count,
+        channel_count: c.channel_count,
+        weight: c.weight,
         status: "pending",
       })
       .select("id")
@@ -167,7 +246,7 @@ export async function buildDiscoveryCandidates(windowDays = 21): Promise<BuildRe
     await db
       .from("discovery_topics")
       .update({ candidate_id: ins.id })
-      .in("id", members.map((m) => m.id));
+      .in("id", c.memberIds);
   }
 
   return {

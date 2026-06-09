@@ -44,6 +44,9 @@ export function DiscoveryClient({
   const [form, setForm] = useState({ topic: "", slug: "", name: "", definition: "", left: "", right: "" });
   const [mergeSel, setMergeSel] = useState<Record<string, string>>({});
   const [err, setErr] = useState<string | null>(null);
+  const [refreshMsg, setRefreshMsg] = useState<
+    { kind: "ok" | "error"; text: string } | null
+  >(null);
 
   function beginPromote(c: DiscoveryCandidate) {
     setErr(null);
@@ -89,8 +92,25 @@ export function DiscoveryClient({
   }
 
   function doRefresh() {
+    setRefreshMsg(null);
     startTransition(async () => {
-      await refreshAction();
+      const r = await refreshAction();
+      if (r?.error) {
+        setRefreshMsg({ kind: "error", text: r.error });
+        return;
+      }
+      const res = r?.result;
+      if (res) {
+        setRefreshMsg({
+          kind: "ok",
+          text:
+            res.candidatesCreated > 0
+              ? `Clustered ${res.topicsConsidered.toLocaleString()} topics into ${res.candidatesCreated} candidate${res.candidatesCreated === 1 ? "" : "s"}.`
+              : res.topicsConsidered === 0
+                ? "No unclustered topics in the window yet - nothing to cluster."
+                : `Considered ${res.topicsConsidered.toLocaleString()} topics but produced 0 candidates.`,
+        });
+      }
       router.refresh();
     });
   }
@@ -105,6 +125,14 @@ export function DiscoveryClient({
           {pending ? "Working…" : "Refresh candidates"}
         </Button>
       </div>
+
+      {refreshMsg && (
+        <div
+          className={`mb-4 text-sm ${refreshMsg.kind === "error" ? "text-red-600" : "text-ink-muted"}`}
+        >
+          {refreshMsg.kind === "error" ? `Refresh failed: ${refreshMsg.text}` : refreshMsg.text}
+        </div>
+      )}
 
       {candidates.length === 0 ? (
         <Card className="p-8 text-center text-sm text-muted-foreground">

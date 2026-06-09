@@ -47,15 +47,39 @@ export async function clusterTopics(labels: LabelInput[]): Promise<ClusterResult
   if (labels.length === 0) return { themes: [] };
 
   const client = getAnthropicClient();
+  // max_tokens was 4096, which truncated the JSON for a full 250-label batch
+  // (the output is dominated by member_indices arrays). The model stopped at
+  // max_tokens mid-array, extractJson returned null, and the whole discovery
+  // pipeline silently produced 0 candidates. 16000 is ~4x the prior truncation
+  // point and within Haiku's safe non-streaming output range. The guards below
+  // make any future truncation/parse failure loud instead of silent.
   const response = await client.messages.create({
     model: MODEL_SCORE,
-    max_tokens: 4096,
+    max_tokens: 16000,
     messages: [{ role: "user", content: buildPrompt(labels) }],
   });
+
+  if (response.stop_reason === "max_tokens") {
+    throw new Error(
+      `clusterTopics: model output truncated at max_tokens with ${labels.length} labels - ` +
+        `raise max_tokens or shrink the batch (the prior 4096 cap silently dropped all candidates).`,
+    );
+  }
 
   const textBlock = response.content.find((b) => b.type === "text");
   const rawText = textBlock && textBlock.type === "text" ? textBlock.text : "";
   const parsed = extractJson<unknown>(rawText);
+  if (parsed === null) {
+    throw new Error(
+      `clusterTopics: could not parse JSON from model output ` +
+        `(stop_reason=${response.stop_reason}, ${rawText.length} chars). Output was not valid JSON.`,
+    );
+  }
+  if (!Array.isArray(parsed)) {
+    throw new Error(
+      `clusterTopics: model returned JSON that is not an array of themes (got ${typeof parsed}).`,
+    );
+  }
   const maxIdx = labels.length - 1;
   const themes: TopicTheme[] = Array.isArray(parsed)
     ? (parsed as any[])
