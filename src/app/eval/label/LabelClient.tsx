@@ -4,6 +4,8 @@ import * as React from "react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { startLabeling, saveLabel } from "./actions";
 import type { BlindedGoldItem } from "@/lib/gold";
 
@@ -29,19 +31,20 @@ function Segmented({
   return (
     <div className="flex flex-wrap gap-1" role="group" aria-label={ariaLabel}>
       {values.map((v) => (
-        <button
+        <Button
           key={v}
           type="button"
+          variant="outline"
           onClick={() => onChange(v)}
           className={cn(
-            "h-9 min-w-[2.25rem] px-2 rounded-md border text-sm tabular-nums transition",
+            "h-9 min-w-[2.25rem] px-2 rounded-md border text-sm font-normal tabular-nums transition",
             value === v
-              ? "border-gray-900 bg-gray-900 text-white"
-              : "border-gray-300 text-gray-700 hover:border-gray-500",
+              ? "border-gray-900 bg-gray-900 text-white hover:bg-gray-900 hover:text-white"
+              : "border-gray-300 text-gray-700 hover:bg-transparent hover:border-gray-500",
           )}
         >
           {format(v)}
-        </button>
+        </Button>
       ))}
     </div>
   );
@@ -221,9 +224,9 @@ export function LabelClient() {
         </div>
 
         <div className="mt-6">
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+          <Label className="block text-sm font-medium text-gray-700 mb-1 leading-normal">
             Your name
-          </label>
+          </Label>
           <Input
             value={name}
             onChange={(e) => setName(e.target.value)}
@@ -308,7 +311,7 @@ export function LabelClient() {
       <div className="mt-6 space-y-5">
         <div>
           <div className="flex items-baseline justify-between">
-            <label className="text-sm font-medium text-gray-700">Sentiment</label>
+            <Label className="text-sm font-medium text-gray-700 leading-normal">Sentiment</Label>
             <span className="text-[11px] text-gray-400">−5 Left · 0 neutral · +5 Right</span>
           </div>
           <div className="mt-1.5">
@@ -323,7 +326,7 @@ export function LabelClient() {
         </div>
 
         <div>
-          <label className="text-sm font-medium text-gray-700">Intensity</label>
+          <Label className="text-sm font-medium text-gray-700 leading-normal">Intensity</Label>
           <span className="text-[11px] text-gray-400 ml-2">1 passing · 5 central argument</span>
           <div className="mt-1.5">
             <Segmented
@@ -336,7 +339,7 @@ export function LabelClient() {
         </div>
 
         <div>
-          <label className="text-sm font-medium text-gray-700">Confidence</label>
+          <Label className="text-sm font-medium text-gray-700 leading-normal">Confidence</Label>
           <span className="text-[11px] text-gray-400 ml-2">1 guessing · 3 very confident</span>
           <div className="mt-1.5">
             <Segmented
@@ -349,15 +352,15 @@ export function LabelClient() {
         </div>
 
         <div>
-          <label className="text-sm font-medium text-gray-700">
+          <Label className="text-sm font-medium text-gray-700 leading-normal">
             Notes <span className="text-gray-400 font-normal">(optional)</span>
-          </label>
-          <textarea
+          </Label>
+          <Textarea
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             rows={2}
             placeholder="Only if something was ambiguous or seemed mis-filed."
-            className="mt-1.5 flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            className="mt-1.5 min-h-0 text-sm"
           />
         </div>
       </div>

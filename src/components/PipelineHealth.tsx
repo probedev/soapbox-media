@@ -1,4 +1,12 @@
 import type { UsageLogRow } from "@/lib/usage";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 /**
  * Public pipeline-health view for /log. Renders two things from usage_log:
@@ -203,19 +211,19 @@ export function PipelineHealth({ runs }: { runs: UsageLogRow[] }) {
 
       {/* Detailed recent-runs table */}
       <div className="mt-6 overflow-x-auto">
-        <table className="w-full text-xs">
-          <thead>
-            <tr className="text-gray-500 text-left border-b border-gray-200">
-              <th className="font-medium py-2 pr-3">When</th>
-              <th className="font-medium py-2 pr-3">Source</th>
-              <th className="font-medium py-2 pr-3">Ingest</th>
-              <th className="font-medium py-2 pr-3">Transcribe</th>
-              <th className="font-medium py-2 pr-3">Classify</th>
-              <th className="font-medium py-2 pr-3">Score</th>
-              <th className="font-medium py-2 pr-3">Status</th>
-            </tr>
-          </thead>
-          <tbody className="tabular-nums">
+        <Table className="text-xs">
+          <TableHeader>
+            <TableRow className="text-gray-500 text-left border-b border-gray-200 hover:bg-transparent">
+              <TableHead className="font-medium py-2 pr-3 h-auto text-gray-500">When</TableHead>
+              <TableHead className="font-medium py-2 pr-3 h-auto text-gray-500">Source</TableHead>
+              <TableHead className="font-medium py-2 pr-3 h-auto text-gray-500">Ingest</TableHead>
+              <TableHead className="font-medium py-2 pr-3 h-auto text-gray-500">Transcribe</TableHead>
+              <TableHead className="font-medium py-2 pr-3 h-auto text-gray-500">Classify</TableHead>
+              <TableHead className="font-medium py-2 pr-3 h-auto text-gray-500">Score</TableHead>
+              <TableHead className="font-medium py-2 pr-3 h-auto text-gray-500">Status</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody className="tabular-nums">
             {tableRuns.map((row) => {
               const rs = runStatus(row);
               const tFail = (row.transcribe_failed || 0) > 0;
@@ -223,40 +231,40 @@ export function PipelineHealth({ runs }: { runs: UsageLogRow[] }) {
               const cFail = (row.classify_failures || 0) > 0;
               const iFail = (row.ingest_failures || 0) > 0;
               return (
-                <tr key={row.id} className="border-b border-gray-100 align-top">
-                  <td className="py-2 pr-3 whitespace-nowrap">
+                <TableRow key={row.id} className="border-b border-gray-100 align-top hover:bg-transparent">
+                  <TableCell className="py-2 pr-3 whitespace-nowrap">
                     <span className="text-gray-900">{relTime(row.ran_at)}</span>
                     <span className="text-gray-400 ml-1">
                       {shortDate(row.ran_at)} {shortTime(row.ran_at)}
                     </span>
-                  </td>
-                  <td className="py-2 pr-3">
+                  </TableCell>
+                  <TableCell className="py-2 pr-3">
                     <span className="text-[10px] uppercase tracking-wide text-gray-500">
                       {row.source}
                     </span>
-                  </td>
-                  <td className="py-2 pr-3 whitespace-nowrap">
+                  </TableCell>
+                  <TableCell className="py-2 pr-3 whitespace-nowrap">
                     +{row.ingest_episodes_new}
                     {iFail && <span className="text-red-600 ml-1">{row.ingest_failures} err</span>}
-                  </td>
-                  <td className="py-2 pr-3 whitespace-nowrap">
+                  </TableCell>
+                  <TableCell className="py-2 pr-3 whitespace-nowrap">
                     <span className="text-emerald-700">{row.transcribe_succeeded}✓</span>{" "}
                     <span className={tFail ? "text-red-600" : "text-gray-400"}>
                       {row.transcribe_failed}✗
                     </span>
-                  </td>
-                  <td className="py-2 pr-3 whitespace-nowrap">
+                  </TableCell>
+                  <TableCell className="py-2 pr-3 whitespace-nowrap">
                     {row.classify_processed} proc
                     <span className="text-gray-400"> · {row.classify_mentions} ment.</span>
                     {cFail && <span className="text-red-600 ml-1">{row.classify_failures} err</span>}
-                  </td>
-                  <td className="py-2 pr-3 whitespace-nowrap">
+                  </TableCell>
+                  <TableCell className="py-2 pr-3 whitespace-nowrap">
                     <span className="text-emerald-700">{row.score_succeeded}✓</span>{" "}
                     <span className={sFail ? "text-red-600" : "text-gray-400"}>
                       {row.score_failed}✗
                     </span>
-                  </td>
-                  <td className="py-2 pr-3">
+                  </TableCell>
+                  <TableCell className="py-2 pr-3">
                     <span
                       className={`px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wide ${STATUS_BADGE[rs]}`}
                     >
@@ -267,12 +275,12 @@ export function PipelineHealth({ runs }: { runs: UsageLogRow[] }) {
                         {row.error_message}
                       </div>
                     )}
-                  </td>
-                </tr>
+                  </TableCell>
+                </TableRow>
               );
             })}
-          </tbody>
-        </table>
+          </TableBody>
+        </Table>
       </div>
     </div>
   );

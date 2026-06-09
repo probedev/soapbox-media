@@ -1,6 +1,5 @@
 "use client";
 
-import * as React from "react";
 import {
   Area,
   AreaChart,
@@ -10,7 +9,12 @@ import {
   YAxis,
 } from "recharts";
 
-import { ChartContainer, ChartTooltip, type ChartConfig } from "@/components/ui/chart";
+import {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+  type ChartConfig,
+} from "@/components/ui/chart";
 
 interface IndexAreaChartProps {
   /** Soapbox Index values, oldest first. Range −10..+10. */
@@ -54,34 +58,12 @@ function sideColor(v: number): string {
 }
 
 const chartConfig = {
-  index: { label: "Soapbox Index", color: "#374151" },
+  index: { label: "Soapbox Index", color: "var(--chart-index)" },
 } satisfies ChartConfig;
 
 interface Point {
   date: string;
   index: number;
-}
-
-function IndexTooltip({
-  active,
-  payload,
-}: {
-  active?: boolean;
-  payload?: Array<{ payload: Point }>;
-}) {
-  if (!active || !payload || payload.length === 0) return null;
-  const p = payload[0].payload;
-  return (
-    <div className="rounded-md border border-gray-200 bg-white px-2.5 py-1.5 text-xs shadow-sm">
-      <div className="text-gray-500">{formatShortDate(p.date)}</div>
-      <div
-        className="font-semibold tabular-nums"
-        style={{ color: sideColor(p.index) }}
-      >
-        {formatLean(p.index)}
-      </div>
-    </div>
-  );
 }
 
 export function IndexAreaChart({
@@ -117,8 +99,8 @@ export function IndexAreaChart({
         <AreaChart data={data} margin={{ top: 8, right: 8, bottom: 4, left: 4 }}>
           <defs>
             <linearGradient id="fillIndex" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#374151" stopOpacity={0.22} />
-              <stop offset="100%" stopColor="#374151" stopOpacity={0.02} />
+              <stop offset="0%" stopColor="var(--color-index)" stopOpacity={0.22} />
+              <stop offset="100%" stopColor="var(--color-index)" stopOpacity={0.02} />
             </linearGradient>
           </defs>
           <CartesianGrid vertical={false} strokeDasharray="3 3" />
@@ -139,13 +121,29 @@ export function IndexAreaChart({
             tickFormatter={(v: number) => formatLean(v)}
           />
           {includeZero && (
-            <ReferenceLine y={0} stroke="#9ca3af" strokeDasharray="2 2" />
+            <ReferenceLine y={0} stroke="var(--chart-muted)" strokeDasharray="2 2" />
           )}
-          <ChartTooltip cursor={{ stroke: "#d1d5db" }} content={<IndexTooltip />} />
+          <ChartTooltip
+            cursor={{ stroke: "var(--chart-muted)" }}
+            content={
+              <ChartTooltipContent
+                hideIndicator
+                labelFormatter={(value) => formatShortDate(String(value))}
+                formatter={(value) => (
+                  <span
+                    className="font-semibold tabular-nums"
+                    style={{ color: sideColor(Number(value)) }}
+                  >
+                    {formatLean(Number(value))}
+                  </span>
+                )}
+              />
+            }
+          />
           <Area
             dataKey="index"
             type="monotone"
-            stroke="#374151"
+            stroke="var(--color-index)"
             strokeWidth={2}
             fill="url(#fillIndex)"
             // Fill from the line down to the bottom of the range. When the range

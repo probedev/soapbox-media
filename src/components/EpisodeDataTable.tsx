@@ -230,17 +230,19 @@ const columns: ColumnDef<EpisodeTableRow>[] = [
     // nothing to expand (pending, transcript-failed, or off-topic/no-signal).
     cell: ({ row }) =>
       row.getCanExpand() ? (
-        <button
+        <Button
+          variant="ghost"
+          size="icon"
           onClick={row.getToggleExpandedHandler()}
           aria-label={row.getIsExpanded() ? "Hide classifications" : "Show classifications"}
-          className="flex h-6 w-6 items-center justify-center text-gray-400 hover:text-gray-700"
+          className="flex h-6 w-6 items-center justify-center rounded-none p-0 text-gray-400 hover:bg-transparent hover:text-gray-700"
         >
           {row.getIsExpanded() ? (
             <ChevronDown className="h-4 w-4" />
           ) : (
             <ChevronRight className="h-4 w-4" />
           )}
-        </button>
+        </Button>
       ) : null,
   },
   {

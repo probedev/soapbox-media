@@ -196,7 +196,7 @@ export function TwoConvCard({ d }: { d: TwoConvPoint[] }) {
         <XAxis dataKey="date" tick={{ fontSize: 10 }} tickFormatter={(v) => v.slice(5)} />
         <YAxis domain={[-4, 4]} tick={{ fontSize: 10 }} width={36} tickFormatter={(v) => fmtLean(v)} />
         <ReferenceLine y={0} stroke={GRAY} strokeDasharray="4 4" />
-        <Tooltip formatter={(v: number, name) => [fmtLean(v), name]} labelFormatter={(l) => `7d window ending ${l}`} />
+        <Tooltip formatter={(v: any, name: any) => [fmtLean(v), name]} labelFormatter={(l) => `7d window ending ${l}`} />
         <Area type="monotone" dataKey="independent" stroke="#111827" fill="#111827" fillOpacity={0.06} strokeWidth={2} connectNulls />
         <Area type="monotone" dataKey="legacy" stroke={GRAY} fill={GRAY} fillOpacity={0.08} strokeWidth={2} strokeDasharray="5 3" connectNulls />
       </AreaChart>
@@ -364,7 +364,7 @@ export function PolarizationCard({ bins, pctExtreme, mentions }: { bins: PolarBi
         <BarChart data={bins} margin={{ top: 5, right: 5, bottom: 0, left: 5 }}>
           <XAxis dataKey="bin" tick={{ fontSize: 9 }} ticks={[-5, -3, 0, 3, 5]} tickFormatter={(v) => fmtLean(v)} />
           <YAxis hide />
-          <Tooltip formatter={(v: number) => [`${v} mentions`, ""]} labelFormatter={(l) => `sentiment ${l}`} />
+          <Tooltip formatter={(v: any) => [`${v} mentions`, ""]} labelFormatter={(l) => `sentiment ${l}`} />
           <Bar dataKey="count">
             {bins.map((b, i) => <Cell key={i} fill={leanColor(b.bin)} fillOpacity={0.35 + Math.min(Math.abs(b.bin) / 5, 1) * 0.55} />)}
           </Bar>
@@ -387,7 +387,7 @@ export function PlatformSplitCard({ d }: { d: PlatformSplitRow[] }) {
         <XAxis type="number" domain={[-6, 6]} tick={{ fontSize: 10 }} tickFormatter={(v) => fmtLean(v)} />
         <YAxis type="category" dataKey="issue" width={130} tick={{ fontSize: 10 }} />
         <ReferenceLine x={0} stroke={GRAY} />
-        <Tooltip formatter={(v: number, name) => [fmtLean(v), name]} />
+        <Tooltip formatter={(v: any, name: any) => [fmtLean(v), name]} />
         <Bar dataKey="podcast" name="podcast" fill="#111827" fillOpacity={0.75} barSize={8} radius={2} />
         <Bar dataKey="youtube" name="youtube" fill="#9ca3af" fillOpacity={0.9} barSize={8} radius={2} />
       </BarChart>

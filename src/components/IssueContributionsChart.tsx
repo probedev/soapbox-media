@@ -3,6 +3,7 @@ import {
   type IndexBreakdown,
   type IssueContribution,
 } from "@/lib/aggregate";
+import { Table, TableBody, TableCell, TableRow } from "@/components/ui/table";
 
 function formatLean(direction: "L" | "R" | "neutral", magnitude: number): string {
   if (direction === "neutral") return "0.0";
@@ -29,16 +30,19 @@ function ContributionRow({
   const sentimentLabel = formatLean(direction, Math.abs(issue.avgSentiment));
 
   return (
-    <a
-      href={`/issues/${issue.slug}`}
-      className="grid grid-cols-[1fr_2.5fr_140px] items-center gap-4 py-1.5 hover:bg-gray-50 px-2 -mx-2 rounded transition"
-    >
-      <div className="text-sm font-medium text-gray-900 text-right truncate">
-        {issue.name}
-      </div>
+    <TableRow className="group relative grid grid-cols-[1fr_2.5fr_140px] items-center gap-4 py-1.5 hover:bg-gray-50 px-2 -mx-2 rounded transition border-0">
+      <TableCell className="p-0 text-sm font-medium text-gray-900 text-right truncate">
+        {/* Stretched link makes the whole row navigable while keeping one href. */}
+        <a
+          href={`/issues/${issue.slug}`}
+          className="before:absolute before:inset-0 before:content-['']"
+        >
+          {issue.name}
+        </a>
+      </TableCell>
 
       {/* Centered horizontal bar with zero axis */}
-      <div className="relative h-6">
+      <TableCell className="p-0 relative h-6">
         <div className="absolute inset-y-0 left-1/2 w-px bg-gray-300" aria-hidden />
         {isL && (
           <div
@@ -52,17 +56,17 @@ function ContributionRow({
             style={{ left: "50%", width: `${widthPct / 2}%` }}
           />
         )}
-      </div>
+      </TableCell>
 
-      <div className="flex items-baseline gap-2 text-xs">
+      <TableCell className="p-0 flex items-baseline gap-2 text-xs">
         <span className={`font-semibold tabular-nums ${leanColor(direction)} min-w-[2.75rem]`}>
           {sentimentLabel}
         </span>
         <span className="text-gray-500 tabular-nums">
           {issue.numClassifications} mentions
         </span>
-      </div>
-    </a>
+      </TableCell>
+    </TableRow>
   );
 }
 
@@ -134,15 +138,17 @@ export async function IssueContributionsChart({
       </p>
 
       <div className="mt-6 border border-gray-200 rounded-lg p-4 bg-white">
-        <div className="space-y-0">
-          {data.issues.map((issue) => (
-            <ContributionRow
-              key={issue.slug}
-              issue={issue}
-              maxAbsContribution={maxAbs}
-            />
-          ))}
-        </div>
+        <Table>
+          <TableBody className="[&_tr:last-child]:border-0">
+            {data.issues.map((issue) => (
+              <ContributionRow
+                key={issue.slug}
+                issue={issue}
+                maxAbsContribution={maxAbs}
+              />
+            ))}
+          </TableBody>
+        </Table>
         <div className="mt-4 grid grid-cols-[1fr_2.5fr_140px] gap-4 text-[10px] uppercase tracking-wider text-gray-400">
           <div className="text-right">{data.totalClassifications.toLocaleString()} mentions</div>
           <div className="flex justify-between">

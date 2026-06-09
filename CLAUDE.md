@@ -90,6 +90,17 @@ with the user first.
 - **Never use em dashes** (the long dash, Unicode U+2014) in any copy, comment,
   or code. Use commas, colons, parentheses, or a spaced hyphen (" - ") instead.
   This is a hard style rule across the whole project, going forward.
+- **shadcn first: check the library before building any UI.** Before
+  implementing ANY UI feature (a button, input, table, form, menu, dialog,
+  chart, badge, card, etc.), first check whether shadcn/ui already provides it.
+  Use the **shadcn MCP** (configured in `.mcp.json`) to browse/search the
+  registry, or `npx shadcn@latest add <component>`. Never hand-roll a raw
+  `<button>`/`<input>`/`<select>`/`<textarea>`/`<table>` or a bespoke
+  tooltip/menu when a shadcn primitive exists - compose the primitive and pass
+  custom Tailwind via `className` if you need to tweak its look. The whole site
+  is 100% shadcn as of v0.10.0; keep it that way. The only sanctioned
+  hand-built UI is the custom SVG gauges (`SoapboxNeedle`, `SubNeedle`) and the
+  1-D position markers, which have no Recharts/shadcn equivalent.
 - Secrets live only in gitignored `.env.local`; never commit them.
 - Clean, type-safe, scalable code over MVP shortcuts. Cost-conscious
   (~$1k/mo budget). UI is shadcn/ui + Tailwind; tables via TanStack Table.

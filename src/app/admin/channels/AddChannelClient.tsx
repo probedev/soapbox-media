@@ -3,10 +3,20 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { addChannelAction, previewChannelAction } from "./actions";
 
 const inputClass =
-  "w-full border border-gray-300 rounded-md px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-300";
+  "w-full border border-gray-300 rounded-md px-2.5 py-1.5 text-sm h-auto focus:outline-none focus:ring-2 focus:ring-gray-300 focus-visible:ring-2 focus-visible:ring-gray-300 focus-visible:ring-offset-0";
 
 interface SuccessNote {
   name: string;
@@ -94,9 +104,9 @@ export function AddChannelClient() {
     <div className="border border-gray-200 rounded-lg bg-white p-5">
       <div className="text-sm font-semibold mb-3">Add a YouTube channel</div>
       <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto_auto_auto] gap-2.5 items-end">
-        <label className="text-xs text-gray-600 block">
+        <Label className="text-xs text-gray-600 block font-normal leading-normal">
           Handle or URL
-          <input
+          <Input
             type="text"
             className={inputClass}
             placeholder="@channelname or https://youtube.com/@channelname"
@@ -104,33 +114,40 @@ export function AddChannelClient() {
             onChange={(e) => setHandle(e.target.value)}
             disabled={busy}
           />
-        </label>
-        <label className="text-xs text-gray-600 block">
+        </Label>
+        <Label className="text-xs text-gray-600 block font-normal leading-normal">
           Lean
-          <select
-            className={inputClass}
+          <Select
             value={lean}
-            onChange={(e) => setLean(e.target.value as "L" | "M" | "R" | "")}
+            onValueChange={(v) => setLean(v as "L" | "M" | "R" | "")}
             disabled={busy}
           >
-            <option value="">L / M / R</option>
-            <option value="L">L (Left)</option>
-            <option value="M">M (Middle)</option>
-            <option value="R">R (Right)</option>
-          </select>
-        </label>
-        <label className="text-xs text-gray-600 block">
+            <SelectTrigger className={inputClass}>
+              <SelectValue placeholder="L / M / R" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="L">L (Left)</SelectItem>
+              <SelectItem value="M">M (Middle)</SelectItem>
+              <SelectItem value="R">R (Right)</SelectItem>
+            </SelectContent>
+          </Select>
+        </Label>
+        <Label className="text-xs text-gray-600 block font-normal leading-normal">
           Cohort
-          <select
-            className={inputClass}
+          <Select
             value={cohort}
-            onChange={(e) => setCohort(e.target.value as "independent" | "legacy")}
+            onValueChange={(v) => setCohort(v as "independent" | "legacy")}
             disabled={busy}
           >
-            <option value="independent">Independent</option>
-            <option value="legacy">Legacy</option>
-          </select>
-        </label>
+            <SelectTrigger className={inputClass}>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="independent">Independent</SelectItem>
+              <SelectItem value="legacy">Legacy</SelectItem>
+            </SelectContent>
+          </Select>
+        </Label>
         <Button variant="outline" onClick={draft} disabled={!canDraft}>
           {drafting ? "Drafting…" : "Resolve & draft"}
         </Button>
@@ -148,17 +165,17 @@ export function AddChannelClient() {
         </div>
       )}
 
-      <label className="text-xs text-gray-600 block mt-2.5">
+      <Label className="text-xs text-gray-600 block mt-2.5 font-normal leading-normal">
         Lean rationale - auto-drafted, edit before adding (appears on /channels)
-        <textarea
+        <Textarea
           rows={2}
-          className={inputClass}
+          className={`${inputClass} min-h-0`}
           placeholder='Click "Resolve & draft" to auto-generate, or write your own…'
           value={rationale}
           onChange={(e) => setRationale(e.target.value)}
           disabled={busy}
         />
-      </label>
+      </Label>
       <div className="flex items-center gap-3 mt-2">
         <Button onClick={submit} disabled={!canSubmit}>
           {pending ? "Adding…" : "Add channel"}

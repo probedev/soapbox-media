@@ -1,23 +1,13 @@
+import { Sparkline } from "@/components/ui/sparkline";
 import type { TrendingPayload } from "@/lib/trending";
 
 /**
  * Trending Names (BETA) - home-page tease. Named entities surging across the
  * tracked panel this week, each linking back to the shows discussing them.
- * Server-rendered from the `trending_v1` snapshot; inline SVG sparkline keeps
- * it dependency-free. Honestly labelled experimental - entity canonicalization
- * is still maturing (see [[lib/trending]]).
+ * Server-rendered from the `trending_v1` snapshot; the trend sparkline uses the
+ * shared Recharts <Sparkline>. Honestly labelled experimental - entity
+ * canonicalization is still maturing (see [[lib/trending]]).
  */
-function Spark({ values }: { values: number[] }) {
-  const max = Math.max(...values, 1);
-  const w = 64, h = 20;
-  const step = values.length > 1 ? w / (values.length - 1) : w;
-  const pts = values.map((v, i) => `${(i * step).toFixed(1)},${(h - (v / max) * h).toFixed(1)}`).join(" ");
-  return (
-    <svg width={w} height={h} className="overflow-visible" aria-hidden>
-      <polyline points={pts} fill="none" stroke="#6b7280" strokeWidth={1.5} strokeLinejoin="round" strokeLinecap="round" />
-    </svg>
-  );
-}
 
 export function TrendingNames({ data }: { data: TrendingPayload }) {
   if (!data.entities.length) return null;
@@ -48,7 +38,7 @@ export function TrendingNames({ data }: { data: TrendingPayload }) {
                 ))}
               </div>
             </div>
-            <Spark values={e.spark} />
+            <Sparkline values={e.spark} width={64} height={20} color="var(--chart-neutral)" />
           </li>
         ))}
       </ul>

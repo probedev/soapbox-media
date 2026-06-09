@@ -29,6 +29,23 @@
   --input: 0 0% 89.8%;
   --ring: 0 0% 3.9%;
   --radius: 0.5rem;
+
+  /* Chart palette (added 2026-06-08). The house lean colors are semantic:
+     red = right, blue = left, gray = ideologically neutral (volume/even).
+     Charts reference these via ChartConfig.color = "var(--chart-*)" so the
+     palette lives in one place. Hex (not HSL triplets) because chart tokens
+     are consumed as raw colors, never wrapped in hsl(). */
+  --chart-right: #dc2626;   /* R / right-leaning */
+  --chart-left: #2563eb;    /* L / left-leaning */
+  --chart-neutral: #6b7280; /* even / volume (ideologically neutral) */
+  --chart-index: #374151;   /* the composite Soapbox Index line */
+  --chart-muted: #9ca3af;   /* axis / reference-line gray */
+  /* Numbered aliases for the shadcn default convention. */
+  --chart-1: var(--chart-right);
+  --chart-2: var(--chart-left);
+  --chart-3: var(--chart-neutral);
+  --chart-4: var(--chart-index);
+  --chart-5: var(--chart-muted);
 }
 
 html, body {

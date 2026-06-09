@@ -1,5 +1,7 @@
 import { login } from "./actions";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 export const dynamic = "force-dynamic";
 
@@ -22,16 +24,16 @@ export default function AdminLoginPage({
           action={login}
           className="border border-gray-200 rounded-lg bg-white p-6 space-y-3 shadow-sm"
         >
-          <label className="block text-sm text-gray-600">
+          <Label className="block text-sm text-gray-600 font-normal leading-normal">
             Password
-            <input
+            <Input
               type="password"
               name="password"
               autoFocus
               autoComplete="current-password"
-              className="mt-1 w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-300"
+              className="mt-1 w-full border border-gray-300 rounded-md px-3 py-2 text-sm h-auto focus:outline-none focus:ring-2 focus:ring-gray-300 focus-visible:ring-2 focus-visible:ring-gray-300 focus-visible:ring-offset-0"
             />
-          </label>
+          </Label>
           {searchParams.error && (
             <p className="text-xs text-red-600">Incorrect password. Try again.</p>
           )}

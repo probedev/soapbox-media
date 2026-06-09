@@ -1,3 +1,5 @@
+import { Sparkline } from "@/components/ui/sparkline";
+
 interface IssuePreviewProps {
   slug: string;
   name: string;
@@ -40,42 +42,24 @@ export function IssuePreview({ slug, name, lean, volume, trend }: IssuePreviewPr
       </div>
       <div className="mt-3 flex items-center justify-between text-xs text-gray-500">
         <span className="tabular-nums">Volume {volume.toLocaleString()}</span>
-        {trend && trend.length >= 2 && <IssueSparkline values={trend} />}
+        {trend && trend.length >= 2 && (
+          <Sparkline
+            values={trend}
+            width={72}
+            height={18}
+            domain={[-10, 10]}
+            zeroLine
+            color={sparkColor(trend[trend.length - 1])}
+          />
+        )}
       </div>
     </a>
   );
 }
 
-function IssueSparkline({ values }: { values: number[] }) {
-  const width = 72;
-  const height = 18;
-  const minY = -10;
-  const maxY = 10;
-  const pad = 1.5;
-  const plotW = width - pad * 2;
-  const plotH = height - pad * 2;
-
-  const points = values.map((v, i) => {
-    const x = pad + (i / (values.length - 1)) * plotW;
-    const yNorm = (v - minY) / (maxY - minY);
-    const y = pad + (1 - yNorm) * plotH;
-    return `${x.toFixed(1)},${y.toFixed(1)}`;
-  });
-  const lastVal = values[values.length - 1];
-  const color = lastVal > 0 ? "#ef4444" : lastVal < 0 ? "#3b82f6" : "#6b7280";
-  const zeroY = pad + (1 - (0 - minY) / (maxY - minY)) * plotH;
-
-  return (
-    <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} aria-hidden="true">
-      <line x1={pad} y1={zeroY} x2={width - pad} y2={zeroY} stroke="#e5e7eb" strokeWidth="0.5" />
-      <polyline
-        points={points.join(" ")}
-        fill="none"
-        stroke={color}
-        strokeWidth="1.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
+/** Lean sparkline stroke: red right, blue left, neutral at center. */
+function sparkColor(lastVal: number): string {
+  if (lastVal > 0) return "var(--chart-right)";
+  if (lastVal < 0) return "var(--chart-left)";
+  return "var(--chart-neutral)";
 }

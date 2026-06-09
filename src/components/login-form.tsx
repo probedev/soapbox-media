@@ -110,9 +110,9 @@ export function LoginForm({
                 <div className="grid gap-2">
                   <div className="flex items-center">
                     <Label htmlFor="password">Password</Label>
-                    <button type="button" onClick={resetPassword} className="ml-auto text-sm underline-offset-4 hover:underline">
+                    <Button type="button" variant="link" onClick={resetPassword} className="ml-auto h-auto p-0 text-sm font-normal text-current underline-offset-4 hover:underline">
                       Forgot your password?
-                    </button>
+                    </Button>
                   </div>
                   <Input id="password" type="password" required minLength={6} value={password} onChange={(e) => setPassword(e.target.value)} />
                 </div>
@@ -124,9 +124,9 @@ export function LoginForm({
               </div>
               <div className="text-center text-sm">
                 {mode === "signin" ? "Don't have an account? " : "Have an account? "}
-                <button type="button" onClick={() => { setMode(mode === "signin" ? "signup" : "signin"); setError(null); setNotice(null); }} className="underline underline-offset-4">
+                <Button type="button" variant="link" onClick={() => { setMode(mode === "signin" ? "signup" : "signin"); setError(null); setNotice(null); }} className="h-auto p-0 text-sm font-normal text-current underline underline-offset-4">
                   {mode === "signin" ? "Sign up" : "Sign in"}
-                </button>
+                </Button>
               </div>
             </div>
           </form>

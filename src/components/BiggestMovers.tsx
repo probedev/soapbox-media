@@ -1,3 +1,12 @@
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+
 interface Mover {
   slug: string;
   name: string;
@@ -61,45 +70,54 @@ export function BiggestMovers({ movers }: BiggestMoversProps) {
   return (
     <div>
       <h2 className="text-lg font-semibold mb-4">Biggest movers this week</h2>
-      <div className="border border-gray-200 rounded-lg divide-y divide-gray-200">
-        {/* Column sub-headings */}
-        <div className={`${cols} px-4 py-2 text-[10px] uppercase tracking-wider text-gray-400`}>
-          <div>Issue</div>
-          <div className="text-right hidden sm:block">Last week</div>
-          <div className="text-right">This week</div>
-          <div className="text-right">Change</div>
-          <div className="text-right hidden sm:block">Mentions</div>
-          <div className="text-right hidden sm:block">Volume</div>
-        </div>
-        {movers.map((m) => {
-          const movedRight = m.delta > 0;
-          return (
-            <a
-              key={m.slug}
-              href={`/issues/${m.slug}`}
-              className={`${cols} items-center px-4 py-3 hover:bg-gray-50 transition`}
-            >
-              <div className="font-medium text-gray-900 truncate">{m.name}</div>
-              <div className={`text-right text-sm tabular-nums hidden sm:block ${leanColor(m.fromLean)}`}>
-                {formatLean(m.fromLean)}
-              </div>
-              <div className={`text-right text-sm tabular-nums font-semibold ${leanColor(m.toLean)}`}>
-                {formatLean(m.toLean)}
-              </div>
-              {/* Neutral arrow = direction of movement on the L↔R axis,
-                  decoupled from where the issue currently sits. */}
-              <div className="text-right text-sm tabular-nums text-gray-500 whitespace-nowrap">
-                {movedRight ? "→" : "←"} {Math.abs(m.delta).toFixed(1)}
-              </div>
-              <div className="text-right text-sm tabular-nums text-gray-600 hidden sm:block">
-                {m.currentMentions.toLocaleString()}
-              </div>
-              <div className={`text-right text-sm tabular-nums whitespace-nowrap hidden sm:block ${volumeColor(m.volumeRatio)}`}>
-                {formatVolumeRatio(m.volumeRatio)}
-              </div>
-            </a>
-          );
-        })}
+      <div className="border border-gray-200 rounded-lg overflow-hidden">
+        <Table>
+          {/* Column sub-headings */}
+          <TableHeader>
+            <TableRow className={`${cols} px-4 py-2 hover:bg-transparent border-gray-200`}>
+              <TableHead className="h-auto p-0 text-[10px] uppercase tracking-wider text-gray-400">Issue</TableHead>
+              <TableHead className="h-auto p-0 text-right text-[10px] uppercase tracking-wider text-gray-400 hidden sm:block">Last week</TableHead>
+              <TableHead className="h-auto p-0 text-right text-[10px] uppercase tracking-wider text-gray-400">This week</TableHead>
+              <TableHead className="h-auto p-0 text-right text-[10px] uppercase tracking-wider text-gray-400">Change</TableHead>
+              <TableHead className="h-auto p-0 text-right text-[10px] uppercase tracking-wider text-gray-400 hidden sm:block">Mentions</TableHead>
+              <TableHead className="h-auto p-0 text-right text-[10px] uppercase tracking-wider text-gray-400 hidden sm:block">Volume</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {movers.map((m) => {
+              const movedRight = m.delta > 0;
+              return (
+                <TableRow
+                  key={m.slug}
+                  className={`${cols} items-center px-4 py-3 hover:bg-gray-50 transition border-gray-200 relative`}
+                >
+                  <TableCell className="p-0 font-medium text-gray-900 truncate">
+                    <a href={`/issues/${m.slug}`} className="before:absolute before:inset-0">
+                      {m.name}
+                    </a>
+                  </TableCell>
+                  <TableCell className={`p-0 text-right text-sm tabular-nums hidden sm:block ${leanColor(m.fromLean)}`}>
+                    {formatLean(m.fromLean)}
+                  </TableCell>
+                  <TableCell className={`p-0 text-right text-sm tabular-nums font-semibold ${leanColor(m.toLean)}`}>
+                    {formatLean(m.toLean)}
+                  </TableCell>
+                  {/* Neutral arrow = direction of movement on the L<->R axis,
+                      decoupled from where the issue currently sits. */}
+                  <TableCell className="p-0 text-right text-sm tabular-nums text-gray-500 whitespace-nowrap">
+                    {movedRight ? "→" : "←"} {Math.abs(m.delta).toFixed(1)}
+                  </TableCell>
+                  <TableCell className="p-0 text-right text-sm tabular-nums text-gray-600 hidden sm:block">
+                    {m.currentMentions.toLocaleString()}
+                  </TableCell>
+                  <TableCell className={`p-0 text-right text-sm tabular-nums whitespace-nowrap hidden sm:block ${volumeColor(m.volumeRatio)}`}>
+                    {formatVolumeRatio(m.volumeRatio)}
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
       </div>
       <p className="text-xs text-gray-500 mt-3 leading-relaxed">
         Issues earn a row for the biggest shifts this week on either axis: lean

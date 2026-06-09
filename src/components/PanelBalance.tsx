@@ -31,10 +31,12 @@ function compactReach(n: number): string {
   return n.toLocaleString();
 }
 
+// Lean segments use the house chart tokens (L = left/blue, R = right/red,
+// M = neutral gray) so the gauge stays in sync with the rest of the site.
 const LEAN_BG: Record<"L" | "M" | "R", string> = {
-  L: "bg-blue-500",
-  M: "bg-gray-400",
-  R: "bg-red-500",
+  L: "var(--chart-left)",
+  M: "var(--chart-neutral)",
+  R: "var(--chart-right)",
 };
 
 const COHORT_BG: Record<"independent" | "legacy", string> = {
@@ -46,7 +48,10 @@ interface Segment {
   key: string;
   value: number;
   label: string;
-  colorClass: string;
+  /** Tailwind class for the segment fill (used by cohort segments). */
+  colorClass?: string;
+  /** CSS color value for the segment fill (used by lean segments via tokens). */
+  colorStyle?: string;
 }
 
 function StackedBar({ segments }: { segments: Segment[] }) {
@@ -62,7 +67,10 @@ function StackedBar({ segments }: { segments: Segment[] }) {
               "flex items-center justify-center min-w-0 px-1.5",
               seg.colorClass,
             )}
-            style={{ flexBasis: `${pct}%` }}
+            style={{
+              flexBasis: `${pct}%`,
+              ...(seg.colorStyle ? { background: seg.colorStyle } : {}),
+            }}
             title={`${seg.label} (${pct.toFixed(0)}%)`}
           >
             <span className="truncate tabular-nums">{seg.label}</span>
@@ -108,13 +116,13 @@ export function PanelBalance({ shows }: PanelBalanceProps) {
     key: lean,
     value: counts[lean],
     label: `${lean} ${counts[lean]}`,
-    colorClass: LEAN_BG[lean],
+    colorStyle: LEAN_BG[lean],
   }));
   const reachSegments: Segment[] = sides.map((lean) => ({
     key: lean,
     value: reach[lean],
     label: `${lean} ${compactReach(reach[lean])}`,
-    colorClass: LEAN_BG[lean],
+    colorStyle: LEAN_BG[lean],
   }));
 
   const cohortLabel = { independent: "Independent", legacy: "Legacy" } as const;

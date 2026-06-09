@@ -1,6 +1,5 @@
 "use client";
 
-import * as React from "react";
 import {
   Area,
   AreaChart,
@@ -9,7 +8,12 @@ import {
   YAxis,
 } from "recharts";
 
-import { ChartContainer, ChartTooltip, type ChartConfig } from "@/components/ui/chart";
+import {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+  type ChartConfig,
+} from "@/components/ui/chart";
 
 /**
  * Mention-volume sparkline - counterpart to <IndexAreaChart>. Lean values are
@@ -41,31 +45,12 @@ function formatShortDate(iso: string): string {
 }
 
 const chartConfig = {
-  mentions: { label: "Mentions", color: "#6b7280" },
+  mentions: { label: "Mentions", color: "var(--chart-neutral)" },
 } satisfies ChartConfig;
 
 interface Point {
   date: string;
   mentions: number;
-}
-
-function VolumeTooltip({
-  active,
-  payload,
-}: {
-  active?: boolean;
-  payload?: Array<{ payload: Point }>;
-}) {
-  if (!active || !payload || payload.length === 0) return null;
-  const p = payload[0].payload;
-  return (
-    <div className="rounded-md border border-gray-200 bg-white px-2.5 py-1.5 text-xs shadow-sm">
-      <div className="text-gray-500">{formatShortDate(p.date)}</div>
-      <div className="font-semibold tabular-nums text-gray-800">
-        {p.mentions.toLocaleString()} mentions
-      </div>
-    </div>
-  );
 }
 
 export function VolumeAreaChart({
@@ -89,8 +74,8 @@ export function VolumeAreaChart({
         <AreaChart data={data} margin={{ top: 8, right: 8, bottom: 4, left: 4 }}>
           <defs>
             <linearGradient id="fillVolume" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#6b7280" stopOpacity={0.22} />
-              <stop offset="100%" stopColor="#6b7280" stopOpacity={0.02} />
+              <stop offset="0%" stopColor="var(--color-mentions)" stopOpacity={0.22} />
+              <stop offset="100%" stopColor="var(--color-mentions)" stopOpacity={0.02} />
             </linearGradient>
           </defs>
           <CartesianGrid vertical={false} strokeDasharray="3 3" />
@@ -110,11 +95,24 @@ export function VolumeAreaChart({
             tickCount={4}
             allowDecimals={false}
           />
-          <ChartTooltip cursor={{ stroke: "#d1d5db" }} content={<VolumeTooltip />} />
+          <ChartTooltip
+            cursor={{ stroke: "var(--chart-muted)" }}
+            content={
+              <ChartTooltipContent
+                hideIndicator
+                labelFormatter={(value) => formatShortDate(String(value))}
+                formatter={(value) => (
+                  <span className="font-semibold tabular-nums text-foreground">
+                    {Number(value).toLocaleString()} mentions
+                  </span>
+                )}
+              />
+            }
+          />
           <Area
             dataKey="mentions"
             type="monotone"
-            stroke="#6b7280"
+            stroke="var(--color-mentions)"
             strokeWidth={2}
             fill="url(#fillVolume)"
             isAnimationActive={false}

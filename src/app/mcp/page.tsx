@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { Footer } from "@/components/Footer";
 import { Header } from "@/components/Header";
 import { SubscribeButton } from "@/components/SubscribeButton";
+import { Table, TableBody, TableCell, TableRow } from "@/components/ui/table";
 
 export const dynamic = "force-dynamic";
 
@@ -137,16 +138,16 @@ export default function McpPage() {
           Your agent discovers these automatically on connect. Every tool is read-only.
         </p>
         <div className="mt-4 overflow-x-auto">
-          <table className="w-full text-sm border-collapse">
-            <tbody>
+          <Table className="border-collapse">
+            <TableBody>
               {TOOLS.map((t) => (
-                <tr key={t.name} className="border-t border-gray-200 align-top">
-                  <td className="py-3 pr-4 font-mono text-xs whitespace-nowrap text-gray-800">{t.name}</td>
-                  <td className="py-3 text-gray-700 leading-relaxed">{t.what}</td>
-                </tr>
+                <TableRow key={t.name} className="border-t border-gray-200 align-top hover:bg-transparent">
+                  <TableCell className="py-3 pr-4 font-mono text-xs whitespace-nowrap text-gray-800">{t.name}</TableCell>
+                  <TableCell className="py-3 text-gray-700 leading-relaxed">{t.what}</TableCell>
+                </TableRow>
               ))}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         </div>
 
         <h2 className="text-xl font-semibold mt-12">The data, and its boundaries</h2>

@@ -16,6 +16,7 @@
  * adds no DB query (mirrors PanelBalance / PanelScale).
  */
 import { cn } from "@/lib/utils";
+import { Table, TableBody, TableCell, TableRow } from "@/components/ui/table";
 
 export interface TopicActivityRow {
   /** Topic slug for the /topics/[slug] link, or null for the unbucketed group. */
@@ -74,49 +75,51 @@ export function IssueActivityByTopic({
         topics
       </div>
 
-      <div className="space-y-1.5">
-        {rows.map((r) => {
-          const widthPct = (r.mentions / maxMentions) * 100;
-          const lean = leanLabel(r.lean);
-          const label = (
-            <span className="text-sm font-medium text-gray-900 truncate">{r.name}</span>
-          );
-          return (
-            <div
-              key={r.slug ?? r.name}
-              className="grid grid-cols-[minmax(0,1.4fr)_2fr_auto] items-center gap-3"
-            >
-              <div className="truncate">
-                {r.slug ? (
-                  <a href={`/topics/${r.slug}`} className="hover:text-gray-600">
-                    {label}
-                  </a>
-                ) : (
-                  label
-                )}
-              </div>
+      <Table>
+        <TableBody className="[&_tr:last-child]:border-0">
+          {rows.map((r) => {
+            const widthPct = (r.mentions / maxMentions) * 100;
+            const lean = leanLabel(r.lean);
+            const label = (
+              <span className="text-sm font-medium text-gray-900 truncate">{r.name}</span>
+            );
+            return (
+              <TableRow
+                key={r.slug ?? r.name}
+                className="grid grid-cols-[minmax(0,1.4fr)_2fr_auto] items-center gap-3 mb-1.5 last:mb-0 border-0 hover:bg-transparent"
+              >
+                <TableCell className="p-0 truncate">
+                  {r.slug ? (
+                    <a href={`/topics/${r.slug}`} className="hover:text-gray-600">
+                      {label}
+                    </a>
+                  ) : (
+                    label
+                  )}
+                </TableCell>
 
-              {/* mention-volume bar */}
-              <div className="relative h-5 rounded bg-gray-100 overflow-hidden">
-                <div
-                  className={cn("absolute inset-y-0 left-0 rounded", barColor(r.lean))}
-                  style={{ width: `${Math.max(widthPct, 2)}%` }}
-                  title={`${r.mentions.toLocaleString()} mentions · ${r.numIssues} issue${r.numIssues === 1 ? "" : "s"}`}
-                />
-              </div>
+                {/* mention-volume bar */}
+                <TableCell className="p-0 relative h-5 rounded bg-gray-100 overflow-hidden">
+                  <div
+                    className={cn("absolute inset-y-0 left-0 rounded", barColor(r.lean))}
+                    style={{ width: `${Math.max(widthPct, 2)}%` }}
+                    title={`${r.mentions.toLocaleString()} mentions · ${r.numIssues} issue${r.numIssues === 1 ? "" : "s"}`}
+                  />
+                </TableCell>
 
-              <div className="flex items-baseline gap-2 text-xs justify-end">
-                <span className="tabular-nums text-gray-700 min-w-[3rem] text-right">
-                  {r.mentions.toLocaleString()}
-                </span>
-                <span className={cn("tabular-nums font-semibold min-w-[3rem]", lean.className)}>
-                  {lean.text}
-                </span>
-              </div>
-            </div>
-          );
-        })}
-      </div>
+                <TableCell className="p-0 flex items-baseline gap-2 text-xs justify-end">
+                  <span className="tabular-nums text-gray-700 min-w-[3rem] text-right">
+                    {r.mentions.toLocaleString()}
+                  </span>
+                  <span className={cn("tabular-nums font-semibold min-w-[3rem]", lean.className)}>
+                    {lean.text}
+                  </span>
+                </TableCell>
+              </TableRow>
+            );
+          })}
+        </TableBody>
+      </Table>
 
       <p className="text-[11px] text-gray-400 mt-4 leading-relaxed">
         Bar length is mention count over the last {windowDays} days; the tint and L/R figure

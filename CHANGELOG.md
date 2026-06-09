@@ -7,6 +7,45 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
+## v0.10.0 · 2026-06-08
+
+### Changed
+
+- **Site is now 100% shadcn/ui, on Recharts v3.** Upgraded Recharts 2.15.4 to
+  3.8.1 and patched `src/components/ui/chart.tsx` for v3's tighter Tooltip/Legend
+  prop types. Converted every hand-built UI surface to shadcn primitives:
+  - **Charts** standardized on the shadcn chart pattern: `IndexAreaChart` and
+    `VolumeAreaChart` now use `ChartTooltipContent` (no more hand-rolled tooltip
+    components) and reference colors via `--chart-*` tokens. New shared
+    `src/components/ui/sparkline.tsx` (Recharts `LineChart` + `ChartContainer`)
+    replaces the bespoke inline `<svg>` sparklines in `TrendingNames` and
+    `IssuePreview`.
+  - **Tables** moved to the shadcn `Table` family: `BiggestMovers`,
+    `EpisodeDataTable` (TanStack logic unchanged, only the markup shell),
+    `PipelineHealth`, the `/mcp` tools table, and the inline-bar data lists
+    `IssueContributionsChart` and `IssueActivityByTopic` (bars kept inside cells,
+    full-row links preserved via a stretched-link anchor).
+  - **Buttons / inputs / selects / textareas** converted to shadcn `Button`,
+    `Input`, `Select`, `Textarea`, and `Label` across `SubscribeButton`,
+    `DonationWidget`, `login-form`, `AdminNav`, the admin login / add-channel /
+    discovery forms, and the gold-set label form.
+- **New chart color tokens** in `globals.css` (`--chart-right`/`-left`/
+  `-neutral`/`-index`/`-muted` plus numbered aliases): one home for the house
+  lean palette (red = right, blue = left, gray = neutral), referenced via
+  `ChartConfig.color = "var(--chart-*)"` instead of scattered hex literals.
+- **CLAUDE.md: "shadcn first" rule.** Before building any UI feature, check the
+  shadcn library (via the shadcn MCP) first; never hand-roll a primitive that
+  shadcn provides. The only sanctioned hand-built UI is the custom SVG gauges
+  (`SoapboxNeedle`, `SubNeedle`) and 1-D position markers, which have no
+  Recharts/shadcn equivalent.
+
+### Note
+
+- All conversions are behavior-preserving: existing Tailwind classes, the house
+  palette, copy, links, and data flow are unchanged; primitives carry the
+  original styling via `className`. `/admin/homelab` (a decision-mock scratch
+  page) was intentionally left on raw Recharts.
+
 ## v0.9.2 · 2026-06-08
 
 ### Changed

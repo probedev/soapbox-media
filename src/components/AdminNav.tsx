@@ -3,6 +3,7 @@
  * tools are discoverable from one another, with a logout control.
  */
 import { logout } from "@/app/admin/login/actions";
+import { Button } from "@/components/ui/button";
 
 const LINKS = [
   { key: "home", label: "Home", href: "/admin" },
@@ -37,12 +38,13 @@ export function AdminNav({ active }: { active?: string }) {
           View site →
         </a>
         <form action={logout}>
-          <button
+          <Button
             type="submit"
-            className="px-3 py-2 text-gray-400 hover:text-gray-700 text-xs"
+            variant="ghost"
+            className="h-auto rounded-none px-3 py-2 text-gray-400 hover:bg-transparent hover:text-gray-700 text-xs font-normal"
           >
             Log out
-          </button>
+          </Button>
         </form>
       </div>
     </div>

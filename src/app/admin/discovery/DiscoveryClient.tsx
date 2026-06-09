@@ -3,6 +3,16 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { promoteAction, mergeAction, ignoreAction, refreshAction } from "./actions";
 import type { DiscoveryCandidate } from "@/lib/discovery";
 
@@ -16,7 +26,7 @@ function slugify(s: string): string {
 }
 
 const inputClass =
-  "w-full border border-gray-300 rounded-md px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-300";
+  "w-full border border-gray-300 rounded-md px-2.5 py-1.5 text-sm h-auto focus:outline-none focus:ring-2 focus:ring-gray-300 focus-visible:ring-2 focus-visible:ring-gray-300 focus-visible:ring-offset-0";
 
 export function DiscoveryClient({
   candidates,
@@ -141,18 +151,21 @@ export function DiscoveryClient({
 
               {/* Merge into an existing issue */}
               <div className="mt-3 flex items-center gap-2">
-                <select
-                  className="border border-gray-300 rounded-md px-2 py-1 text-xs text-gray-700 max-w-[16rem]"
+                <Select
                   value={mergeSel[c.id] || ""}
-                  onChange={(e) => setMergeSel((m) => ({ ...m, [c.id]: e.target.value }))}
+                  onValueChange={(v) => setMergeSel((m) => ({ ...m, [c.id]: v }))}
                 >
-                  <option value="">Merge into existing issue…</option>
-                  {issueOptions.map((o) => (
-                    <option key={o.slug} value={o.slug}>
-                      {o.name}
-                    </option>
-                  ))}
-                </select>
+                  <SelectTrigger className="h-auto border border-gray-300 rounded-md px-2 py-1 text-xs text-gray-700 max-w-[16rem] focus:ring-2 focus:ring-gray-300 focus:ring-offset-0">
+                    <SelectValue placeholder="Merge into existing issue…" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {issueOptions.map((o) => (
+                      <SelectItem key={o.slug} value={o.slug}>
+                        {o.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
                 <Button
                   variant="ghost"
                   size="sm"
@@ -170,67 +183,70 @@ export function DiscoveryClient({
                   <div className="text-xs uppercase tracking-wider text-gray-500">
                     Promote to a new issue
                   </div>
-                  <label className="text-xs text-gray-600 block">
+                  <Label className="text-xs text-gray-600 block font-normal leading-normal">
                     Parent topic
-                    <select
-                      className={inputClass}
+                    <Select
                       value={form.topic}
-                      onChange={(e) => setForm((f) => ({ ...f, topic: e.target.value }))}
+                      onValueChange={(v) => setForm((f) => ({ ...f, topic: v }))}
                     >
-                      <option value="">Choose a topic…</option>
-                      {topicOptions.map((t) => (
-                        <option key={t.slug} value={t.slug}>
-                          {t.name}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
+                      <SelectTrigger className={inputClass}>
+                        <SelectValue placeholder="Choose a topic…" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {topicOptions.map((t) => (
+                          <SelectItem key={t.slug} value={t.slug}>
+                            {t.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </Label>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                    <label className="text-xs text-gray-600">
+                    <Label className="text-xs text-gray-600 font-normal leading-normal">
                       Name
-                      <input
+                      <Input
                         className={inputClass}
                         value={form.name}
                         onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
                       />
-                    </label>
-                    <label className="text-xs text-gray-600">
+                    </Label>
+                    <Label className="text-xs text-gray-600 font-normal leading-normal">
                       Slug
-                      <input
+                      <Input
                         className={inputClass}
                         value={form.slug}
                         onChange={(e) => setForm((f) => ({ ...f, slug: e.target.value }))}
                       />
-                    </label>
+                    </Label>
                   </div>
-                  <label className="text-xs text-gray-600 block">
+                  <Label className="text-xs text-gray-600 block font-normal leading-normal">
                     Definition
-                    <textarea
-                      className={inputClass}
+                    <Textarea
+                      className={`${inputClass} min-h-0`}
                       rows={2}
                       value={form.definition}
                       onChange={(e) => setForm((f) => ({ ...f, definition: e.target.value }))}
                     />
-                  </label>
+                  </Label>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                    <label className="text-xs text-blue-700">
+                    <Label className="text-xs text-blue-700 font-normal leading-normal">
                       Left-leaning position
-                      <textarea
-                        className={inputClass}
+                      <Textarea
+                        className={`${inputClass} min-h-0`}
                         rows={2}
                         value={form.left}
                         onChange={(e) => setForm((f) => ({ ...f, left: e.target.value }))}
                       />
-                    </label>
-                    <label className="text-xs text-red-700">
+                    </Label>
+                    <Label className="text-xs text-red-700 font-normal leading-normal">
                       Right-leaning position
-                      <textarea
-                        className={inputClass}
+                      <Textarea
+                        className={`${inputClass} min-h-0`}
                         rows={2}
                         value={form.right}
                         onChange={(e) => setForm((f) => ({ ...f, right: e.target.value }))}
                       />
-                    </label>
+                    </Label>
                   </div>
                   {err && <div className="text-xs text-red-600">{err}</div>}
                   <div className="flex items-center gap-2">

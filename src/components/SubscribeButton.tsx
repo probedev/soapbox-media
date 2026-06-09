@@ -7,6 +7,7 @@
  */
 import { useState } from "react";
 
+import { Button } from "@/components/ui/button";
 import { getBrowserSupabase } from "@/lib/supabase-browser";
 
 export function SubscribeButton({ className = "", label = "Subscribe - $300/mo" }: { className?: string; label?: string }) {
@@ -33,13 +34,13 @@ export function SubscribeButton({ className = "", label = "Subscribe - $300/mo" 
 
   return (
     <div className={className}>
-      <button
+      <Button
         onClick={go}
         disabled={busy}
-        className="inline-flex items-center justify-center rounded-md bg-gray-900 text-white text-sm font-medium px-5 py-2.5 hover:bg-gray-800 disabled:opacity-50 transition"
+        className="inline-flex items-center justify-center rounded-md bg-gray-900 text-white text-sm font-medium px-5 py-2.5 hover:bg-gray-800 disabled:opacity-50 transition h-auto"
       >
         {busy ? "…" : label}
-      </button>
+      </Button>
       {error && <p className="text-xs text-red-600 mt-2">{error}</p>}
     </div>
   );
