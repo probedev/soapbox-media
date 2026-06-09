@@ -1,7 +1,7 @@
 import Image from "next/image";
 import logoCrate from "@/assets/logo-crate.png";
 
-type ActivePage = "issues" | "channels" | "activity" | "methodology" | null;
+type ActivePage = "issues" | "channels" | "emerging" | "activity" | "methodology" | null;
 
 interface HeaderProps {
   /** When set, that nav link gets the bolded/active treatment */
@@ -40,6 +40,7 @@ export function Header({ activePage = null }: HeaderProps) {
         <nav className="text-sm text-ink-muted flex flex-wrap gap-4 sm:gap-6">
           <a href="/issues" className={linkClass("issues")}>Issues</a>
           <a href="/channels" className={linkClass("channels")}>Channels</a>
+          <a href="/emerging" className={linkClass("emerging")}>Emerging</a>
           <a href="/log" className={linkClass("activity")}>Activity</a>
           <a href="/methodology" className={linkClass("methodology")}>Methodology</a>
         </nav>

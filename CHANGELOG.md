@@ -7,7 +7,26 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
-## v0.12.0 · 2026-06-09
+## v0.13.0 · 2026-06-09
+
+### Added
+
+- **Public "Emerging topics" board (`/emerging`, linked from top nav).** Surfaces
+  the discovery pipeline's findings publicly: auto-detected, machine-clustered
+  topics the shows are discussing that aren't in the issue taxonomy yet, in a
+  sortable table (weight / mentions / episodes / channels). Each row expands to
+  reveal real episode receipts - the exact supporting quotes with channel,
+  episode title, date, and outbound link - lazy-loaded from a new route
+  `/api/emerging/[id]/receipts` (highest-reach episode first, one per episode).
+  Shows only `pending` candidates; promotion into a tracked Soapbox issue stays
+  human-gated in `/admin/discovery`. Copy frames them honestly as raw, daily,
+  not-hand-curated signals. New `getEmergingIssues()` + `EmergingIssuesTable`,
+  mirroring the existing expand-for-receipts design (EpisodeMentions).
+
+### Changed
+
+- **Discovery cron now runs daily** (`0 11 * * *`, was weekly Mon) so the public
+  /emerging board refreshes every day. Cost is negligible (~$0.03/run Haiku).
 
 ### Added
 

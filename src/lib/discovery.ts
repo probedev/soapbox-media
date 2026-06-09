@@ -274,6 +274,47 @@ export async function getDiscoveryCandidates(
   return (data || []) as DiscoveryCandidate[];
 }
 
+/** Lean public shape for the /emerging board (pending candidates only). */
+export interface EmergingIssue {
+  id: string;
+  label: string;
+  summary: string | null;
+  topicCount: number;
+  episodeCount: number;
+  channelCount: number;
+  weight: number;
+}
+
+/**
+ * Public emerging-topic board: pending discovery candidates ranked by weight.
+ * These are auto-detected, machine-clustered topics NOT yet in the taxonomy and
+ * NOT hand-curated. Showing the raw signal publicly is fine; promotion into a
+ * real persistent issue stays human-gated (/admin/discovery). Refreshed daily by
+ * the discover cron. Ignored/promoted/merged candidates are excluded (only
+ * `pending` surfaces here).
+ */
+export async function getEmergingIssues(): Promise<EmergingIssue[]> {
+  const db = createServiceClient();
+  const { data, error } = await db
+    .from("discovery_candidates")
+    .select("id, label, summary, topic_count, episode_count, channel_count, weight")
+    .eq("status", "pending")
+    .order("weight", { ascending: false });
+  if (error) {
+    console.error("getEmergingIssues:", error.message);
+    return [];
+  }
+  return (data || []).map((r: any) => ({
+    id: r.id,
+    label: r.label,
+    summary: r.summary,
+    topicCount: r.topic_count,
+    episodeCount: r.episode_count,
+    channelCount: r.channel_count,
+    weight: Number(r.weight),
+  }));
+}
+
 /** Active taxonomy issues - for the "merge into" dropdown. */
 export async function getActiveIssueOptions(): Promise<{ slug: string; name: string }[]> {
   const db = createServiceClient();

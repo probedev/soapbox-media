@@ -1,0 +1,290 @@
+"use client";
+
+/**
+ * EmergingIssuesTable - the public /emerging board. A sortable TanStack table of
+ * auto-detected, machine-clustered topics not yet in the taxonomy, each row
+ * expandable to reveal real episode receipts (lazy-loaded from
+ * /api/emerging/[id]/receipts). Mirrors the expand-for-receipts design used by
+ * EpisodeDataTable / EpisodeMentions; promotion into a tracked issue stays
+ * human-gated in /admin/discovery.
+ */
+import * as React from "react";
+import {
+  type ColumnDef,
+  type SortingState,
+  type ExpandedState,
+  flexRender,
+  getCoreRowModel,
+  getSortedRowModel,
+  getExpandedRowModel,
+  useReactTable,
+} from "@tanstack/react-table";
+import { ArrowUp, ArrowDown, ChevronDown, ChevronRight, ExternalLink } from "lucide-react";
+import { Card } from "@/components/ui/card";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { cn } from "@/lib/utils";
+import type { EmergingIssue } from "@/lib/discovery";
+import type { EmergingReceiptsResponse } from "@/app/api/emerging/[id]/receipts/route";
+
+const COL_WIDTH: Record<string, string> = {
+  expander: "3%",
+  weight: "11%",
+  topicCount: "11%",
+  episodeCount: "11%",
+  channelCount: "11%",
+};
+const RIGHT_COLS = new Set(["weight", "topicCount", "episodeCount", "channelCount"]);
+
+function SortHeader({
+  column,
+  label,
+}: {
+  column: import("@tanstack/react-table").Column<EmergingIssue, unknown>;
+  label: string;
+}) {
+  const sorted = column.getIsSorted();
+  return (
+    <button
+      type="button"
+      onClick={() => column.toggleSorting(sorted === "asc")}
+      className="inline-flex items-center gap-1 flex-row-reverse hover:text-foreground"
+    >
+      {label}
+      {sorted === "asc" ? (
+        <ArrowUp className="w-3 h-3" />
+      ) : sorted === "desc" ? (
+        <ArrowDown className="w-3 h-3" />
+      ) : null}
+    </button>
+  );
+}
+
+function formatDate(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+}
+
+/** Lazy-loaded episode receipts for one emerging-topic candidate. */
+function ReceiptsPanel({ candidateId, label }: { candidateId: string; label: string }) {
+  const [state, setState] = React.useState<{
+    status: "loading" | "error" | "done";
+    data?: EmergingReceiptsResponse;
+  }>({ status: "loading" });
+
+  React.useEffect(() => {
+    let cancelled = false;
+    fetch(`/api/emerging/${candidateId}/receipts`)
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`))))
+      .then((data: EmergingReceiptsResponse) => {
+        if (!cancelled) setState({ status: "done", data });
+      })
+      .catch(() => {
+        if (!cancelled) setState({ status: "error" });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [candidateId]);
+
+  if (state.status === "loading") {
+    return <div className="px-4 py-3 text-xs text-ink-faint">Loading receipts…</div>;
+  }
+  if (state.status === "error") {
+    return <div className="px-4 py-3 text-xs text-red-600">Couldn&apos;t load receipts.</div>;
+  }
+
+  const { receipts } = state.data!;
+  if (receipts.length === 0) {
+    return (
+      <div className="px-4 py-3 text-xs text-muted-foreground italic">
+        No quoted receipts available for this topic.
+      </div>
+    );
+  }
+
+  return (
+    <div className="px-4 py-3 bg-subtle/70 border-t border-muted">
+      <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2.5">
+        Receipts · what shows actually said about {label}
+      </div>
+      <ul className="space-y-2.5">
+        {receipts.map((r, i) => (
+          <li key={i} className="text-xs">
+            <span className="text-ink-muted leading-snug">
+              <span className="text-ink-faint">&ldquo;</span>
+              {r.quote}
+              <span className="text-ink-faint">&rdquo;</span>
+            </span>
+            <a
+              href={r.episodeUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-1 flex items-center gap-1.5 text-ink-faint hover:text-ink-body"
+            >
+              <span className="font-medium text-ink-muted shrink-0">{r.channel}</span>
+              <span aria-hidden>·</span>
+              <span className="truncate">{r.episodeTitle}</span>
+              <span className="tabular-nums shrink-0">· {formatDate(r.publishedAt)}</span>
+              <ExternalLink className="w-3 h-3 shrink-0" />
+            </a>
+          </li>
+        ))}
+      </ul>
+      <p className="text-[10px] text-ink-faint mt-3">
+        Auto-detected topic, machine-clustered from off-taxonomy mentions; not yet a tracked Soapbox
+        issue. Quotes are excerpts, never full transcripts.
+      </p>
+    </div>
+  );
+}
+
+const columns: ColumnDef<EmergingIssue>[] = [
+  {
+    id: "expander",
+    header: "",
+    enableSorting: false,
+    cell: ({ row }) => (
+      <button
+        type="button"
+        onClick={row.getToggleExpandedHandler()}
+        aria-label={row.getIsExpanded() ? "Hide receipts" : "Show receipts"}
+        className="text-ink-faint hover:text-ink-body"
+      >
+        {row.getIsExpanded() ? (
+          <ChevronDown className="w-4 h-4" />
+        ) : (
+          <ChevronRight className="w-4 h-4" />
+        )}
+      </button>
+    ),
+  },
+  {
+    accessorKey: "label",
+    header: "Emerging topic",
+    enableSorting: false,
+    cell: ({ row }) => (
+      <div className="min-w-0">
+        <div className="font-medium text-ink-strong">{row.original.label}</div>
+        {row.original.summary && (
+          <div className="text-xs text-ink-muted mt-0.5">{row.original.summary}</div>
+        )}
+      </div>
+    ),
+  },
+  {
+    accessorKey: "weight",
+    header: ({ column }) => <SortHeader column={column} label="Weight" />,
+    cell: ({ row }) => (
+      <div className="text-right font-semibold tabular-nums">
+        {Math.round(row.original.weight).toLocaleString()}
+      </div>
+    ),
+  },
+  {
+    accessorKey: "topicCount",
+    header: ({ column }) => <SortHeader column={column} label="Mentions" />,
+    cell: ({ row }) => (
+      <div className="text-right tabular-nums text-ink-muted">
+        {row.original.topicCount.toLocaleString()}
+      </div>
+    ),
+  },
+  {
+    accessorKey: "episodeCount",
+    header: ({ column }) => <SortHeader column={column} label="Episodes" />,
+    cell: ({ row }) => (
+      <div className="text-right tabular-nums text-ink-muted">
+        {row.original.episodeCount.toLocaleString()}
+      </div>
+    ),
+  },
+  {
+    accessorKey: "channelCount",
+    header: ({ column }) => <SortHeader column={column} label="Channels" />,
+    cell: ({ row }) => (
+      <div className="text-right tabular-nums text-ink-muted">
+        {row.original.channelCount.toLocaleString()}
+      </div>
+    ),
+  },
+];
+
+export function EmergingIssuesTable({ data }: { data: EmergingIssue[] }) {
+  const [sorting, setSorting] = React.useState<SortingState>([{ id: "weight", desc: true }]);
+  const [expanded, setExpanded] = React.useState<ExpandedState>({});
+
+  const table = useReactTable({
+    data,
+    columns,
+    state: { sorting, expanded },
+    onSortingChange: setSorting,
+    onExpandedChange: setExpanded,
+    getRowCanExpand: () => true,
+    getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    getExpandedRowModel: getExpandedRowModel(),
+  });
+
+  return (
+    <Card className="overflow-hidden">
+      <Table>
+        <TableHeader>
+          {table.getHeaderGroups().map((hg) => (
+            <TableRow key={hg.id}>
+              {hg.headers.map((h) => (
+                <TableHead
+                  key={h.id}
+                  className={cn(
+                    "text-[11px] uppercase tracking-wider",
+                    RIGHT_COLS.has(h.column.id) && "text-right",
+                  )}
+                  style={COL_WIDTH[h.column.id] ? { width: COL_WIDTH[h.column.id] } : undefined}
+                >
+                  {h.isPlaceholder
+                    ? null
+                    : flexRender(h.column.columnDef.header, h.getContext())}
+                </TableHead>
+              ))}
+            </TableRow>
+          ))}
+        </TableHeader>
+        <TableBody>
+          {table.getRowModel().rows.length ? (
+            table.getRowModel().rows.map((row) => (
+              <React.Fragment key={row.id}>
+                <TableRow>
+                  {row.getVisibleCells().map((cell) => (
+                    <TableCell key={cell.id} className="align-top">
+                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                    </TableCell>
+                  ))}
+                </TableRow>
+                {row.getIsExpanded() && (
+                  <TableRow className="hover:bg-transparent">
+                    <TableCell colSpan={row.getVisibleCells().length} className="p-0">
+                      <ReceiptsPanel candidateId={row.original.id} label={row.original.label} />
+                    </TableCell>
+                  </TableRow>
+                )}
+              </React.Fragment>
+            ))
+          ) : (
+            <TableRow>
+              <TableCell colSpan={columns.length} className="h-24 text-center text-muted-foreground">
+                No emerging topics right now. Check back after the next daily refresh.
+              </TableCell>
+            </TableRow>
+          )}
+        </TableBody>
+      </Table>
+    </Card>
+  );
+}

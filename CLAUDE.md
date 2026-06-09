@@ -64,8 +64,9 @@ swappable. Aggregation (`src/lib/aggregate.ts`) is read-only.
   doesn't change cost (episode *volume* does), it just cuts processing latency.
   Ingest stays 1×/day on purpose: its 3-episode cap is enforced per-RUN, so
   running it more often would over-sample high-volume channels past the 3/day
-  "stance per audience" cap (would need a per-day cap first). Discover weekly
-  (Mon 11:00 UTC). Each stage has a 300s function limit; classify's per-run wall-
+  "stance per audience" cap (would need a per-day cap first). Discover daily
+  (11:00 UTC; powers the public /emerging board). Each stage has a 300s function
+  limit; classify's per-run wall-
   clock is bounded by `STAGE_TIME_BUDGET_MS = 240s` in `src/lib/pipeline.ts`
   (v0.6.43) so it always completes cleanly as the taxonomy grows. Stage logic
   is in `src/lib/pipeline.ts`; `/api/cron/pipeline` kept for manual full runs.
