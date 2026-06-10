@@ -73,6 +73,8 @@ export function getPromptCatalog(): PromptSpec[] {
 export interface PromptLimitation {
   title: string;
   raisedBy?: string;
+  /** Short lifecycle tag, e.g. "Open", "Investigated & parked (2026-06)". */
+  status?: string;
   detail: string;
 }
 
@@ -80,7 +82,8 @@ export const PROMPT_LIMITATIONS: PromptLimitation[] = [
   {
     title: "Speaker attribution: quoted-vs-endorsed positions",
     raisedBy: "Beta tester · 2026-06",
+    status: "Investigated & parked (2026-06)",
     detail:
-      "Neither stage tracks who is speaking or whether the host endorses or rebuts a quote. Classify (v1) pulls a supporting quote of a substantive discussion; Score (v1) rates that quote on its face value (\"on its own merits\"). So when a host reads or plays an opposing position Y in order to attack it, the quote scores as aligned with Y - misattributing the show's actual stance X. Candidate for the next versions: have classify capture the speaker and an endorse/rebut stance, and have score reflect the host's stance toward the quote rather than the quote's surface alignment.",
+      "The concern: neither stage tracks whether the host endorses or rebuts a quote, so a host reading/playing an opposing position Y to attack it could be scored as aligned with Y. Investigated offline (a 90-transcript classify battery + a separate stance-stage prototype run over real production mentions; harnesses in scripts/eval-attribution.ts and scripts/eval-stance-impact.ts). Findings: genuine opposing-position quotes are only ~8% of mentions - a sharpened definition cut a naive 41% over-count, because a host's OWN criticism of an opponent is the host's view, not the opponent's. Crucially, correcting attribution barely moves the per-channel-per-issue scores the site reports: mean |delta| < 1 pt on the -10..+10 scale, no strongly-stanced channel changed its read, and the only sign-flips were near-zero legacy-news pairs (BBC / Bloomberg on Iran) where balanced is balanced either way. Inferring 'whose stance' without speaker labels is also error-prone (it can flag a guest the show AGREES with as 'opposing'), so a naive fix could make some channels worse. Decision: PARKED - a per-mention stance stage + schema + gold-set re-validation isn't justified by a sub-point refinement. Revisit only if a specific high-value channel shows a demonstrable mis-attribution.",
   },
 ];

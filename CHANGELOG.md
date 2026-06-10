@@ -7,6 +7,30 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
+## v0.15.1 · 2026-06-10
+
+### Changed
+
+- **Speaker-attribution limitation investigated and parked.** Followed up the beta
+  tester's attribution concern with two offline experiments: a 90-transcript
+  classify battery (v1 vs a stance-in-classify v1.1, with a v1-vs-v1 noise floor and
+  an Opus refute-judge) and a separate stance-stage prototype (v1.2) run over real
+  production mentions to measure aggregate impact. Result: genuine opposing-position
+  quotes are only ~8% of mentions, and correcting them barely moves the
+  per-channel-per-issue scores the site reports - mean |delta| < 1 pt on the
+  -10..+10 scale, no strongly-stanced channel changed its read, and the only
+  sign-flips were near-zero legacy-news pairs (BBC / Bloomberg on Iran). A naive fix
+  would also mislabel guests the show agrees with, risking net harm. Decision:
+  parked. The /admin/prompts maturation backlog now carries a status tag plus the
+  full finding.
+
+### Added (offline only - not wired into the deployed pipeline)
+
+- Reproducible attribution-eval harnesses `scripts/eval-attribution.ts` and
+  `scripts/eval-stance-impact.ts`, and experimental prompt modules
+  `src/modules/classify/experimental.ts` (v1.1) and `src/modules/classify/stance.ts`
+  (v1.2). Production still runs the v1 prompts; eval outputs are gitignored.
+
 ## v0.15.0 · 2026-06-10
 
 ### Added

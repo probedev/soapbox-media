@@ -66,14 +66,20 @@ export default function AdminPromptsPage() {
         <Card className="p-5 mt-6 border-amber-300 bg-amber-50/50">
           <h2 className="text-lg font-semibold">Maturation backlog · known limitations</h2>
           <p className="text-sm text-ink-muted mt-1 max-w-3xl">
-            Validity gaps in the current prompts. These are the candidates for the next prompt
-            versions; each must be validated against the gold set (/eval/label) before shipping.
+            Known validity gaps in the current prompts and their status. Open items are candidates
+            for the next prompt versions; any classify/score change must be validated against the
+            gold set (/eval/label) before shipping.
           </p>
           <div className="mt-4 space-y-4">
             {PROMPT_LIMITATIONS.map((l, i) => (
               <div key={i}>
                 <div className="font-medium text-sm flex items-center gap-2 flex-wrap">
                   {l.title}
+                  {l.status && (
+                    <Badge variant="secondary" className="text-[10px] font-normal">
+                      {l.status}
+                    </Badge>
+                  )}
                   {l.raisedBy && (
                     <span className="text-[10px] uppercase tracking-wider text-ink-faint">
                       {l.raisedBy}
