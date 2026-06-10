@@ -25,6 +25,17 @@ export interface ScoreResult {
   rawText: string;
 }
 
+/** Max output tokens for the score call (two numbers + a hair of slack). */
+export const SCORE_MAX_TOKENS = 200;
+
+/**
+ * Prompt version - BUMP whenever buildPrompt below changes. Scoring changes must
+ * be validated against the gold set before shipping (see CLAUDE.md). v1 = first
+ * labeled version (2026-06-10); the prompt predates the label. Surfaced read-only
+ * at /admin/prompts.
+ */
+export const SCORE_PROMPT_VERSION = "v1";
+
 function buildPrompt(input: ScoreInput): string {
   return `You are rating a single political statement for (a) its alignment with the left vs. right position on a defined issue, and (b) the intensity with which the speaker expresses the view.
 
@@ -68,13 +79,30 @@ Examples:
 {"sentiment": 0, "intensity": 1}`;
 }
 
+/**
+ * The score prompt rendered with labeled placeholders for its dynamic slots, for
+ * the read-only /admin/prompts view. Built from the real buildPrompt so the
+ * displayed template can never drift from what actually runs.
+ */
+export function scorePromptPreview(): string {
+  return buildPrompt({
+    quote: "{{QUOTE}}",
+    channelName: "{{CHANNEL_NAME}}",
+    politicalLean: "{{LEAN}}" as ScoreInput["politicalLean"],
+    issueName: "{{Issue Name}}",
+    issueDefinition: "{{issue definition}}",
+    leftPosition: "{{left-leaning position}}",
+    rightPosition: "{{right-leaning position}}",
+  });
+}
+
 export async function scoreClassification(input: ScoreInput): Promise<ScoreResult> {
   const client = getAnthropicClient();
   const prompt = buildPrompt(input);
 
   const response = await client.messages.create({
     model: MODEL_SCORE,
-    max_tokens: 200,
+    max_tokens: SCORE_MAX_TOKENS,
     messages: [{ role: "user", content: prompt }],
   });
 

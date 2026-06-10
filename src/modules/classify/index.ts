@@ -43,6 +43,17 @@ export interface ClassifyResult {
   rawText: string;
 }
 
+/** Max output tokens for the classify call. */
+export const CLASSIFY_MAX_TOKENS = 4096;
+
+/**
+ * Prompt version - BUMP whenever buildPrompt below changes. Classification and
+ * scoring changes must be validated against the gold set before shipping (see
+ * CLAUDE.md). v1 = first labeled version (2026-06-10); the prompt predates the
+ * label. Surfaced read-only at /admin/prompts.
+ */
+export const CLASSIFY_PROMPT_VERSION = "v1";
+
 function buildPrompt(input: ClassifyInput): string {
   const issuesList = input.issues
     .map((i) => `- ${i.slug}: ${i.name} - ${i.definition}`)
@@ -103,13 +114,32 @@ markdown code fences, no commentary:
 }`;
 }
 
+/**
+ * The classify prompt rendered with labeled placeholders for its dynamic slots,
+ * for the read-only /admin/prompts view. Built from the real buildPrompt so the
+ * displayed template can never drift from what actually runs.
+ */
+export function classifyPromptPreview(): string {
+  return buildPrompt({
+    transcript: "{{TRANSCRIPT}}",
+    channelName: "{{CHANNEL_NAME}}",
+    politicalLean: "{{LEAN}}" as ClassifyInput["politicalLean"],
+    episodeTitle: "{{EPISODE_TITLE}}",
+    publishedAt: "{{PUBLISHED_AT}}",
+    issues: [
+      { slug: "{{issue-slug}}", name: "{{Issue Name}}", definition: "{{issue definition}}" },
+      { slug: "…", name: "… one line per active taxonomy issue …", definition: "…" },
+    ],
+  });
+}
+
 export async function classifyTranscript(input: ClassifyInput): Promise<ClassifyResult> {
   const client = getAnthropicClient();
   const prompt = buildPrompt(input);
 
   const response = await client.messages.create({
     model: MODEL_CLASSIFY,
-    max_tokens: 4096,
+    max_tokens: CLASSIFY_MAX_TOKENS,
     messages: [{ role: "user", content: prompt }],
   });
 

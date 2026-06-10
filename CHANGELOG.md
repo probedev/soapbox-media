@@ -7,6 +7,26 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
+## v0.15.0 · 2026-06-10
+
+### Added
+
+- **/admin/prompts: pipeline prompts + models, now versioned.** A read-only admin
+  page revealing the exact system prompts and models the classify and score
+  stages run (`claude-sonnet-4-6` / `claude-haiku-4-5`), with per-stage prompt
+  version labels (both start at `v1`), max_tokens, descriptions, and the dynamic
+  inputs. Templates are rendered from the LIVE prompt builders with placeholder
+  inputs (`classifyPromptPreview` / `scorePromptPreview`), so the page can never
+  drift from production. Versions live next to the builders
+  (`CLASSIFY_PROMPT_VERSION` / `SCORE_PROMPT_VERSION` in `src/modules/*`) - bump
+  on any change. Catalog in `src/lib/prompts.ts`.
+- **Maturation backlog on the same page.** Surfaces known validity gaps in the
+  current prompts as the candidates for the next versions (gold-set-gated). First
+  entry, from a beta tester: **speaker attribution** - neither stage tracks who
+  is speaking or whether the host endorses vs. rebuts a quote, so a host playing
+  an opposing position Y to attack it currently scores as aligned with Y,
+  misattributing the show's stance X.
+
 ## v0.14.1 · 2026-06-10
 
 ### Changed
