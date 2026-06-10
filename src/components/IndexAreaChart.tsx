@@ -15,6 +15,7 @@ import {
   ChartTooltipContent,
   type ChartConfig,
 } from "@/components/ui/chart";
+import { DISPLAY_TZ } from "@/lib/utils";
 
 interface IndexAreaChartProps {
   /** Soapbox Index values, oldest first. Range −10..+10. */
@@ -49,7 +50,7 @@ function formatShortDate(iso: string): string {
   return new Date(iso).toLocaleDateString("en-US", {
     month: "short",
     day: "numeric",
-    timeZone: "UTC",
+    timeZone: DISPLAY_TZ,
   });
 }
 

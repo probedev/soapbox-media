@@ -7,6 +7,30 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
+## v0.14.1 · 2026-06-10
+
+### Changed
+
+- **Episode/publish dates now render in a fixed editorial timezone (US Eastern),
+  not the viewer's local zone.** A viewer in Hawaii (UTC-10) saw June 9 episodes
+  dated 06/08 because `toLocaleDateString` used the browser's timezone, and the
+  10:00 UTC daily ingest lands at their local midnight - so the log looked like
+  it had almost nothing from "today." Dates are a fact of the record, so they're
+  now pinned to one zone via a single source of truth (`DISPLAY_TZ` +
+  `formatDateET` in `src/lib/utils.ts`), applied across the log/episode tables,
+  the emerging + channel-issue receipts, the home "as of" label, the trust strip,
+  the index/volume chart axes, and the OG image. (Admin/operator timestamps stay
+  in their own frame for UTC/cron reasoning.) This also unifies a prior
+  inconsistency where some surfaces pinned UTC and others used local.
+
+### Removed
+
+- **Trending Names (BETA) removed from the home page** - superseded by the new
+  /emerging board. Dropped the home-page section + its data read, deleted the
+  `TrendingNames` component, and removed the now-pointless daily
+  `/api/cron/trending` schedule. The trending lib + cron route remain in the repo
+  (unscheduled) so the feature can be revived or wired to MCP later.
+
 ## v0.14.0 · 2026-06-09
 
 ### Added

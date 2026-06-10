@@ -4,13 +4,12 @@ import { IndexAreaChart } from "@/components/IndexAreaChart";
 import { IssueContributionsChart } from "@/components/IssueContributionsChart";
 import { BiggestMovers } from "@/components/BiggestMovers";
 import { TrustStrip } from "@/components/TrustStrip";
-import { TrendingNames } from "@/components/TrendingNames";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { getDashboardData, getIndexBreakdown, readHomeSnapshot } from "@/lib/aggregate";
-import { readTrending } from "@/lib/trending";
 import { SubNeedle } from "@/components/SubNeedle";
 import { PUBLIC_COHORTS } from "@/lib/cohort";
+import { DISPLAY_TZ } from "@/lib/utils";
 
 // The home page reads a precomputed snapshot (written at the end of the score
 // cron) so it serves one light row instead of re-aggregating the full
@@ -26,7 +25,7 @@ function formatAsOfLabel(asOfDateIso: string, windowDays: number): string {
     month: "short",
     day: "numeric",
     year: "numeric",
-    timeZone: "UTC",
+    timeZone: DISPLAY_TZ,
   });
   return `Last ${windowDays} days · as of ${formatted}`;
 }
@@ -45,10 +44,6 @@ export default async function HomePage() {
   // otherwise the component computes it live itself (prop left undefined).
   const breakdown =
     snapshot?.breakdown ?? (await getIndexBreakdown(HOMEPAGE_WINDOW_DAYS));
-  // Trending Names (BETA) - its own snapshot, refreshed by /api/cron/trending.
-  // Best-effort: a missing/failed read must not break the home page.
-  const trending = await readTrending().catch(() => null);
-
   const directionLabel = data.index >= 0 ? "R+" : "L+";
   const directionWord = data.index >= 0 ? "right" : "left";
   const indexColor = data.index >= 0 ? "text-red-600" : "text-blue-600";
@@ -172,15 +167,6 @@ export default async function HomePage() {
             {/* Cap (and ranking) live in getDashboardData so every consumer
                 of `data.movers` agrees on the leaderboard length. */}
             <BiggestMovers movers={data.movers} />
-          </div>
-        </section>
-      )}
-
-      {/* Trending Names (BETA) - named-entity burst tease */}
-      {trending && trending.entities.length > 0 && (
-        <section className="border-t border-border bg-card">
-          <div className="max-w-3xl mx-auto px-6 py-12">
-            <TrendingNames data={trending} />
           </div>
         </section>
       )}

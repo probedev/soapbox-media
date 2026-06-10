@@ -14,6 +14,7 @@ import {
   ChartTooltipContent,
   type ChartConfig,
 } from "@/components/ui/chart";
+import { DISPLAY_TZ } from "@/lib/utils";
 
 /**
  * Mention-volume sparkline - counterpart to <IndexAreaChart>. Lean values are
@@ -40,7 +41,7 @@ function formatShortDate(iso: string): string {
   return new Date(iso).toLocaleDateString("en-US", {
     month: "short",
     day: "numeric",
-    timeZone: "UTC",
+    timeZone: DISPLAY_TZ,
   });
 }
 

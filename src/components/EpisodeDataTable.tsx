@@ -29,7 +29,7 @@ import { EpisodeMentions } from "@/components/EpisodeMentions";
 import { CohortBadge } from "@/components/CohortBadge";
 import { CohortLegend } from "@/components/CohortLegend";
 import { PUBLIC_COHORTS } from "@/lib/cohort";
-import { cn } from "@/lib/utils";
+import { cn, formatDateET } from "@/lib/utils";
 import {
   Table,
   TableBody,
@@ -39,6 +39,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import {
   DropdownMenu,
@@ -58,11 +59,7 @@ import {
 // ── formatting + status helpers ───────────────────────────────────────────
 
 function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString("en-US", {
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  });
+  return formatDateET(iso, { year: "numeric", month: "2-digit", day: "2-digit" });
 }
 
 function formatDuration(seconds: number | null): string {
@@ -552,7 +549,7 @@ export function EpisodeDataTable({
       </div>
 
       {/* Table */}
-      <div className="rounded-lg border border-border bg-card">
+      <Card>
         <Table className="table-fixed">
           <TableHeader>
             {table.getHeaderGroups().map((hg) => (
@@ -616,7 +613,7 @@ export function EpisodeDataTable({
             )}
           </TableBody>
         </Table>
-      </div>
+      </Card>
 
       {/* Pagination */}
       <div className="flex items-center justify-between gap-3 mt-3 text-xs text-muted-foreground">

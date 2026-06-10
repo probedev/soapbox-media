@@ -18,6 +18,7 @@ import { ImageResponse } from "next/og";
 import fs from "fs";
 import path from "path";
 import { getDashboardData } from "@/lib/aggregate";
+import { DISPLAY_TZ } from "@/lib/utils";
 
 export const runtime = "nodejs";
 export const revalidate = 3600; // re-generate at most once per hour
@@ -32,7 +33,7 @@ function formatAsOf(iso: string): string {
     month: "short",
     day: "numeric",
     year: "numeric",
-    timeZone: "UTC",
+    timeZone: DISPLAY_TZ,
   });
 }
 

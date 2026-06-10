@@ -13,7 +13,7 @@
 import * as React from "react";
 import { ChevronDown, ChevronRight, ExternalLink } from "lucide-react";
 import { Card } from "@/components/ui/card";
-import { cn } from "@/lib/utils";
+import { cn, formatDateET } from "@/lib/utils";
 import type { IssueOnChannel } from "@/lib/aggregate";
 import type { ChannelIssueMentionsResponse } from "@/app/api/channels/[id]/issues/[slug]/mentions/route";
 
@@ -50,9 +50,7 @@ function IntensityMeter({ intensity }: { intensity: number }) {
 }
 
 function formatDate(iso: string): string {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "";
-  return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+  return formatDateET(iso, { month: "short", day: "numeric", year: "numeric" });
 }
 
 /** Lazy-loaded receipts panel for one channel + one issue. */

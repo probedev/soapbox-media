@@ -1,3 +1,5 @@
+import { DISPLAY_TZ } from "@/lib/utils";
+
 interface TrustStripProps {
   numChannels: number;
   numEpisodes: number;
@@ -21,6 +23,7 @@ export function TrustStrip({
     day: "numeric",
     hour: "numeric",
     minute: "2-digit",
+    timeZone: DISPLAY_TZ,
     timeZoneName: "short",
   });
 

@@ -29,7 +29,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { cn } from "@/lib/utils";
+import { cn, formatDateET } from "@/lib/utils";
 import type { EmergingIssue } from "@/lib/discovery";
 import type { EmergingReceiptsResponse } from "@/app/api/emerging/[id]/receipts/route";
 
@@ -68,9 +68,7 @@ function SortHeader({
 }
 
 function formatDate(iso: string): string {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "";
-  return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+  return formatDateET(iso, { month: "short", day: "numeric", year: "numeric" });
 }
 
 /** Source channel's editorial lean as a colored chip, matching the site convention

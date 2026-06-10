@@ -12,17 +12,11 @@ import * as React from "react";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { EmergingIssuesTable } from "@/components/EmergingIssuesTable";
+import { formatDateET } from "@/lib/utils";
 import type { EmergingIssue } from "@/lib/discovery";
 
 function formatUpdated(iso: string): string {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "";
-  return d.toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    timeZone: "UTC",
-  });
+  return formatDateET(iso, { month: "short", day: "numeric", year: "numeric" });
 }
 
 function TabContent({
