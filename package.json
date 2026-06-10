@@ -1,6 +1,6 @@
 {
   "name": "soapbox",
-  "version": "0.13.1",
+  "version": "0.14.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -35,6 +35,7 @@
     "@radix-ui/react-label": "^2.1.9",
     "@radix-ui/react-select": "^2.3.0",
     "@radix-ui/react-slot": "^1.2.5",
+    "@radix-ui/react-tabs": "^1.1.14",
     "@radix-ui/react-tooltip": "^1.2.8",
     "@supabase/supabase-js": "^2.45.4",
     "@tanstack/react-table": "^8.21.3",

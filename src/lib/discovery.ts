@@ -287,47 +287,152 @@ export interface EmergingIssue {
   weight: number;
 }
 
-export interface EmergingIssuesResult {
-  issues: EmergingIssue[];
+export interface EmergingBoard {
+  /** All cohorts combined. */
+  all: EmergingIssue[];
+  independent: EmergingIssue[];
+  legacy: EmergingIssue[];
   /** When the current pending set was last rebuilt (max created_at), or null. */
   lastUpdated: string | null;
 }
 
 /**
- * Public emerging-issue board: pending discovery candidates ranked by weight.
- * These are auto-detected, machine-clustered issues NOT yet in the taxonomy and
- * NOT hand-curated. Showing the raw signal publicly is fine; promotion into a
- * real persistent issue stays human-gated (/admin/discovery). Refreshed daily by
- * the discover cron. Ignored/promoted/merged candidates are excluded (only
- * `pending` surfaces here). `lastUpdated` = newest created_at (the whole pending
- * set is rebuilt in one run, so this is effectively the last refresh time).
+ * Public emerging-issue board with per-cohort cuts. Pending discovery candidates,
+ * ranked by weight. Auto-detected, machine-clustered issues NOT yet in the
+ * taxonomy and NOT hand-curated; showing the raw signal publicly is fine, but
+ * promotion into a real persistent issue stays human-gated (/admin/discovery).
+ *
+ * The cohort cuts (independent / legacy) are RECOMPUTED from the candidates'
+ * member topics, not the stored all-cohort stats - otherwise a tab would show a
+ * candidate's combined weight/mentions/channels, which is wrong for the filtered
+ * view, and independent-only issues would wrongly appear under legacy. Cohorts
+ * partition cleanly (every channel is exactly one of independent|legacy), so
+ * `all` = independent + legacy. We compute all three in one pass over
+ * discovery_topics joined to episode + channel, mirroring the build-time weight
+ * (reachFactor x 7-day recency boost). Refreshed daily by the discover cron.
  */
-export async function getEmergingIssues(): Promise<EmergingIssuesResult> {
+export async function getEmergingBoard(): Promise<EmergingBoard> {
   const db = createServiceClient();
-  const { data, error } = await db
+
+  const { data: cands, error: cErr } = await db
     .from("discovery_candidates")
-    .select("id, label, summary, topic_count, episode_count, channel_count, weight, created_at")
-    .eq("status", "pending")
-    .order("weight", { ascending: false });
-  if (error) {
-    console.error("getEmergingIssues:", error.message);
-    return { issues: [], lastUpdated: null };
+    .select("id, label, summary, created_at")
+    .eq("status", "pending");
+  if (cErr) {
+    console.error("getEmergingBoard candidates:", cErr.message);
+    return { all: [], independent: [], legacy: [], lastUpdated: null };
   }
+  const meta = new Map<string, { label: string; summary: string | null }>();
   let lastUpdated: string | null = null;
-  const issues: EmergingIssue[] = (data || []).map((r: any, i: number) => {
-    if (r.created_at && (!lastUpdated || r.created_at > lastUpdated)) lastUpdated = r.created_at;
-    return {
-      id: r.id,
-      rank: i + 1,
-      label: r.label,
-      summary: r.summary,
-      topicCount: r.topic_count,
-      episodeCount: r.episode_count,
-      channelCount: r.channel_count,
-      weight: Number(r.weight),
+  for (const c of (cands as any[]) || []) {
+    meta.set(c.id, { label: c.label, summary: c.summary });
+    if (c.created_at && (!lastUpdated || c.created_at > lastUpdated)) lastUpdated = c.created_at;
+  }
+  const pendingIds = [...meta.keys()];
+  if (pendingIds.length === 0) {
+    return { all: [], independent: [], legacy: [], lastUpdated };
+  }
+
+  // Member topics of all pending candidates, with channel cohort + reach and the
+  // episode published_at for the recency boost. Paginate (stable id order).
+  interface TopicRow {
+    candidate_id: string;
+    episode_id: string;
+    channel: string;
+    cohort: string;
+    reach: number;
+    published_at: string;
+  }
+  const topics: TopicRow[] = [];
+  const pageSize = 1000;
+  for (let page = 0; page < 30; page++) {
+    const { data, error } = await db
+      .from("discovery_topics")
+      .select(
+        `id, candidate_id, episode_id,
+         episode:episodes!discovery_topics_episode_id_fkey!inner (
+           published_at,
+           channel:channels!episodes_channel_id_fkey!inner ( name, cohort, reach )
+         )`,
+      )
+      .in("candidate_id", pendingIds)
+      .order("id", { ascending: true })
+      .range(page * pageSize, (page + 1) * pageSize - 1);
+    if (error) throw new Error(`getEmergingBoard topics: ${error.message}`);
+    if (!data || data.length === 0) break;
+    for (const r of data as any[]) {
+      const e = r.episode;
+      const ch = e?.channel;
+      if (!e || !ch) continue;
+      topics.push({
+        candidate_id: r.candidate_id,
+        episode_id: r.episode_id,
+        channel: ch.name,
+        cohort: ch.cohort,
+        reach: Number(ch.reach) || 0,
+        published_at: e.published_at,
+      });
+    }
+    if (data.length < pageSize) break;
+  }
+
+  const now = Date.now();
+  interface Acc {
+    topicCount: number;
+    episodes: Set<string>;
+    channels: Set<string>;
+    weight: number;
+  }
+  const newAcc = (): Acc => ({ topicCount: 0, episodes: new Set(), channels: new Set(), weight: 0 });
+  const accs = new Map<string, { all: Acc; independent: Acc; legacy: Acc }>();
+  for (const id of pendingIds) accs.set(id, { all: newAcc(), independent: newAcc(), legacy: newAcc() });
+
+  for (const t of topics) {
+    const a = accs.get(t.candidate_id);
+    if (!a) continue;
+    const recent = now - new Date(t.published_at).getTime() < 7 * 86400_000;
+    const w = reachFactor(t.reach) * (recent ? 1.5 : 1);
+    const add = (acc: Acc) => {
+      acc.topicCount++;
+      acc.episodes.add(t.episode_id);
+      acc.channels.add(t.channel);
+      acc.weight += w;
     };
-  });
-  return { issues, lastUpdated };
+    add(a.all);
+    if (t.cohort === "independent") add(a.independent);
+    else if (t.cohort === "legacy") add(a.legacy);
+  }
+
+  const build = (scope: "all" | "independent" | "legacy"): EmergingIssue[] => {
+    const rows: EmergingIssue[] = [];
+    for (const id of pendingIds) {
+      const acc = accs.get(id)![scope];
+      if (acc.topicCount === 0) continue;
+      const m = meta.get(id)!;
+      rows.push({
+        id,
+        rank: 0,
+        label: m.label,
+        summary: m.summary,
+        topicCount: acc.topicCount,
+        episodeCount: acc.episodes.size,
+        channelCount: acc.channels.size,
+        weight: Number(acc.weight.toFixed(2)),
+      });
+    }
+    rows.sort((a, b) => b.weight - a.weight);
+    rows.forEach((r, i) => {
+      r.rank = i + 1;
+    });
+    return rows;
+  };
+
+  return {
+    all: build("all"),
+    independent: build("independent"),
+    legacy: build("legacy"),
+    lastUpdated,
+  };
 }
 
 /** Active taxonomy issues - for the "merge into" dropdown. */

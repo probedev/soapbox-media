@@ -83,7 +83,15 @@ function leanChip(lean: string): { text: string; cls: string } {
 }
 
 /** Lazy-loaded episode receipts for one emerging-topic candidate. */
-function ReceiptsPanel({ candidateId, label }: { candidateId: string; label: string }) {
+function ReceiptsPanel({
+  candidateId,
+  label,
+  cohort,
+}: {
+  candidateId: string;
+  label: string;
+  cohort?: "independent" | "legacy";
+}) {
   const [state, setState] = React.useState<{
     status: "loading" | "error" | "done";
     data?: EmergingReceiptsResponse;
@@ -91,7 +99,10 @@ function ReceiptsPanel({ candidateId, label }: { candidateId: string; label: str
 
   React.useEffect(() => {
     let cancelled = false;
-    fetch(`/api/emerging/${candidateId}/receipts`)
+    const url = cohort
+      ? `/api/emerging/${candidateId}/receipts?cohort=${cohort}`
+      : `/api/emerging/${candidateId}/receipts`;
+    fetch(url)
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`))))
       .then((data: EmergingReceiptsResponse) => {
         if (!cancelled) setState({ status: "done", data });
@@ -102,7 +113,7 @@ function ReceiptsPanel({ candidateId, label }: { candidateId: string; label: str
     return () => {
       cancelled = true;
     };
-  }, [candidateId]);
+  }, [candidateId, cohort]);
 
   if (state.status === "loading") {
     return <div className="px-4 py-3 text-xs text-ink-faint">Loading receipts…</div>;
@@ -252,7 +263,13 @@ const columns: ColumnDef<EmergingIssue>[] = [
   },
 ];
 
-export function EmergingIssuesTable({ data }: { data: EmergingIssue[] }) {
+export function EmergingIssuesTable({
+  data,
+  cohort,
+}: {
+  data: EmergingIssue[];
+  cohort?: "independent" | "legacy";
+}) {
   const [sorting, setSorting] = React.useState<SortingState>([{ id: "weight", desc: true }]);
   const [expanded, setExpanded] = React.useState<ExpandedState>({});
 
@@ -305,7 +322,11 @@ export function EmergingIssuesTable({ data }: { data: EmergingIssue[] }) {
                 {row.getIsExpanded() && (
                   <TableRow className="hover:bg-transparent">
                     <TableCell colSpan={row.getVisibleCells().length} className="p-0">
-                      <ReceiptsPanel candidateId={row.original.id} label={row.original.label} />
+                      <ReceiptsPanel
+                        candidateId={row.original.id}
+                        label={row.original.label}
+                        cohort={cohort}
+                      />
                     </TableCell>
                   </TableRow>
                 )}

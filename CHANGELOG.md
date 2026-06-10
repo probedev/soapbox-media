@@ -7,6 +7,23 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
+## v0.14.0 · 2026-06-09
+
+### Added
+
+- **/emerging cohort tabs: All / Independent / Legacy.** The emerging-issues
+  board now splits by channel cohort, surfacing where independent and legacy
+  outlets diverge (the platform's core thesis). The per-cohort cuts are
+  **recomputed** from each candidate's member topics, not the stored all-cohort
+  stats - so weight, rank, mentions, episodes, and channels are correct per tab,
+  and an issue that only independents are discussing doesn't show up under
+  Legacy. Cohorts partition cleanly (every channel is exactly one), so
+  All = Independent + Legacy (verified: top candidate 76 + 92 = 168 topics).
+  Computed in one pass over `discovery_topics` (new `getEmergingBoard()`), and
+  the active tab flows into the receipts fetch (`/api/emerging/[id]/receipts?cohort=`)
+  so an expanded row shows that cohort's quotes. Tab labels carry per-cohort
+  counts; new `EmergingBoard` component on shadcn `Tabs`.
+
 ## v0.13.1 · 2026-06-09
 
 ### Changed

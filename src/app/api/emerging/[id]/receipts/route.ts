@@ -29,25 +29,30 @@ export interface EmergingReceiptsResponse {
 const MAX_RECEIPTS = 12;
 
 export async function GET(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: { id: string } },
 ) {
   const db = createServiceClient();
+  // Optional cohort filter so receipts match the active tab on /emerging.
+  const cohortParam = req.nextUrl.searchParams.get("cohort");
+  const cohort = cohortParam === "independent" || cohortParam === "legacy" ? cohortParam : null;
+
   // One candidate's clustered topics carry the supporting quote + episode. A
   // candidate has at most a few hundred topics (< the 1000-row cap), so a single
   // page covers it. !inner so a topic with a missing episode/channel is dropped.
-  const { data, error } = await db
+  let q = db
     .from("discovery_topics")
     .select(
       `quote,
        episode:episodes!discovery_topics_episode_id_fkey!inner (
          title, source_url, published_at,
-         channel:channels!episodes_channel_id_fkey!inner ( name, reach, political_lean )
+         channel:channels!episodes_channel_id_fkey!inner ( name, reach, political_lean, cohort )
        )`,
     )
     .eq("candidate_id", params.id)
-    .not("quote", "is", null)
-    .limit(500);
+    .not("quote", "is", null);
+  if (cohort) q = q.eq("episode.channel.cohort", cohort);
+  const { data, error } = await q.limit(500);
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
