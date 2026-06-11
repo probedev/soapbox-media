@@ -1,12 +1,18 @@
 import { getDataFreshness } from "@/lib/aggregate";
 import { DISPLAY_TZ } from "@/lib/utils";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 /**
- * The single, site-wide freshness badge - shown in the Header on every page so
- * there's one consistent "how fresh is this" signal instead of the old grab-bag
- * of per-page timestamp treatments. Relative label ("Updated 3h ago") with the
- * absolute pipeline-run time (US Eastern) on hover. Async server component;
- * recomputes per request (public pages are force-dynamic).
+ * The single, site-wide freshness badge - shown in the Header (next to the logo)
+ * on every page so there's one consistent "how fresh is this" signal. Relative
+ * label ("Updated 3h ago") with the absolute pipeline-run time (US Eastern) in a
+ * custom shadcn tooltip on hover (not the native browser title). Async server
+ * component; recomputes per request (public pages are force-dynamic).
  */
 function relative(iso: string): string {
   const diffMin = Math.floor((Date.now() - new Date(iso).getTime()) / 60_000);
@@ -34,12 +40,16 @@ export async function FreshnessBadge() {
   const iso = await getDataFreshness();
   if (!iso) return null;
   return (
-    <span
-      title={`Last pipeline run: ${absolute(iso)}`}
-      className="inline-flex items-center gap-1.5 text-[11px] text-muted-foreground tabular-nums whitespace-nowrap"
-    >
-      <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" aria-hidden />
-      Updated {relative(iso)}
-    </span>
+    <TooltipProvider delayDuration={150}>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span className="inline-flex items-center gap-1.5 text-[11px] text-muted-foreground tabular-nums whitespace-nowrap cursor-default">
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" aria-hidden />
+            Updated {relative(iso)}
+          </span>
+        </TooltipTrigger>
+        <TooltipContent>Last pipeline run: {absolute(iso)}</TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
   );
 }

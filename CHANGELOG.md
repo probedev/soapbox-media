@@ -7,6 +7,15 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
+## v0.16.1 · 2026-06-11
+
+### Changed
+
+- **Freshness badge: custom tooltip + moved next to the logo.** The header
+  "Updated {relative}" badge now uses the site's shadcn tooltip on hover (showing
+  the absolute last-pipeline-run time in US Eastern) instead of the native browser
+  title, and sits beside the logo rather than crowded in with the nav links.
+
 ## v0.16.0 · 2026-06-11
 
 ### Added
