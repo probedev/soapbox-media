@@ -119,11 +119,15 @@ export default async function HomePage() {
                 label="Independent"
                 value={snapshot.cohorts.independent.index}
                 hasData={snapshot.cohorts.independent.hasData}
+                animated
+                delayMs={140}
               />
               <SubNeedle
                 label="Legacy"
                 value={snapshot.cohorts.legacy.index}
                 hasData={snapshot.cohorts.legacy.hasData}
+                animated
+                delayMs={260}
               />
             </div>
             <p className="text-xs text-muted-foreground mt-3">

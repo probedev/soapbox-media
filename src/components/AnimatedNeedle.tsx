@@ -30,7 +30,7 @@ function usePrefersReducedMotion(): boolean {
  * Lives in its own "use client" file so the rest of SoapboxNeedle (and every
  * static sub-needle) stays a server-rendered SVG with no hydration cost.
  */
-export function AnimatedNeedle({ targetRot }: { targetRot: number }) {
+export function AnimatedNeedle({ targetRot, delayMs = 0 }: { targetRot: number; delayMs?: number }) {
   const needleRef = React.useRef<SVGGElement>(null);
   const posRef = React.useRef<number | null>(null); // current rotation (null = not mounted yet)
   const velRef = React.useRef(0);
@@ -49,16 +49,17 @@ export function AnimatedNeedle({ targetRot }: { targetRot: number }) {
     }
 
     // Enter from center (0) on the first run; otherwise spring from where we are.
-    if (posRef.current === null) {
+    const firstRun = posRef.current === null;
+    if (firstRun) {
       posRef.current = 0;
       velRef.current = 0;
       setRot(0);
     }
 
-    // Underdamped spring: ω_n=√120≈11, ζ=14/(2·11)≈0.64 → ~7% overshoot, ~0.8s.
-    const stiffness = 120;
-    const damping = 14;
-    let last = performance.now();
+    // Underdamped spring: ω_n=√100=10, ζ=10/(2·10)=0.50 → ~16% overshoot, ~0.8s.
+    const stiffness = 100;
+    const damping = 10;
+    let last = 0;
 
     const tick = (now: number) => {
       const dt = Math.min(0.032, (now - last) / 1000);
@@ -78,10 +79,22 @@ export function AnimatedNeedle({ targetRot }: { targetRot: number }) {
       rafRef.current = requestAnimationFrame(tick);
     };
 
-    cancelAnimationFrame(rafRef.current);
-    rafRef.current = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(rafRef.current);
-  }, [targetRot, reduced]);
+    const startSpring = () => {
+      last = performance.now();
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = requestAnimationFrame(tick);
+    };
+
+    // Stagger the entrance (only the first run); value-change re-settles are immediate.
+    let timer = 0;
+    if (firstRun && delayMs > 0) timer = window.setTimeout(startSpring, delayMs);
+    else startSpring();
+
+    return () => {
+      clearTimeout(timer);
+      cancelAnimationFrame(rafRef.current);
+    };
+  }, [targetRot, reduced, delayMs]);
 
   return (
     <g ref={needleRef} transform={`rotate(${targetRot} ${cx} ${cy})`}>

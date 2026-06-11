@@ -5,9 +5,11 @@ interface SoapboxNeedleProps {
   value: number;
   width?: number;
   height?: number;
-  /** Animate the needle settling in (analog-meter spring). Off by default so
-   *  sub-needles stay static, server-rendered SVG; the home hero opts in. */
+  /** Animate the needle settling in (analog-meter spring). Off by default so a
+   *  needle stays static, server-rendered SVG; animated instances opt in. */
   animated?: boolean;
+  /** Stagger the entrance animation by this many ms (only when `animated`). */
+  delayMs?: number;
 }
 
 // Geometry
@@ -30,7 +32,7 @@ function rotForValue(v: number): number {
  * the needle is a static rotated <g>. (Sanctioned hand-built SVG gauge - see
  * CLAUDE.md.)
  */
-export function SoapboxNeedle({ value, width = 420, height = 260, animated = false }: SoapboxNeedleProps) {
+export function SoapboxNeedle({ value, width = 420, height = 260, animated = false, delayMs = 0 }: SoapboxNeedleProps) {
   const clamped = Math.max(-10, Math.min(10, value));
   const targetRot = rotForValue(clamped);
 
@@ -96,7 +98,7 @@ export function SoapboxNeedle({ value, width = 420, height = 260, animated = fal
 
       {/* Needle - drawn straight up, rotated about the hub. */}
       {animated ? (
-        <AnimatedNeedle targetRot={targetRot} />
+        <AnimatedNeedle targetRot={targetRot} delayMs={delayMs} />
       ) : (
         <g transform={`rotate(${targetRot} ${cx} ${cy})`}>
           <line

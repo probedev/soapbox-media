@@ -7,6 +7,18 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
+## v0.15.3 · 2026-06-11
+
+### Changed
+
+- **Needle animation: a touch more pronounced, and now on the cohort needles.**
+  Bumped the spring overshoot (~7% -> ~16%) so the settle reads more clearly, and
+  extended the animation to the two Independent / Legacy sub-needles. The three
+  needles now settle in a slight stagger (main, then +140ms, then +260ms) for a
+  subtle cascade instead of firing in lockstep. Still dependency-free and
+  reduced-motion-aware; the stagger applies only to the entrance - value-change
+  re-settles are immediate.
+
 ## v0.15.2 · 2026-06-11
 
 ### Added
