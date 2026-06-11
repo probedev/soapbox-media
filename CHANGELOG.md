@@ -7,6 +7,21 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
+## v0.17.0 · 2026-06-11
+
+### Changed
+
+- **Support page redesigned for conversion (campaign-ready).** Studied top
+  political-donation landing pages and applied the patterns. Cut the four
+  paragraphs of appeal to a punchy headline + one line + three value bullets;
+  added an on-brand hero visual (the live, animated Soapbox Index needle -
+  "what your support funds"); and moved the ask high (first on mobile, sticky on
+  the right on desktop). The donation widget is tightened to ActBlue norms: a
+  six-tier amount grid ($10-$500) with a "Popular" anchor and a higher default,
+  a monthly nudge, a more prominent CTA, and a "Secure checkout via Stripe"
+  trust line. L/M/R per-audience variants kept for campaign refcodes. The
+  default/anchor amount ($50) is the single biggest A/B lever (in DonationWidget).
+
 ## v0.16.1 · 2026-06-11
 
 ### Changed
