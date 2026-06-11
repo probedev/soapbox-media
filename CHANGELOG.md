@@ -7,6 +7,20 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
+## v0.15.2 · 2026-06-11
+
+### Added
+
+- **Subtle settle animation on the home Index needle.** The hero needle now eases
+  into its reading like an analog meter: a dependency-free, under-damped spring
+  (~7% overshoot, ~0.8s) sweeps it in from center on load and re-settles whenever
+  the Index refreshes. Implemented as a tiny client island (`AnimatedNeedle`) that
+  writes the SVG `transform` via a ref (no per-frame React re-render), so the gauge
+  chrome and all per-issue sub-needles stay static, server-rendered SVG. Honors
+  `prefers-reduced-motion` (snaps instantly); SSR / no-JS render the correct final
+  angle. No three.js (a 3D engine for a 2D needle) or GSAP dependency - just a
+  ~40-line requestAnimationFrame spring.
+
 ## v0.15.1 · 2026-06-10
 
 ### Changed

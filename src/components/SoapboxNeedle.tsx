@@ -1,30 +1,38 @@
+import { AnimatedNeedle } from "./AnimatedNeedle";
+
 interface SoapboxNeedleProps {
   /** Soapbox Index value, clamped to [-10, +10]. Negative = L, Positive = R. */
   value: number;
   width?: number;
   height?: number;
+  /** Animate the needle settling in (analog-meter spring). Off by default so
+   *  sub-needles stay static, server-rendered SVG; the home hero opts in. */
+  animated?: boolean;
+}
+
+// Geometry
+const cx = 200;
+const cy = 200;
+const r = 150;
+const needleLen = 130;
+
+/** Needle rotation (deg, SVG clockwise) for an index value: 0 -> up, -10 -> left,
+ *  +10 -> right. The needle is drawn pointing straight up and rotated. */
+function rotForValue(v: number): number {
+  return (Math.max(-10, Math.min(10, v)) / 10) * 90;
 }
 
 /**
- * The Soapbox Index needle - a half-circle gauge from L 10 to R 10.
- * Pure SVG, no client-side state. Re-renders cleanly on prop change.
+ * The Soapbox Index needle - a half-circle gauge from L 10 to R 10. Server-
+ * rendered SVG; the chrome (arc, ticks, labels, hub) has no client state. With
+ * `animated`, the needle is delegated to the <AnimatedNeedle> client island,
+ * which springs it into place like an analog meter (home hero only). Without it,
+ * the needle is a static rotated <g>. (Sanctioned hand-built SVG gauge - see
+ * CLAUDE.md.)
  */
-export function SoapboxNeedle({ value, width = 420, height = 260 }: SoapboxNeedleProps) {
+export function SoapboxNeedle({ value, width = 420, height = 260, animated = false }: SoapboxNeedleProps) {
   const clamped = Math.max(-10, Math.min(10, value));
-  // Map value in [-10, +10] to angle in degrees, measured CCW from positive x-axis.
-  // -10 -> 180deg (points left), 0 -> 90deg (points up), +10 -> 0deg (points right).
-  const t = (clamped + 10) / 20; // 0..1
-  const angleDeg = (1 - t) * 180;
-  const angleRad = (angleDeg * Math.PI) / 180;
-
-  // Geometry
-  const cx = 200;
-  const cy = 200;
-  const r = 150;
-  const needleLen = 130;
-
-  const needleX = cx + needleLen * Math.cos(angleRad);
-  const needleY = cy - needleLen * Math.sin(angleRad);
+  const targetRot = rotForValue(clamped);
 
   // Arc path from (cx - r, cy) sweeping over the top to (cx + r, cy).
   const arcPath = `M ${cx - r} ${cy} A ${r} ${r} 0 0 1 ${cx + r} ${cy}`;
@@ -86,16 +94,22 @@ export function SoapboxNeedle({ value, width = 420, height = 260 }: SoapboxNeedl
         R 10
       </text>
 
-      {/* Needle */}
-      <line
-        x1={cx}
-        y1={cy}
-        x2={needleX}
-        y2={needleY}
-        stroke="#111827"
-        strokeWidth="4"
-        strokeLinecap="round"
-      />
+      {/* Needle - drawn straight up, rotated about the hub. */}
+      {animated ? (
+        <AnimatedNeedle targetRot={targetRot} />
+      ) : (
+        <g transform={`rotate(${targetRot} ${cx} ${cy})`}>
+          <line
+            x1={cx}
+            y1={cy}
+            x2={cx}
+            y2={cy - needleLen}
+            stroke="#111827"
+            strokeWidth="4"
+            strokeLinecap="round"
+          />
+        </g>
+      )}
       <circle cx={cx} cy={cy} r="9" fill="#111827" />
       <circle cx={cx} cy={cy} r="3.5" fill="#ffffff" />
     </svg>

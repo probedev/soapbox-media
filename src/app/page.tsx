@@ -73,7 +73,7 @@ export default async function HomePage() {
         </p>
 
         <div className="mt-10 flex justify-center">
-          <SoapboxNeedle value={data.index} />
+          <SoapboxNeedle value={data.index} animated />
         </div>
 
         <div className="mt-2">
