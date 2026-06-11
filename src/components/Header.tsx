@@ -1,5 +1,6 @@
 import Image from "next/image";
 import logoCrate from "@/assets/logo-crate.png";
+import { FreshnessBadge } from "@/components/FreshnessBadge";
 
 type ActivePage = "issues" | "channels" | "emerging" | "activity" | "methodology" | null;
 
@@ -37,13 +38,16 @@ export function Header({ activePage = null }: HeaderProps) {
             <span className="text-[#114A8A]">box</span>
           </span>
         </a>
-        <nav className="text-sm text-ink-muted flex flex-wrap gap-4 sm:gap-6">
-          <a href="/issues" className={linkClass("issues")}>Issues</a>
-          <a href="/channels" className={linkClass("channels")}>Channels</a>
-          <a href="/emerging" className={linkClass("emerging")}>Emerging</a>
-          <a href="/log" className={linkClass("activity")}>Activity</a>
-          <a href="/methodology" className={linkClass("methodology")}>Methodology</a>
-        </nav>
+        <div className="flex items-center gap-4 sm:gap-6 flex-wrap">
+          <nav className="text-sm text-ink-muted flex flex-wrap gap-4 sm:gap-6">
+            <a href="/issues" className={linkClass("issues")}>Issues</a>
+            <a href="/channels" className={linkClass("channels")}>Channels</a>
+            <a href="/emerging" className={linkClass("emerging")}>Emerging</a>
+            <a href="/log" className={linkClass("activity")}>Activity</a>
+            <a href="/methodology" className={linkClass("methodology")}>Methodology</a>
+          </nav>
+          <FreshnessBadge />
+        </div>
       </div>
     </header>
   );

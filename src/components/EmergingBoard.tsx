@@ -9,15 +9,9 @@
  * switching tabs resets row expansion.
  */
 import * as React from "react";
-import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { EmergingIssuesTable } from "@/components/EmergingIssuesTable";
-import { formatDateET } from "@/lib/utils";
 import type { EmergingIssue } from "@/lib/discovery";
-
-function formatUpdated(iso: string): string {
-  return formatDateET(iso, { month: "short", day: "numeric", year: "numeric" });
-}
 
 function TabContent({
   data,
@@ -40,16 +34,14 @@ export function EmergingBoard({
   all,
   independent,
   legacy,
-  lastUpdated,
 }: {
   all: EmergingIssue[];
   independent: EmergingIssue[];
   legacy: EmergingIssue[];
-  lastUpdated: string | null;
 }) {
   return (
     <Tabs defaultValue="all">
-      <div className="flex items-center justify-between gap-3 mb-3 flex-wrap">
+      <div className="mb-3">
         <TabsList>
           <TabsTrigger value="all">
             All
@@ -64,11 +56,6 @@ export function EmergingBoard({
             <span className="ml-1.5 tabular-nums text-xs opacity-70">{legacy.length}</span>
           </TabsTrigger>
         </TabsList>
-        {lastUpdated && (
-          <Badge variant="outline" className="font-normal text-muted-foreground">
-            Updated {formatUpdated(lastUpdated)}
-          </Badge>
-        )}
       </div>
 
       <TabsContent value="all">

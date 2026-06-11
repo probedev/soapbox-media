@@ -150,7 +150,6 @@ export default async function HomePage() {
           <TrustStrip
             numChannels={data.numChannels}
             numEpisodes={data.numEpisodes}
-            lastUpdated={data.lastUpdated}
             asOfLabel={asOfLabel}
             isPlaceholder={!data.hasData}
           />

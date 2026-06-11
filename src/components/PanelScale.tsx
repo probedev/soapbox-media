@@ -98,13 +98,11 @@ export async function PanelScale() {
           label="Platform rows"
           sublabel={platformSplit}
         />
-        {stats.largestShow && (
-          <Stat
-            value={compactNumber(stats.largestShow.reach)}
-            label="Largest single show"
-            sublabel={stats.largestShow.name}
-          />
-        )}
+        <Stat
+          value={stats.episodesIngested24h.toLocaleString()}
+          label="Episodes ingested"
+          sublabel="in the last 24 hours"
+        />
       </div>
 
       {stats.channelsByCohort.legacy > 0 && (

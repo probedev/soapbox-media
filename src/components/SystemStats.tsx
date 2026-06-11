@@ -24,18 +24,6 @@ function daysContinuous(h: number): string {
   return `≈ ${Math.round(h)} hours continuous`;
 }
 
-function relativeTime(iso: string | null): string {
-  if (!iso) return "-";
-  const diffMs = Date.now() - new Date(iso).getTime();
-  const diffMin = Math.floor(diffMs / 60_000);
-  const diffH = Math.floor(diffMin / 60);
-  const diffDay = Math.floor(diffH / 24);
-  if (diffMin < 1) return "just now";
-  if (diffMin < 60) return `${diffMin}m ago`;
-  if (diffH < 24) return `${diffH}h ago`;
-  return `${diffDay}d ago`;
-}
-
 interface StatProps {
   value: string;
   label: string;
@@ -68,14 +56,9 @@ export async function SystemStats() {
   // the denominator that contextualizes the processing numbers.
   return (
     <Card className="p-6">
-      <div className="flex items-baseline justify-between mb-5 gap-3 flex-wrap">
-        <h2 className="text-sm font-semibold uppercase tracking-wider text-ink-muted">
-          System scale
-        </h2>
-        <span className="text-[11px] text-muted-foreground tabular-nums">
-          Latest data {relativeTime(stats.lastUpdated)}
-        </span>
-      </div>
+      <h2 className="text-sm font-semibold uppercase tracking-wider text-ink-muted mb-5">
+        System scale
+      </h2>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
         <Stat
           value={stats.channelsTracked.toString()}

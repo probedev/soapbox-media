@@ -1,32 +1,19 @@
-import { DISPLAY_TZ } from "@/lib/utils";
-
 interface TrustStripProps {
   numChannels: number;
   numEpisodes: number;
-  /** ISO string of the most recent data update */
-  lastUpdated: string;
   /** Short label for the current period, e.g. "Last 7 days" or "As of May 11, 2026" */
   asOfLabel: string;
   isPlaceholder?: boolean;
 }
 
+// Freshness ("last updated") now lives in the single header FreshnessBadge, so
+// this strip carries only the scope of the reading (window + panel size).
 export function TrustStrip({
   numChannels,
   numEpisodes,
-  lastUpdated,
   asOfLabel,
   isPlaceholder = false,
 }: TrustStripProps) {
-  const date = new Date(lastUpdated);
-  const formatted = date.toLocaleString("en-US", {
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-    timeZone: DISPLAY_TZ,
-    timeZoneName: "short",
-  });
-
   return (
     <div className="text-xs text-muted-foreground flex flex-wrap items-center justify-center gap-x-3 gap-y-1">
       <span>{asOfLabel}</span>
@@ -42,8 +29,6 @@ export function TrustStrip({
         </span>{" "}
         episodes tracked
       </span>
-      <span aria-hidden>·</span>
-      <span>Last updated {formatted}</span>
       {isPlaceholder && (
         <>
           <span aria-hidden>·</span>

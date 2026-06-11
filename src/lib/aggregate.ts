@@ -602,6 +602,8 @@ export interface PanelStats {
   /** MIN(reach_updated_at) - the oldest reach number still in the panel.
    *  Useful for "as old as X ago" reader signals. */
   oldestReachSync: string | null;
+  /** Episodes ingested (created) in the last 24 hours. */
+  episodesIngested24h: number;
 }
 
 export async function getPanelStats(): Promise<PanelStats> {
@@ -659,6 +661,11 @@ export async function getPanelStats(): Promise<PanelStats> {
     if (!oldestReachSync || c.reach_updated_at < oldestReachSync) oldestReachSync = c.reach_updated_at;
   }
 
+  const { count: ingested24h } = await db
+    .from("episodes")
+    .select("*", { count: "exact", head: true })
+    .gte("created_at", new Date(Date.now() - 86_400_000).toISOString());
+
   return {
     showsTracked: showRows.size,
     channelsByLean,
@@ -672,7 +679,24 @@ export async function getPanelStats(): Promise<PanelStats> {
     largestShow: largest,
     lastReachSync,
     oldestReachSync,
+    episodesIngested24h: ingested24h ?? 0,
   };
+}
+
+/**
+ * Site-wide data-freshness signal: the most recent cron run of any pipeline
+ * stage (usage_log). Drives the header FreshnessBadge - one timestamp for the
+ * whole site instead of per-page variants.
+ */
+export async function getDataFreshness(): Promise<string | null> {
+  const db = createServiceClient();
+  const { data } = await db
+    .from("usage_log")
+    .select("ran_at")
+    .order("ran_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  return (data as { ran_at: string } | null)?.ran_at ?? null;
 }
 
 export async function getSystemStats(): Promise<SystemStats> {

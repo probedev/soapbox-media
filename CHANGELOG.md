@@ -7,6 +7,27 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
+## v0.16.0 · 2026-06-11
+
+### Added
+
+- **Channels page: cohort tabs + search.** /channels now has All / Independent /
+  Legacy tabs (matching /emerging) plus a name search box, over the existing
+  Left / Middle / Right lean buckets. Client-side filtering of the server-
+  provided list (new `ChannelsBrowser`); tab labels carry live counts.
+- **One site-wide freshness badge in the header.** A single consistent
+  "Updated {relative}" badge (with the absolute last-pipeline-run time in US
+  Eastern on hover, and a subtle live dot) on every page, driven by the most
+  recent cron run (`getDataFreshness`).
+
+### Changed
+
+- **/channels stat: "Largest single show" -> "Episodes ingested · last 24h"**
+  (`getPanelStats` now counts episodes created in the last 24 hours).
+- Removed the now-redundant per-page freshness treatments (home TrustStrip "Last
+  updated", /log SystemStats "Latest data", /emerging board "Updated {date}") in
+  favor of the single header badge.
+
 ## v0.15.3 · 2026-06-11
 
 ### Changed

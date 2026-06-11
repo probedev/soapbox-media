@@ -42,7 +42,6 @@ export default async function EmergingPage() {
               all={board.all}
               independent={board.independent}
               legacy={board.legacy}
-              lastUpdated={board.lastUpdated}
             />
           )}
         </div>

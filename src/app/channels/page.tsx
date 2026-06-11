@@ -1,27 +1,14 @@
 import { createServiceClient } from "@/lib/db";
 import { PUBLIC_COHORTS } from "@/lib/cohort";
-import { CohortBadge } from "@/components/CohortBadge";
 import { CohortLegend } from "@/components/CohortLegend";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { PanelBalance } from "@/components/PanelBalance";
 import { PanelScale } from "@/components/PanelScale";
-import { getChannelExternalUrl } from "@/lib/channelLinks";
+import { ChannelsBrowser, type ShowRow, type PlatformRef } from "@/components/ChannelsBrowser";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { ExternalLink } from "lucide-react";
 
 export const dynamic = "force-dynamic";
-
-function leanBadge(lean: "L" | "M" | "R"): string {
-  switch (lean) {
-    case "L":
-      return "bg-blue-100 text-blue-800";
-    case "R":
-      return "bg-red-100 text-red-800";
-    default:
-      return "bg-muted text-ink-body";
-  }
-}
 
 interface ChannelRow {
   id: string;
@@ -30,24 +17,6 @@ interface ChannelRow {
   platform_id: string;
   political_lean: "L" | "M" | "R";
   reach: number | bigint;
-  classification_rationale: string | null;
-  cohort: "independent" | "legacy";
-}
-
-interface PlatformRef {
-  platform: "youtube" | "podcast";
-  channel_id: string;
-  platform_id: string;
-  reach: number;
-}
-
-interface ShowRow {
-  /** UUID of the canonical channel row (podcast preferred when both exist) */
-  canonical_id: string;
-  name: string;
-  political_lean: "L" | "M" | "R";
-  platforms: PlatformRef[];
-  maxReach: number;
   classification_rationale: string | null;
   cohort: "independent" | "legacy";
 }
@@ -88,17 +57,11 @@ function groupByShow(rows: ChannelRow[]): ShowRow[] {
   return shows.sort((a, b) => b.maxReach - a.maxReach);
 }
 
-function platformAbbrev(p: "youtube" | "podcast"): string {
-  return p === "youtube" ? "YT" : "Pod";
-}
-
 export default async function ChannelsListPage() {
   const db = createServiceClient();
   // Paginate by `id` (stable PK) and terminate only on an empty page - see
   // [[pagination-stable-order]]. A single `.range(0, 999)` silently truncates
-  // at 1000 active channels, which the panel will cross on the path to ~200
-  // unique shows (2-3 platform rows each) and definitely past that. JS
-  // re-sorts via groupByShow → maxReach, so SQL order doesn't affect the UI.
+  // at 1000 active channels. JS re-sorts via groupByShow → maxReach.
   const rows: ChannelRow[] = [];
   const pageSize = 1000;
   for (let from = 0; ; from += pageSize) {
@@ -116,143 +79,49 @@ export default async function ChannelsListPage() {
   }
   const shows = groupByShow(rows);
 
-  const byLean = {
-    L: shows.filter((s) => s.political_lean === "L"),
-    M: shows.filter((s) => s.political_lean === "M"),
-    R: shows.filter((s) => s.political_lean === "R"),
-  };
-
   return (
     <main className="min-h-screen">
       <Header activePage="channels" />
 
       <TooltipProvider delayDuration={150}>
-      <section className="px-6 pt-10 pb-16 max-w-5xl mx-auto">
-        <div className="text-xs uppercase tracking-wider text-muted-foreground mb-1">
-          <a href="/" className="hover:text-ink-body">
-            ← Soapbox Index
-          </a>
-        </div>
-        <h1 className="text-3xl md:text-4xl font-semibold tracking-tight">
-          Channels we track
-        </h1>
-        <p className="text-ink-muted mt-3 leading-relaxed max-w-3xl">
-          {shows.length} hand-curated alt-media political shows, balanced across
-          Left, Middle, and Right publishing posture. YouTube subscriber counts
-          refresh daily during the ingest pass; podcast audience estimates are
-          editorial and reviewed at panel-add time. Lean classifications are
-          editorial and reviewed quarterly. See the{" "}
-          <a href="/methodology" className="underline hover:text-foreground">
-            methodology page
-          </a>{" "}
-          for selection criteria, or the{" "}
-          <a href="/log" className="underline hover:text-foreground">
-            pipeline log
-          </a>{" "}
-          for system scale and daily health.
-        </p>
-
-        {/* Magnitude first (PanelScale), distribution second (PanelBalance),
-            list third (per-lean grid). This matches the reader's natural
-            question order on /channels: "how big is this panel?" → "how is
-            it split?" → "show me the shows." Pipeline-side numbers live on
-            /log under <SystemStats>; the two cards intentionally don't
-            overlap. */}
-        <PanelScale />
-        <PanelBalance shows={shows} />
-
-        {PUBLIC_COHORTS.length > 1 && (
-          <div className="flex justify-end mt-6">
-            <CohortLegend />
+        <section className="px-6 pt-10 pb-16 max-w-5xl mx-auto">
+          <div className="text-xs uppercase tracking-wider text-muted-foreground mb-1">
+            <a href="/" className="hover:text-ink-body">
+              ← Soapbox Index
+            </a>
           </div>
-        )}
+          <h1 className="text-3xl md:text-4xl font-semibold tracking-tight">
+            Channels we track
+          </h1>
+          <p className="text-ink-muted mt-3 leading-relaxed max-w-3xl">
+            {shows.length} hand-curated alt-media political shows, balanced across
+            Left, Middle, and Right publishing posture. YouTube subscriber counts
+            refresh daily during the ingest pass; podcast audience estimates are
+            editorial and reviewed at panel-add time. Lean classifications are
+            editorial and reviewed quarterly. See the{" "}
+            <a href="/methodology" className="underline hover:text-foreground">
+              methodology page
+            </a>{" "}
+            for selection criteria, or the{" "}
+            <a href="/log" className="underline hover:text-foreground">
+              pipeline log
+            </a>{" "}
+            for system scale and daily health.
+          </p>
 
-        {(["L", "M", "R"] as const).map((bucket) => (
-          <section key={bucket} className="mt-10">
-            <div className="flex items-baseline justify-between mb-3">
-              <h2 className="text-lg font-semibold">
-                {bucket === "L"
-                  ? "Left-leaning"
-                  : bucket === "R"
-                  ? "Right-leaning"
-                  : "Middle / cross-cutting"}{" "}
-                <span className="text-ink-faint text-sm font-normal">
-                  ({byLean[bucket].length})
-                </span>
-              </h2>
+          {/* Magnitude first (PanelScale), distribution second (PanelBalance),
+              then the searchable / cohort-tabbed list. */}
+          <PanelScale />
+          <PanelBalance shows={shows} />
+
+          {PUBLIC_COHORTS.length > 1 && (
+            <div className="flex justify-end mt-6">
+              <CohortLegend />
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {byLean[bucket].map((show) => {
-                const platformText = show.platforms
-                  .map((p) => platformAbbrev(p.platform))
-                  .join(" · ");
-                return (
-                  <div
-                    key={show.name}
-                    className="relative border border-border bg-card rounded-lg hover:border-ink-faint hover:shadow-sm transition group"
-                  >
-                    <a
-                      href={`/channels/${show.canonical_id}`}
-                      className="block p-4 pr-20"
-                    >
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="font-medium text-foreground flex items-center gap-2">
-                          <span
-                            className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${leanBadge(show.political_lean)}`}
-                          >
-                            {show.political_lean}
-                          </span>
-                          {PUBLIC_COHORTS.length > 1 && (
-                            <CohortBadge cohort={show.cohort} />
-                          )}
-                          {show.name}
-                        </div>
-                      </div>
-                      <div className="text-xs text-muted-foreground mt-1 tabular-nums">
-                        Reach: {show.maxReach.toLocaleString()}
-                        <span className="ml-2 text-[10px] uppercase tracking-wider text-ink-faint">
-                          {platformText}
-                        </span>
-                      </div>
-                      {show.classification_rationale && (
-                        <div className="text-xs text-ink-muted mt-2 leading-snug line-clamp-2">
-                          {show.classification_rationale}
-                        </div>
-                      )}
-                    </a>
-                    {/* One external-link icon per platform we track for this show */}
-                    <div className="absolute top-3 right-3 flex items-center gap-0.5">
-                      {show.platforms.map((p) => {
-                        const ext = getChannelExternalUrl({
-                          platform: p.platform,
-                          platform_id: p.platform_id,
-                          name: show.name,
-                        });
-                        return (
-                          <a
-                            key={p.platform}
-                            href={ext.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            aria-label={`${ext.label} (${platformAbbrev(p.platform)})`}
-                            title={`${ext.label} (${platformAbbrev(p.platform)})`}
-                            className="inline-flex items-center gap-0.5 text-ink-faint hover:text-foreground px-1 py-1 opacity-60 group-hover:opacity-100 transition"
-                          >
-                            <span className="text-[9px] font-semibold uppercase tracking-wider">
-                              {platformAbbrev(p.platform)}
-                            </span>
-                            <ExternalLink className="w-3 h-3" />
-                          </a>
-                        );
-                      })}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </section>
-        ))}
-      </section>
+          )}
+
+          <ChannelsBrowser shows={shows} showCohort={PUBLIC_COHORTS.length > 1} />
+        </section>
       </TooltipProvider>
 
       <Footer />
