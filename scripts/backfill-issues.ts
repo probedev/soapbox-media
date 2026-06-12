@@ -15,6 +15,9 @@ import "./_load-env";
 import { createServiceClient } from "@/lib/db";
 import { classifyTranscript, type IssueDef } from "@/modules/classify";
 import { mapPool } from "@/lib/concurrency";
+import { MODEL_CLASSIFY } from "@/lib/anthropic";
+import { estimateCostUsd } from "@/lib/pricing";
+import { recordScriptRun } from "@/lib/usage";
 
 // Match production classify (CLASSIFY_CONCURRENCY in src/lib/pipeline.ts) - a
 // known-safe rate against the Anthropic limits. Serial would take ~14h at the
@@ -36,6 +39,7 @@ const NEW_SLUGS = new Set([
 async function main() {
   const windowDays = parseInt(process.argv[2] || "30", 10);
   const limit = process.argv[3] ? parseInt(process.argv[3], 10) : Infinity;
+  const startedAt = Date.now();
   const db = createServiceClient();
 
   const { data: issues } = await db
@@ -151,15 +155,29 @@ async function main() {
     }
     processed++;
     if (processed % 50 === 0) {
-      const cost = (inTok * 3) / 1_000_000 + (outTok * 15) / 1_000_000;
+      const cost = estimateCostUsd(MODEL_CLASSIFY, { inputTokens: inTok, outputTokens: outTok });
       console.log(`[${processed}/${candidates.length}] new mentions inserted: ${inserted} · ~$${cost.toFixed(2)} · failed ${failed}`);
     }
   });
 
-  const cost = (inTok * 3) / 1_000_000 + (outTok * 15) / 1_000_000;
+  const cost = estimateCostUsd(MODEL_CLASSIFY, { inputTokens: inTok, outputTokens: outTok });
   console.log(`\n${"─".repeat(60)}`);
   console.log(`Processed ${processed} episodes; inserted ${inserted} new-issue classifications; failed ${failed}.`);
   console.log(`Tokens — in ${inTok.toLocaleString()}, out ${outTok.toLocaleString()} (~$${cost.toFixed(2)})`);
+
+  // Record this one-off backfill so /admin/costs reflects it (it's a big, manual
+  // classify spend that the cron-only log would otherwise miss entirely).
+  await recordScriptRun({
+    label: `backfill-issues ${windowDays}d`,
+    source: "manual",
+    durationMs: Date.now() - startedAt,
+    classify: { processed, mentions: inserted, failed },
+    inputTokens: inTok,
+    outputTokens: outTok,
+    costUsd: cost,
+    raw: { windowDays, newSlugs: [...NEW_SLUGS] },
+  });
+
   console.log(`\nNext: npm run score -- ${Math.max(inserted, 100)}`);
 }
 

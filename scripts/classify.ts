@@ -16,6 +16,8 @@ import "./_load-env";
 import { createServiceClient } from "@/lib/db";
 import { classifyTranscript, type IssueDef } from "@/modules/classify";
 import { MODEL_CLASSIFY } from "@/lib/anthropic";
+import { estimateCostUsd } from "@/lib/pricing";
+import { recordScriptRun } from "@/lib/usage";
 
 interface PendingEpisode {
   id: string;
@@ -29,6 +31,7 @@ interface PendingEpisode {
 
 async function main() {
   const limit = parseInt(process.argv[2] || "10", 10);
+  const startedAt = Date.now();
 
   console.log(`\nSoapbox classify`);
   console.log(`─`.repeat(60));
@@ -205,9 +208,23 @@ async function main() {
   console.log(`\n${"─".repeat(60)}`);
   console.log(`Processed: ${slice.length}, mentions written: ${totalMentions}, off-topics: ${totalOffTopics}, failed: ${failed}`);
   console.log(`Tokens — input: ${totalInputTokens.toLocaleString()}, output: ${totalOutputTokens.toLocaleString()}`);
-  // Rough cost estimate at Sonnet 4.6 prices ($3/Mtok input, $15/Mtok output)
-  const cost = (totalInputTokens * 3) / 1_000_000 + (totalOutputTokens * 15) / 1_000_000;
+  const cost = estimateCostUsd(MODEL_CLASSIFY, {
+    inputTokens: totalInputTokens,
+    outputTokens: totalOutputTokens,
+  });
   console.log(`Approx cost this run: $${cost.toFixed(3)}`);
+
+  // Record this manual run so /admin/costs reflects terminal spend, not just cron.
+  await recordScriptRun({
+    label: `classify CLI (limit ${limit})`,
+    source: "cli",
+    durationMs: Date.now() - startedAt,
+    classify: { processed: slice.length, mentions: totalMentions, failed },
+    inputTokens: totalInputTokens,
+    outputTokens: totalOutputTokens,
+    costUsd: cost,
+    raw: { offTopics: totalOffTopics },
+  });
 
   const { count } = await db
     .from("classifications")

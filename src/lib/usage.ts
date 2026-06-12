@@ -84,6 +84,48 @@ export async function recordPipelineRun(
   }
 }
 
+/**
+ * Persist a one-off CLI / manual script run (a backfill, a manual classify or
+ * score drain) to usage_log so /admin/costs captures terminal spend, not just
+ * the daily cron. Maps the script's totals onto the same columns the cron path
+ * uses and tags `source` so the dashboard separates recurring from one-off.
+ * Best-effort: a logging failure never fails the script.
+ */
+export async function recordScriptRun(opts: {
+  label: string;
+  source?: "cli" | "manual";
+  durationMs?: number;
+  classify?: { processed?: number; mentions?: number; failed?: number };
+  score?: { succeeded?: number; failed?: number };
+  inputTokens?: number;
+  outputTokens?: number;
+  costUsd?: number;
+  raw?: Record<string, unknown>;
+}): Promise<void> {
+  const db = createServiceClient();
+  const { error } = await db.from("usage_log").insert({
+    duration_ms: Math.round(opts.durationMs ?? 0),
+    source: opts.source ?? "manual",
+    ingest_episodes_fetched: 0,
+    ingest_episodes_new: 0,
+    ingest_failures: 0,
+    transcribe_succeeded: 0,
+    transcribe_failed: 0,
+    classify_processed: opts.classify?.processed ?? 0,
+    classify_mentions: opts.classify?.mentions ?? 0,
+    classify_failures: opts.classify?.failed ?? 0,
+    score_succeeded: opts.score?.succeeded ?? 0,
+    score_failed: opts.score?.failed ?? 0,
+    anthropic_input_tokens: opts.inputTokens ?? 0,
+    anthropic_output_tokens: opts.outputTokens ?? 0,
+    anthropic_cost_usd: opts.costUsd ?? 0,
+    raw_summary: { label: opts.label, ...(opts.raw ?? {}) },
+  });
+  if (error) {
+    console.error("recordScriptRun: failed to persist usage_log:", error.message);
+  }
+}
+
 /** Recent usage_log rows, most recent first. */
 export async function getRecentUsage(limit = 60): Promise<UsageLogRow[]> {
   const db = createServiceClient();
@@ -109,8 +151,13 @@ export interface UsageSummary {
   last30dCost: number;
   /** Last 30 daily-bucketed costs, oldest first. Days with no runs = 0. */
   dailySeries: { date: string; cost: number; runs: number }[];
-  /** Projected monthly run-rate based on last-7-day average × 30 */
+  /** Projected monthly run-rate based on last-7-day average × 30 (all sources) */
   projectedMonthlyCost: number;
+  /** Recurring monthly run-rate from CRON rows only (last-7d cron avg × 30).
+   *  This is the budget-relevant number - one-off backfills shouldn't inflate it. */
+  recurringMonthlyCost: number;
+  /** One-off / manual (non-cron) spend over the last 30 days. */
+  oneOffLast30dCost: number;
   /** Most recent N runs for the table */
   recentRuns: UsageLogRow[];
 }
@@ -152,8 +199,20 @@ export async function getUsageSummary(): Promise<UsageSummary> {
     });
   }
 
-  // Projected monthly run-rate from rolling 7-day average × 30
+  // Projected monthly run-rate from rolling 7-day average × 30 (all sources)
   const projectedMonthlyCost = (last7dCost / 7) * 30;
+
+  // Recurring run-rate excludes one-off/manual spend (backfills etc.) so a
+  // single big backfill doesn't blow up the budget projection. Cron is the
+  // default/legacy source, so treat a missing source as cron.
+  const isCron = (r: UsageLogRow) => (r.source ?? "cron") === "cron";
+  const cron7dCost = rows
+    .filter((r) => isCron(r) && inRange(r, weekAgo))
+    .reduce((a, r) => a + cost(r), 0);
+  const recurringMonthlyCost = (cron7dCost / 7) * 30;
+  const oneOffLast30dCost = rows
+    .filter((r) => !isCron(r) && inRange(r, monthAgo))
+    .reduce((a, r) => a + cost(r), 0);
 
   return {
     totalRuns: rows.length,
@@ -163,6 +222,8 @@ export async function getUsageSummary(): Promise<UsageSummary> {
     last30dCost,
     dailySeries,
     projectedMonthlyCost,
+    recurringMonthlyCost,
+    oneOffLast30dCost,
     recentRuns: rows.slice(0, 30),
   };
 }

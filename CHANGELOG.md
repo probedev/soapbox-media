@@ -7,6 +7,33 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
+## v0.18.1 · 2026-06-12
+
+### Added
+
+- **/admin/costs now captures manual CLI spend, and reconciles against billing.**
+  Every cost-incurring CLI run (classify, score, backfills) writes a `usage_log`
+  row via a new `recordScriptRun` helper, tagged `source: cli|manual`. Previously
+  only the daily cron was logged, so terminal spend (e.g. a ~$200 backfill) was
+  completely invisible - the page showed $134 all-time when real spend was far
+  higher. The dashboard now splits the **recurring (cron) run-rate** (what the
+  budget gauge tracks) from **one-off / manual** spend (shown separately so a
+  backfill can't trip the budget alarm), and tags each run row with its source.
+  Optional reconciliation: with an Anthropic Admin key (`ANTHROPIC_ADMIN_KEY`,
+  `sk-ant-admin...`, org-only) the page shows **actual billed cost vs our
+  estimate** via the Admin `cost_report` API (`src/lib/anthropic-billing.ts`);
+  it degrades to a configure hint when the key is unset.
+
+### Changed
+
+- **Centralized Anthropic token pricing.** New `src/lib/pricing.ts`
+  (`MODEL_PRICING` + cache-aware `estimateCostUsd`) replaces the per-million
+  token rates that were hardcoded in four places (pipeline classify + score,
+  `classify.ts`, `score.ts`, `backfill-issues.ts`). Rates verified against
+  current Anthropic pricing - no number changed, this is drift-proofing. The
+  score CLI also gained a bounded-concurrency pool (matching prod
+  `SCORE_CONCURRENCY`) so a large manual score drain finishes in minutes.
+
 ## v0.18.0 · 2026-06-12
 
 ### Added

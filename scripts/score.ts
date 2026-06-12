@@ -13,6 +13,14 @@ import "./_load-env";
 import { createServiceClient } from "@/lib/db";
 import { scoreClassification } from "@/modules/score";
 import { MODEL_SCORE } from "@/lib/anthropic";
+import { estimateCostUsd } from "@/lib/pricing";
+import { recordScriptRun } from "@/lib/usage";
+import { mapPool } from "@/lib/concurrency";
+
+// Match production scoring (SCORE_CONCURRENCY in src/lib/pipeline.ts). Haiku is
+// fast and scoring one short quote is cheap, so serial was needlessly slow on a
+// large manual drain; concurrency 15 finishes thousands in minutes.
+const SCORE_CONCURRENCY = 15;
 
 interface PendingClassification {
   id: string;
@@ -35,6 +43,7 @@ interface PendingClassification {
 
 async function main() {
   const limit = parseInt(process.argv[2] || "50", 10);
+  const startedAt = Date.now();
 
   console.log(`\nSoapbox score`);
   console.log(`─`.repeat(60));
@@ -116,20 +125,18 @@ async function main() {
   const slice = pending.slice(0, limit);
   let ok = 0;
   let failed = 0;
+  let processed = 0;
   let totalInputTokens = 0;
   let totalOutputTokens = 0;
 
-  for (let i = 0; i < slice.length; i++) {
-    const c = slice[i];
-    const channelName = c.episode?.channel?.name || "(unknown)";
-    const lean = c.episode?.channel?.political_lean || "M";
-    const truncQuote = c.supporting_quote.slice(0, 100);
-
+  // Score through a bounded-concurrency pool (counters mutate safely - JS is
+  // single-threaded, the += never interleaves; see src/lib/concurrency.ts).
+  await mapPool(slice, SCORE_CONCURRENCY, async (c) => {
     try {
       const result = await scoreClassification({
         quote: c.supporting_quote,
-        channelName,
-        politicalLean: lean,
+        channelName: c.episode?.channel?.name || "(unknown)",
+        politicalLean: c.episode?.channel?.political_lean || "M",
         issueName: c.issue.name,
         issueDefinition: c.issue.definition,
         leftPosition: c.issue.left_position,
@@ -154,29 +161,41 @@ async function main() {
         { onConflict: "classification_id", ignoreDuplicates: true },
       );
       if (insErr) {
-        console.log(`[${i + 1}/${slice.length}] ✗ insert: ${insErr.message}`);
+        console.log(`✗ insert ${c.id}: ${insErr.message}`);
         failed += 1;
-        continue;
+      } else {
+        ok += 1;
       }
-
-      const dir = result.sentiment > 0 ? "R" : result.sentiment < 0 ? "L" : "·";
-      console.log(
-        `[${i + 1}/${slice.length}] [${lean}] ${channelName.slice(0, 24).padEnd(24)} ${c.issue_slug.padEnd(18)} ${dir}${Math.abs(result.sentiment).toFixed(1).padStart(4)}  i${result.intensity}  "${truncQuote}${c.supporting_quote.length > 100 ? "…" : ""}"`,
-      );
-      ok += 1;
     } catch (e: any) {
-      console.log(`[${i + 1}/${slice.length}] ✗ ${e.message}`);
+      console.log(`✗ ${c.id}: ${e.message}`);
       failed += 1;
     }
-  }
+    processed += 1;
+    if (processed % 100 === 0) {
+      console.log(`[${processed}/${slice.length}] scored ${ok} · failed ${failed}`);
+    }
+  });
 
   // Summary
   console.log(`\n${"─".repeat(60)}`);
   console.log(`Scored: ${ok}, failed: ${failed}`);
   console.log(`Tokens — input: ${totalInputTokens.toLocaleString()}, output: ${totalOutputTokens.toLocaleString()}`);
-  // Haiku 4.5 pricing (rough): $1/Mtok input, $5/Mtok output
-  const cost = (totalInputTokens * 1) / 1_000_000 + (totalOutputTokens * 5) / 1_000_000;
+  const cost = estimateCostUsd(MODEL_SCORE, {
+    inputTokens: totalInputTokens,
+    outputTokens: totalOutputTokens,
+  });
   console.log(`Approx cost this run: $${cost.toFixed(3)}`);
+
+  // Record this manual run so /admin/costs reflects terminal spend, not just cron.
+  await recordScriptRun({
+    label: `score CLI (limit ${limit})`,
+    source: "cli",
+    durationMs: Date.now() - startedAt,
+    score: { succeeded: ok, failed },
+    inputTokens: totalInputTokens,
+    outputTokens: totalOutputTokens,
+    costUsd: cost,
+  });
 
   const { count } = await db
     .from("sentiment_scores")

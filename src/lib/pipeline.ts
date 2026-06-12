@@ -13,7 +13,8 @@ import { getRecentUploads, getVideoTranscript, getChannelDetailsBatch } from "@/
 import { getPodcastEpisodes } from "@/lib/podscan";
 import { classifyTranscript, type IssueDef } from "@/modules/classify";
 import { scoreClassification } from "@/modules/score";
-import { MODEL_SCORE } from "@/lib/anthropic";
+import { MODEL_CLASSIFY, MODEL_SCORE } from "@/lib/anthropic";
+import { estimateCostUsd } from "@/lib/pricing";
 import { dedupKey, loadSiblingEpisodeKeys } from "@/lib/dedup";
 import { mapPool } from "@/lib/concurrency";
 
@@ -554,7 +555,7 @@ export async function runClassify(): Promise<Record<string, unknown>> {
   );
   const timedOut = completed < toClassify.length;
 
-  const estCost = (inputTokens * 3) / 1_000_000 + (outputTokens * 15) / 1_000_000;
+  const estCost = estimateCostUsd(MODEL_CLASSIFY, { inputTokens, outputTokens });
   return {
     pendingFound: pendingEpisodes.length,
     processed,
@@ -665,7 +666,7 @@ export async function runScore(): Promise<Record<string, unknown>> {
     }
   });
 
-  const estCost = (inputTokens * 1) / 1_000_000 + (outputTokens * 5) / 1_000_000;
+  const estCost = estimateCostUsd(MODEL_SCORE, { inputTokens, outputTokens });
   return {
     pendingFound: pending.length,
     processed: ok + failed,

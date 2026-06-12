@@ -1,4 +1,5 @@
 import { getUsageSummary, type UsageLogRow } from "@/lib/usage";
+import { getActualCost, isBillingReconcileConfigured } from "@/lib/anthropic-billing";
 import { Card } from "@/components/ui/card";
 import { AdminNav } from "@/components/AdminNav";
 import { Header } from "@/components/Header";
@@ -126,11 +127,24 @@ function RunRow({ run }: { run: UsageLogRow }) {
     run.classify_failures +
     run.score_failed;
 
+  const isCron = (run.source ?? "cron") === "cron";
+  const label =
+    !isCron && run.raw_summary && typeof run.raw_summary === "object"
+      ? (run.raw_summary as { label?: string }).label
+      : null;
+
   return (
     <div className="px-4 py-3 grid grid-cols-[140px_1fr_70px_80px_70px] items-center gap-3 text-sm">
       <div className="text-ink-body tabular-nums">{formatDate(run.ran_at)}</div>
-      <div className="text-xs text-ink-muted font-mono truncate">
-        {stagesSummary || <span className="text-ink-faint">no work</span>}
+      <div className="text-xs text-ink-muted font-mono truncate flex items-center gap-2">
+        {!isCron && (
+          <span className="shrink-0 rounded bg-amber-100 text-amber-800 px-1.5 py-0.5 text-[10px] uppercase tracking-wide">
+            {run.source}
+          </span>
+        )}
+        <span className="truncate">
+          {label || stagesSummary || <span className="text-ink-faint">no work</span>}
+        </span>
       </div>
       <div className="text-xs text-muted-foreground tabular-nums text-right">
         {formatDuration(run.duration_ms)}
@@ -151,9 +165,18 @@ function RunRow({ run }: { run: UsageLogRow }) {
 
 export default async function AdminCostsPage() {
   const u = await getUsageSummary();
-  const monthlyBurnRatio = u.projectedMonthlyCost / MONTHLY_BUDGET;
+  const actual = await getActualCost(30);
+  const reconcileConfigured = isBillingReconcileConfigured();
+  // Budget gauge tracks the RECURRING (cron) run-rate - one-off backfills are
+  // shown separately so a single big run doesn't trip the budget alarm.
+  const monthlyBurnRatio = u.recurringMonthlyCost / MONTHLY_BUDGET;
   const overBudget = monthlyBurnRatio > 1;
   const nearBudget = monthlyBurnRatio > 0.75;
+  const estimate30d = u.last30dCost;
+  const actual30d = actual?.totalUsd ?? null;
+  const reconcileDelta = actual30d !== null ? actual30d - estimate30d : null;
+  const reconcilePct =
+    actual30d !== null && estimate30d > 0 ? (estimate30d / actual30d) * 100 : null;
 
   return (
     <main className="min-h-screen">
@@ -165,9 +188,11 @@ export default async function AdminCostsPage() {
           Costs
         </h1>
         <p className="text-ink-muted mt-3 leading-relaxed max-w-2xl">
-          Anthropic token spend per pipeline run. Captured automatically each
-          time the daily cron fires. PodScan, Vercel, and Supabase are flat
-          monthly fees and not yet broken out here.
+          Anthropic token spend per run, estimated from response token counts.
+          Captured automatically on every cron run <em>and</em> manual CLI run
+          (classify, score, backfills). The budget gauge tracks the recurring
+          (cron) run-rate; one-off backfills are shown separately. PodScan,
+          Vercel, and Supabase are flat monthly fees, not broken out here.
         </p>
 
         {/* Headline stats */}
@@ -181,8 +206,8 @@ export default async function AdminCostsPage() {
             <Stat value={formatUsd(u.last7dCost)} label="Last 7 days" />
             <Stat value={formatUsd(u.last30dCost)} label="Last 30 days" />
             <Stat
-              value={formatUsd(u.projectedMonthlyCost)}
-              label="Monthly run-rate"
+              value={formatUsd(u.recurringMonthlyCost)}
+              label="Recurring run-rate"
               sublabel={`Budget: ${formatUsd(MONTHLY_BUDGET)} (${(monthlyBurnRatio * 100).toFixed(0)}%)`}
               warn={overBudget || nearBudget}
             />
@@ -192,7 +217,7 @@ export default async function AdminCostsPage() {
         {/* Budget bar */}
         <div className="mt-3">
           <div className="text-xs uppercase tracking-wider text-muted-foreground mb-1.5">
-            Monthly burn vs ${MONTHLY_BUDGET.toLocaleString()} budget
+            Recurring (cron) burn vs ${MONTHLY_BUDGET.toLocaleString()} budget
           </div>
           <div className="relative h-2 rounded-full bg-muted overflow-hidden">
             <div
@@ -207,6 +232,67 @@ export default async function AdminCostsPage() {
             />
           </div>
         </div>
+
+        {/* One-off spend + estimate-vs-actual reconciliation */}
+        <Card className="mt-3 p-6">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+            <div>
+              <div className="text-xs uppercase tracking-wider text-muted-foreground font-medium">
+                One-off / manual (30d)
+              </div>
+              <div className="text-2xl font-semibold tabular-nums mt-1">
+                {formatUsd(u.oneOffLast30dCost)}
+              </div>
+              <div className="text-[11px] text-ink-faint mt-0.5">
+                Backfills + manual CLI drains, excluded from the run-rate above.
+              </div>
+            </div>
+
+            <div>
+              <div className="text-xs uppercase tracking-wider text-muted-foreground font-medium">
+                Estimated (30d)
+              </div>
+              <div className="text-2xl font-semibold tabular-nums mt-1">
+                {formatUsd(estimate30d)}
+              </div>
+              <div className="text-[11px] text-ink-faint mt-0.5">
+                Our token-count estimate (all sources).
+              </div>
+            </div>
+
+            <div>
+              <div className="text-xs uppercase tracking-wider text-muted-foreground font-medium">
+                Actual billed (30d)
+              </div>
+              {actual30d !== null ? (
+                <>
+                  <div className="text-2xl font-semibold tabular-nums mt-1">
+                    {formatUsd(actual30d)}
+                  </div>
+                  <div className="text-[11px] text-ink-faint mt-0.5">
+                    Estimate is {reconcilePct !== null ? `${reconcilePct.toFixed(0)}%` : "-"} of actual
+                    {reconcileDelta !== null && (
+                      <>
+                        {" "}
+                        ({reconcileDelta >= 0 ? "under" : "over"} by{" "}
+                        {formatUsd(Math.abs(reconcileDelta))})
+                      </>
+                    )}
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="text-2xl font-semibold tabular-nums mt-1 text-ink-faint">-</div>
+                  <div className="text-[11px] text-ink-faint mt-0.5">
+                    {reconcileConfigured
+                      ? "Anthropic Admin API unavailable (see server logs)."
+                      : "Set ANTHROPIC_ADMIN_KEY (sk-ant-admin...) to reconcile against Anthropic billing."}
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        </Card>
 
         {/* Daily chart */}
         <div className="mt-12">
