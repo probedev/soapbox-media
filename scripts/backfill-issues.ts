@@ -14,16 +14,23 @@ import "./_load-env";
 
 import { createServiceClient } from "@/lib/db";
 import { classifyTranscript, type IssueDef } from "@/modules/classify";
+import { mapPool } from "@/lib/concurrency";
 
-// The gap issues activated 2026-05-27. Only these get inserted here.
+// Match production classify (CLASSIFY_CONCURRENCY in src/lib/pipeline.ts) - a
+// known-safe rate against the Anthropic limits. Serial would take ~14h at the
+// current panel size; concurrency 10 brings the full 30d run to ~1.5h.
+const BACKFILL_CONCURRENCY = 10;
+
+// The taxonomy-expansion issues activated 2026-06-12. Only these get inserted
+// here. (Crypto was a broadening of the existing ai-tech issue, not a new slug,
+// so it is intentionally excluded - a widened issue can't be backfilled without
+// duplicating its existing mentions; it catches crypto go-forward only.)
 const NEW_SLUGS = new Set([
-  "health-care",
-  "entitlements",
-  "justice-system",
-  "govt-corruption",
-  "gun-policy",
-  "drug-policy",
-  "race-discrimination",
+  "trade-tariffs",
+  "housing",
+  "govt-spending",
+  "public-health",
+  "veterans",
 ]);
 
 async function main() {
@@ -53,41 +60,62 @@ async function main() {
 
   const since = new Date();
   since.setUTCDate(since.getUTCDate() - windowDays);
-  const transcripts: any[] = [];
+  const sinceIso = since.toISOString();
+
+  // 1. Episodes in window (lightweight: no transcript text). Filter the window
+  //    at the DB - loading every transcript's full text just to filter in JS
+  //    times out once the panel is large. Order by (published_at, id) for stable
+  //    deep pagination; stop only on an empty page (see pagination guardrail).
+  const episodes: any[] = [];
   for (let from = 0; ; from += 1000) {
     const { data, error } = await db
-      .from("transcripts")
+      .from("episodes")
       .select(
-        `episode_id, text,
-         episode:episodes!transcripts_episode_id_fkey (
-           title, published_at,
-           channel:channels!episodes_channel_id_fkey ( name, political_lean )
-         )`,
+        `id, title, published_at,
+         channel:channels!episodes_channel_id_fkey ( name, political_lean )`,
       )
+      .eq("transcript_status", "fetched")
+      .gte("published_at", sinceIso)
+      .order("published_at", { ascending: false })
+      .order("id", { ascending: false })
       .range(from, from + 999);
     if (error) {
-      console.error("transcripts query error:", error.message);
+      console.error("episodes query error:", error.message);
       break;
     }
     if (!data || data.length === 0) break;
-    transcripts.push(...data);
+    episodes.push(...data);
     if (data.length < 1000) break;
   }
 
-  const candidates = transcripts
-    .filter(
-      (t) =>
-        t.episode &&
-        new Date(t.episode.published_at) >= since &&
-        !done.has(t.episode_id),
-    )
-    .sort(
-      (a, b) =>
-        new Date(b.episode.published_at).getTime() - new Date(a.episode.published_at).getTime(),
-    )
+  // 2. Candidates: not already backfilled, newest first, capped at limit.
+  const candidateEpisodes = episodes
+    .filter((e) => !done.has(e.id))
     .slice(0, Number.isFinite(limit) ? limit : undefined);
 
-  console.log(`${transcripts.length} transcripts loaded; ${done.size} episodes already backfilled; processing ${candidates.length}.\n`);
+  // 3. Fetch transcript text for just those candidates, in chunks (bounded).
+  const txById = new Map<string, string>();
+  const ids = candidateEpisodes.map((e) => e.id);
+  for (let i = 0; i < ids.length; i += 50) {
+    const chunk = ids.slice(i, i + 50);
+    const { data, error } = await db
+      .from("transcripts")
+      .select("episode_id, text")
+      .in("episode_id", chunk);
+    if (error) {
+      console.error("transcripts query error:", error.message);
+      continue;
+    }
+    for (const r of (data || []) as { episode_id: string; text: string }[]) {
+      txById.set(r.episode_id, r.text);
+    }
+  }
+
+  const candidates = candidateEpisodes
+    .filter((e) => txById.has(e.id))
+    .map((e) => ({ episode_id: e.id, text: txById.get(e.id)!, episode: e }));
+
+  console.log(`${episodes.length} episodes in window; ${done.size} already backfilled; processing ${candidates.length}.\n`);
 
   let processed = 0;
   let inserted = 0;
@@ -95,7 +123,7 @@ async function main() {
   let inTok = 0;
   let outTok = 0;
 
-  for (const t of candidates) {
+  await mapPool(candidates, BACKFILL_CONCURRENCY, async (t) => {
     try {
       const r = await classifyTranscript({
         transcript: t.text,
@@ -118,15 +146,15 @@ async function main() {
         );
         if (!error) inserted += newMentions.length;
       }
-      processed++;
-      if (processed % 25 === 0) {
-        const cost = (inTok * 3) / 1_000_000 + (outTok * 15) / 1_000_000;
-        console.log(`[${processed}/${candidates.length}] new mentions inserted: ${inserted} · ~$${cost.toFixed(2)} · failed ${failed}`);
-      }
     } catch (e: any) {
       failed++;
     }
-  }
+    processed++;
+    if (processed % 50 === 0) {
+      const cost = (inTok * 3) / 1_000_000 + (outTok * 15) / 1_000_000;
+      console.log(`[${processed}/${candidates.length}] new mentions inserted: ${inserted} · ~$${cost.toFixed(2)} · failed ${failed}`);
+    }
+  });
 
   const cost = (inTok * 3) / 1_000_000 + (outTok * 15) / 1_000_000;
   console.log(`\n${"─".repeat(60)}`);

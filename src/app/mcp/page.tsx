@@ -13,8 +13,6 @@ export const metadata: Metadata = {
     "Connect your AI agent to Soapbox's political-media dataset: issue mentions, sentiment scores, and trend data from high-reach podcasts and YouTube shows, queryable over MCP.",
 };
 
-const ENDPOINT = "https://www.soapbox.media/api/mcp/mcp";
-
 const EXAMPLE_QUERIES: { who: string; ask: string }[] = [
   {
     who: "Media buyer",
@@ -61,14 +59,6 @@ const TOOLS: { name: string; what: string }[] = [
   { name: "list_channels", what: "The tracked panel: every show with lean, cohort (independent vs legacy), platform, and audience reach." },
   { name: "get_methodology", what: "How every number is computed, plus live panel statistics - so your agent can cite its sources." },
 ];
-
-function CodeBlock({ children }: { children: string }) {
-  return (
-    <pre className="mt-3 p-4 bg-subtle border border-border rounded-md font-mono text-xs text-ink-strong leading-relaxed overflow-x-auto whitespace-pre-wrap">
-      {children}
-    </pre>
-  );
-}
 
 export default function McpPage() {
   return (
@@ -165,76 +155,21 @@ export default function McpPage() {
           is both a licensing obligation to our transcript providers and house policy.
         </p>
 
-        <h2 className="text-xl font-semibold mt-12">Connect your agent</h2>
+        <h2 className="text-xl font-semibold mt-12">Getting connected</h2>
         <p className="text-ink-body mt-3 leading-relaxed">
-          The server speaks streamable-HTTP MCP at{" "}
-          <code className="text-sm break-all">{ENDPOINT}</code>. You authenticate by signing in with
-          your Soapbox subscription account (OAuth) - your client opens a browser to log in and
-          approve; there&apos;s no key to paste.
+          Setup takes about two minutes and needs no coding: subscribe, set a password, and add
+          Soapbox as a custom connector in your AI app (Claude, ChatGPT, Cursor, and more). It
+          authenticates with a quick browser sign-in - there&apos;s no key to paste. The setup guide
+          walks you through every click, with copy-paste configs for developer tools.
         </p>
-
-        <h3 className="text-base font-semibold mt-8">Claude Code</h3>
-        <CodeBlock>
-          {`claude mcp add --transport http soapbox ${ENDPOINT}`}
-        </CodeBlock>
-
-        <h3 className="text-base font-semibold mt-8">Claude Desktop</h3>
-        <p className="text-ink-body mt-2 text-sm leading-relaxed">
-          Add to <code className="text-xs">claude_desktop_config.json</code> (Settings → Developer
-          → Edit Config), via the <code className="text-xs">mcp-remote</code> bridge:
-        </p>
-        <CodeBlock>
-          {`{
-  "mcpServers": {
-    "soapbox": {
-      "command": "npx",
-      "args": ["mcp-remote", "${ENDPOINT}"]
-    }
-  }
-}`}
-        </CodeBlock>
-
-        <h3 className="text-base font-semibold mt-8">Cursor</h3>
-        <p className="text-ink-body mt-2 text-sm leading-relaxed">
-          Add to <code className="text-xs">.cursor/mcp.json</code> (project) or{" "}
-          <code className="text-xs">~/.cursor/mcp.json</code> (global):
-        </p>
-        <CodeBlock>
-          {`{
-  "mcpServers": {
-    "soapbox": { "url": "${ENDPOINT}" }
-  }
-}`}
-        </CodeBlock>
-
-        <h3 className="text-base font-semibold mt-8">VS Code (GitHub Copilot)</h3>
-        <CodeBlock>
-          {`// .vscode/mcp.json
-{
-  "servers": {
-    "soapbox": { "type": "http", "url": "${ENDPOINT}" }
-  }
-}`}
-        </CodeBlock>
-
-        <h3 className="text-base font-semibold mt-8">claude.ai and ChatGPT connectors</h3>
-        <p className="text-ink-body mt-2 text-sm leading-relaxed">
-          Add a custom connector with the URL above. The connector runs the OAuth sign-in in your
-          browser - log in with your subscription account and approve, and it&apos;s connected.
-        </p>
-
-        <h2 className="text-xl font-semibold mt-12">Get access</h2>
-        <p className="text-ink-body mt-3 leading-relaxed">
-          $300/month for full MCP access. Subscribe below - no account needed up front; after
-          payment we email you a link to set your password, then connect your agent with the steps
-          above. Cancel anytime.
-        </p>
-        <div className="mt-4 p-5 border border-input bg-subtle rounded-lg flex items-center justify-between gap-4 flex-wrap">
-          <div>
-            <span className="text-2xl font-semibold text-foreground">$300</span>
-            <span className="text-muted-foreground text-sm">/month</span>
-          </div>
-          <SubscribeButton />
+        <div className="mt-5 flex flex-wrap items-center gap-3">
+          <a
+            href="/connect"
+            className="inline-flex items-center justify-center rounded-md bg-primary text-white text-sm font-medium px-5 py-2.5 hover:bg-primary/90 transition"
+          >
+            Open the setup guide
+          </a>
+          <span className="text-sm text-ink-muted">$300/month · cancel anytime</span>
         </div>
       </section>
 

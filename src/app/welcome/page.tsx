@@ -10,6 +10,7 @@
  */
 import { useEffect, useState } from "react";
 
+import { CopyField } from "@/components/CopyField";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -79,13 +80,21 @@ export default function WelcomePage() {
             {done && (
               <div className="space-y-3 text-sm">
                 <p className="text-emerald-700">Account ready - your subscription is active. 🎉</p>
-                <p className="text-muted-foreground">Connect your AI agent to:</p>
-                <code className="block text-xs bg-muted border rounded p-2 break-all">{ENDPOINT}</code>
                 <p className="text-muted-foreground">
-                  Add it as a custom MCP connector (Claude, ChatGPT, Cursor) and sign in with this email + password when prompted. Full setup on{" "}
-                  <a href="/mcp" className="underline">the MCP page</a>.
+                  One step left: add Soapbox to your AI app. Paste this address as a custom MCP
+                  connector, then sign in with this email and password when prompted:
                 </p>
-                <Button className="w-full" onClick={() => (window.location.href = "/account")}>Go to account</Button>
+                <CopyField value={ENDPOINT} label="MCP server URL" />
+                <Button className="w-full" onClick={() => (window.location.href = "/connect")}>
+                  Connect your agent: step by step
+                </Button>
+                <button
+                  type="button"
+                  className="w-full text-center text-xs text-muted-foreground underline"
+                  onClick={() => (window.location.href = "/account")}
+                >
+                  Go to your account
+                </button>
               </div>
             )}
           </CardContent>

@@ -48,7 +48,7 @@ export default function AccountPage() {
               <div className="space-y-4">
                 {justSubscribed && status.active && (
                   <p className="text-sm text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-md p-3">
-                    🎉 Subscription active - connect your agent to <code>https://www.soapbox.media/api/mcp/mcp</code>.
+                    🎉 Subscription active. Next, <a href="/connect" className="underline font-medium">connect your agent</a> - it takes about two minutes.
                   </p>
                 )}
                 <div className="flex items-center justify-between text-sm">
@@ -62,6 +62,15 @@ export default function AccountPage() {
                     <span className="text-muted-foreground">Renews</span>
                     <span>{new Date(status.currentPeriodEnd).toLocaleDateString()}</span>
                   </div>
+                )}
+                {(status.active || status.openBeta) && (
+                  <Button
+                    variant="outline"
+                    className="w-full"
+                    onClick={() => (window.location.href = "/connect")}
+                  >
+                    Connect your agent
+                  </Button>
                 )}
                 {status.openBeta && !status.active && (
                   <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-md p-2">

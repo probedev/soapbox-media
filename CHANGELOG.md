@@ -7,6 +7,54 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
+## v0.18.0 · 2026-06-12
+
+### Added
+
+- **Taxonomy expansion: 5 new issues + crypto.** Found by bucketing the
+  off-taxonomy harvest (`discovery_topics`) by distinct channel breadth over 90
+  days - durable categories the event-grained /emerging board structurally can't
+  surface (it clusters one-off events like a primary race, not standing themes).
+  All nest under existing locked Topics (no new Topic), building out the two
+  thinnest: Economy & Work (2 to 5 issues) and Health Care (1 to 2). New issues:
+  **Trade & tariffs**, **Housing & homelessness**, **Government spending & debt**
+  (Economy), **Public health & medical establishment** (the MAHA / vaccines / FDA
+  axis, distinct from health-care coverage; Health), and **Veterans & military
+  affairs** (Foreign Policy & National Security). The existing AI & tech issue was
+  broadened to **"AI, crypto & tech"** to cover crypto and digital assets. Migration
+  `20260612120000_taxonomy_expansion`. 30-day history was backfilled for the five
+  new issues (crypto is go-forward only - a widened existing issue can't be
+  backfilled without duplicating its mentions). The Trade and Veterans definitions
+  were tightened after a sample-validation pass to filter conflict-shipping and
+  general-military noise, and `inflation`'s definition dropped "housing
+  affordability" so that signal routes to the new Housing issue.
+
+- **MCP setup guide (`/connect`): non-technical-first onboarding.** A dedicated,
+  step-by-step page (get access, set password, add connector, sign in, ask your
+  first question) pulled out of the marketing-heavy `/mcp` page. Leads with the
+  point-and-click Claude and ChatGPT custom-connector flow; developer configs
+  (Claude Code, Cursor, VS Code, Claude Desktop) live in their own tab. New
+  reusable `CopyField` (copy-to-clipboard) and `ConnectGuide` components.
+  Step 1 surfaces the "Add promotion code" path so beta testers with a free code
+  can self-serve to $0. The post-payment `/welcome` screen and `/account` now
+  link straight into the guide.
+
+### Changed
+
+- **`/mcp` trimmed to the pitch.** The long per-client config dump and the
+  duplicate pricing block were replaced with a concise "Getting connected"
+  section that links to the new `/connect` guide. Marketing (the pitch, example
+  queries, tool list, data boundaries) and the top pricing CTA stay.
+
+### Fixed
+
+- **`backfill-issues.ts` no longer times out at panel scale.** It loaded every
+  transcript's full text and filtered the date window in JS, which hit a Postgres
+  statement timeout once the panel grew (~6.7k transcripts). It now filters the
+  window at the DB and fetches text only for the episodes it will process, and
+  runs the classify pass through a bounded-concurrency pool (matching production's
+  `CLASSIFY_CONCURRENCY`) rather than serially (~14h to ~1.5h at the current size).
+
 ## v0.17.0 · 2026-06-11
 
 ### Changed
