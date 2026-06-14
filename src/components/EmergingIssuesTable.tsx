@@ -19,7 +19,8 @@ import {
   getExpandedRowModel,
   useReactTable,
 } from "@tanstack/react-table";
-import { ArrowUp, ArrowDown, ChevronDown, ChevronRight, ExternalLink } from "lucide-react";
+import { ArrowUp, ArrowDown, ChevronDown, ChevronRight, ExternalLink, Minus } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import {
   Table,
@@ -36,10 +37,11 @@ import type { EmergingReceiptsResponse } from "@/app/api/emerging/[id]/receipts/
 const COL_WIDTH: Record<string, string> = {
   expander: "3%",
   rank: "4%",
-  weight: "11%",
-  topicCount: "11%",
-  episodeCount: "11%",
-  channelCount: "11%",
+  movement: "6%",
+  weight: "10%",
+  topicCount: "10%",
+  episodeCount: "10%",
+  channelCount: "10%",
 };
 const RIGHT_COLS = new Set(["weight", "topicCount", "episodeCount", "channelCount"]);
 
@@ -182,6 +184,52 @@ function ReceiptsPanel({
   );
 }
 
+/** Up/down movement on the ranking vs the previous daily refresh. Climbing is
+ *  emerald (the house positive-delta color); slipping is muted, not alarm-red
+ *  (red is reserved for "Right" lean site-wide). "new" = just entered the board. */
+function MovementCell({ m }: { m: EmergingIssue["movement"] }) {
+  if (m.status === "new") {
+    return (
+      <Badge
+        variant="secondary"
+        className="h-4 px-1.5 py-0 text-[10px] font-medium uppercase tracking-wide"
+      >
+        new
+      </Badge>
+    );
+  }
+  if (m.status === "up") {
+    return (
+      <span
+        className="inline-flex items-center gap-0.5 font-medium tabular-nums text-emerald-600"
+        title={`Up ${m.delta} from #${m.prevRank} last refresh`}
+      >
+        <ArrowUp className="h-3 w-3" aria-hidden />
+        {m.delta}
+      </span>
+    );
+  }
+  if (m.status === "down") {
+    return (
+      <span
+        className="inline-flex items-center gap-0.5 font-medium tabular-nums text-muted-foreground"
+        title={`Down ${m.delta} from #${m.prevRank} last refresh`}
+      >
+        <ArrowDown className="h-3 w-3" aria-hidden />
+        {m.delta}
+      </span>
+    );
+  }
+  if (m.status === "same") {
+    return (
+      <span className="text-ink-faint" title="No change since last refresh">
+        <Minus className="h-3 w-3" aria-hidden />
+      </span>
+    );
+  }
+  return null; // "none" - no prior snapshot to compare against yet
+}
+
 const columns: ColumnDef<EmergingIssue>[] = [
   {
     id: "expander",
@@ -209,6 +257,12 @@ const columns: ColumnDef<EmergingIssue>[] = [
     cell: ({ row }) => (
       <div className="tabular-nums font-semibold text-ink-muted">{row.original.rank}</div>
     ),
+  },
+  {
+    id: "movement",
+    header: "",
+    enableSorting: false,
+    cell: ({ row }) => <MovementCell m={row.original.movement} />,
   },
   {
     accessorKey: "label",

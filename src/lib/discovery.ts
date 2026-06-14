@@ -38,6 +38,28 @@ function reachFactor(reach: number): number {
   return Math.log10(Math.max(reach, 10));
 }
 
+// Recency model. Each member topic's reach contribution decays with the age of
+// the episode it aired in (published_at), halving every RECENCY_HALF_LIFE_DAYS.
+// This replaced a binary "x1.5 if <7d else x1" boost that barely moved the board:
+// classify harvests off-taxonomy topics long AFTER an episode airs (backlog), so
+// the boost fired on only ~17% of members while episodes ran to ~180 days old.
+// The board therefore ranked by accumulated stale volume and looked frozen.
+// Continuous decay buries old backlog and lets genuine bursts surface. The
+// half-life was tuned on the live pending set: at 7 days, 80%-recent bursts climb
+// into the top tier (e.g. a fresh trial story #10 -> #4) without over-twitching,
+// and it matches the weekly news cycle / the prior 7-day boundary.
+const RECENCY_HALF_LIFE_DAYS = 7;
+
+/**
+ * Reach contribution of one member topic, decayed by episode age. Shared by the
+ * build-time weight (buildDiscoveryCandidates) and the board-time weight
+ * (computeBoardRanks) so the two rankings can't drift apart.
+ */
+function topicWeight(reach: number, publishedAt: string, now: number): number {
+  const ageDays = Math.max((now - new Date(publishedAt).getTime()) / 86_400_000, 0);
+  return reachFactor(reach) * Math.pow(2, -ageDays / RECENCY_HALF_LIFE_DAYS);
+}
+
 // Stopwords stripped when building the token-set grouping key. Kept tiny on
 // purpose - just the connective words that vary between phrasings of one theme.
 const THEME_STOPWORDS = new Set([
@@ -196,8 +218,7 @@ export async function buildDiscoveryCandidates(windowDays = 21): Promise<BuildRe
     const channels = new Set(members.map((m) => m.channel_name));
     let weight = 0;
     for (const m of members) {
-      const recent = now - new Date(m.published_at).getTime() < 7 * 86400_000;
-      weight += reachFactor(m.reach) * (recent ? 1.5 : 1);
+      weight += topicWeight(m.reach, m.published_at, now);
     }
     const example_quotes = members
       .filter((m) => m.quote && m.quote.trim().length > 0)
@@ -249,6 +270,15 @@ export async function buildDiscoveryCandidates(windowDays = 21): Promise<BuildRe
       .in("id", c.memberIds);
   }
 
+  // Snapshot the freshly-built board so the public page can show rank movement
+  // vs the previous rebuild. Best-effort: a snapshot failure must not fail the
+  // rebuild (the board still renders, just without movement arrows).
+  try {
+    await snapshotEmergingRanks();
+  } catch (e) {
+    console.error("snapshotEmergingRanks (post-build):", (e as Error)?.message || e);
+  }
+
   return {
     topicsConsidered: topics.length,
     candidatesCreated: created,
@@ -274,6 +304,19 @@ export async function getDiscoveryCandidates(
   return (data || []) as DiscoveryCandidate[];
 }
 
+/**
+ * Rank movement vs the previous daily refresh.
+ * - up/down: changed rank (delta = absolute number of places, always positive)
+ * - same: present last refresh at the same rank
+ * - new: not present in the previous snapshot (or its theme was reworded)
+ * - none: no prior snapshot to compare against yet (first day, or empty history)
+ */
+export interface RankMovement {
+  status: "up" | "down" | "same" | "new" | "none";
+  delta: number;
+  prevRank: number | null;
+}
+
 /** Lean public shape for the /emerging board (pending candidates only). */
 export interface EmergingIssue {
   id: string;
@@ -285,6 +328,7 @@ export interface EmergingIssue {
   episodeCount: number;
   channelCount: number;
   weight: number;
+  movement: RankMovement;
 }
 
 export interface EmergingBoard {
@@ -309,9 +353,12 @@ export interface EmergingBoard {
  * partition cleanly (every channel is exactly one of independent|legacy), so
  * `all` = independent + legacy. We compute all three in one pass over
  * discovery_topics joined to episode + channel, mirroring the build-time weight
- * (reachFactor x 7-day recency boost). Refreshed daily by the discover cron.
+ * (reachFactor x half-life recency decay). Refreshed daily by the discover cron.
+ *
+ * This is the raw rank computation (no movement). getEmergingBoard() layers the
+ * up/down movement on top; snapshotEmergingRanks() persists these ranks daily.
  */
-export async function getEmergingBoard(): Promise<EmergingBoard> {
+async function computeBoardRanks(): Promise<EmergingBoard> {
   const db = createServiceClient();
 
   const { data: cands, error: cErr } = await db
@@ -390,8 +437,7 @@ export async function getEmergingBoard(): Promise<EmergingBoard> {
   for (const t of topics) {
     const a = accs.get(t.candidate_id);
     if (!a) continue;
-    const recent = now - new Date(t.published_at).getTime() < 7 * 86400_000;
-    const w = reachFactor(t.reach) * (recent ? 1.5 : 1);
+    const w = topicWeight(t.reach, t.published_at, now);
     const add = (acc: Acc) => {
       acc.topicCount++;
       acc.episodes.add(t.episode_id);
@@ -418,6 +464,7 @@ export async function getEmergingBoard(): Promise<EmergingBoard> {
         episodeCount: acc.episodes.size,
         channelCount: acc.channels.size,
         weight: Number(acc.weight.toFixed(2)),
+        movement: { status: "none", delta: 0, prevRank: null },
       });
     }
     rows.sort((a, b) => b.weight - a.weight);
@@ -433,6 +480,149 @@ export async function getEmergingBoard(): Promise<EmergingBoard> {
     legacy: build("legacy"),
     lastUpdated,
   };
+}
+
+/**
+ * Public emerging board = the live rank computation with up/down movement
+ * attached. Movement is the live board diffed against the PREVIOUS daily
+ * snapshot (not the latest, which ~equals the live board, so every delta would
+ * read zero). Keyed by normalized theme (themeKey) so a continuing issue keeps
+ * its history across the daily candidate rebuild (UUIDs are regenerated) and
+ * minor LLM relabeling; a theme with no prior match reads as "new".
+ */
+export async function getEmergingBoard(): Promise<EmergingBoard> {
+  const board = await computeBoardRanks();
+  try {
+    await attachMovement(board);
+  } catch (e) {
+    // Movement is a non-essential overlay - never let it break the board.
+    console.error("attachMovement:", (e as Error)?.message || e);
+  }
+  return board;
+}
+
+/** Per-cohort theme-keyed rank map from a single day's snapshot. */
+type PrevRankMap = Map<string, number>; // `${cohort}|${theme_key}` -> rank
+
+/** Stable movement key for a row (matches the snapshot's theme_key). */
+function movementKey(cohort: string, label: string): string {
+  return `${cohort}|${themeKey(label) || label.trim().toLowerCase()}`;
+}
+
+/** Attach rank movement to an already-ranked board, in place. */
+async function attachMovement(board: EmergingBoard): Promise<void> {
+  const db = createServiceClient();
+
+  // Pick the snapshot to diff the live board against. The live board ~equals
+  // TODAY's snapshot (same candidate set, same recency model), so diffing against
+  // it would read every delta as zero. Rule:
+  //   - if the latest snapshot predates today (UTC), it IS the prior board (the
+  //     daily rebuild hasn't run yet, or we just deployed) -> diff against it;
+  //   - otherwise the latest snapshot is today's, so diff against the one before.
+  // This is robust to timezone (dates are UTC), page-load time, a late cron, and
+  // same-day admin rebuilds (which upsert into today's date, not a new one).
+  const { data: dateRows, error: dErr } = await db
+    .from("emerging_rank_history")
+    .select("captured_on")
+    .order("captured_on", { ascending: false })
+    .limit(500);
+  if (dErr) {
+    console.error("attachMovement dates:", dErr.message);
+    return;
+  }
+  const distinct: string[] = [];
+  for (const r of (dateRows as { captured_on: string }[]) || []) {
+    if (distinct[distinct.length - 1] !== r.captured_on) distinct.push(r.captured_on);
+    if (distinct.length >= 2) break;
+  }
+  const today = new Date().toISOString().slice(0, 10); // UTC date
+  const prevDate = distinct[0] && distinct[0] < today ? distinct[0] : distinct[1];
+  if (!prevDate) return; // no prior refresh to compare against yet
+
+  const { data: prevRows, error: pErr } = await db
+    .from("emerging_rank_history")
+    .select("cohort, theme_key, rank")
+    .eq("captured_on", prevDate);
+  if (pErr) {
+    console.error("attachMovement prev:", pErr.message);
+    return;
+  }
+  const prev: PrevRankMap = new Map();
+  for (const r of (prevRows as { cohort: string; theme_key: string; rank: number }[]) || []) {
+    prev.set(`${r.cohort}|${r.theme_key}`, r.rank);
+  }
+
+  const apply = (cohort: "all" | "independent" | "legacy", rows: EmergingIssue[]) => {
+    for (const row of rows) {
+      const pr = prev.get(movementKey(cohort, row.label));
+      if (pr === undefined) {
+        row.movement = { status: "new", delta: 0, prevRank: null };
+      } else if (pr === row.rank) {
+        row.movement = { status: "same", delta: 0, prevRank: pr };
+      } else {
+        // Smaller rank number = higher on the board, so pr > rank means it climbed.
+        const delta = pr - row.rank;
+        row.movement = {
+          status: delta > 0 ? "up" : "down",
+          delta: Math.abs(delta),
+          prevRank: pr,
+        };
+      }
+    }
+  };
+  apply("all", board.all);
+  apply("independent", board.independent);
+  apply("legacy", board.legacy);
+}
+
+/**
+ * Persist today's board ranks to emerging_rank_history so the next refresh can
+ * show movement. Idempotent: upserts one row per (captured_on, cohort,
+ * theme_key), so a same-day rebuild updates rather than duplicates. Called at the
+ * end of each candidate rebuild (cron + admin). Best-effort by its callers.
+ */
+export async function snapshotEmergingRanks(): Promise<void> {
+  const db = createServiceClient();
+  const board = await computeBoardRanks();
+  const capturedOn = new Date().toISOString().slice(0, 10); // UTC date
+
+  interface SnapRow {
+    captured_on: string;
+    cohort: string;
+    theme_key: string;
+    label: string;
+    rank: number;
+    weight: number;
+  }
+  const rows: SnapRow[] = [];
+  const seen = new Set<string>(); // guard duplicate theme_key within a cohort/day
+  const cohorts: [string, EmergingIssue[]][] = [
+    ["all", board.all],
+    ["independent", board.independent],
+    ["legacy", board.legacy],
+  ];
+  for (const [cohort, list] of cohorts) {
+    for (const r of list) {
+      const tk = themeKey(r.label) || r.label.trim().toLowerCase();
+      const dedup = `${cohort}|${tk}`;
+      if (seen.has(dedup)) continue; // keep the better-ranked row (list is rank-asc)
+      seen.add(dedup);
+      rows.push({
+        captured_on: capturedOn,
+        cohort,
+        theme_key: tk,
+        label: r.label,
+        rank: r.rank,
+        weight: r.weight,
+      });
+    }
+  }
+  if (rows.length === 0) return;
+
+  const { error } = await db
+    .from("emerging_rank_history")
+    .upsert(rows, { onConflict: "captured_on,cohort,theme_key" });
+  if (error) console.error("snapshotEmergingRanks upsert:", error.message);
 }
 
 /** Active taxonomy issues - for the "merge into" dropdown. */

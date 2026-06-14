@@ -2,8 +2,31 @@ import { getEmergingBoard } from "@/lib/discovery";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { EmergingBoard } from "@/components/EmergingBoard";
+import { DISPLAY_TZ } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
+
+/** Relative "last refreshed" label for the board's most recent rebuild. */
+function refreshedLabel(iso: string | null): string | null {
+  if (!iso) return null;
+  const t = new Date(iso).getTime();
+  if (Number.isNaN(t)) return null;
+  const diffH = Math.floor((Date.now() - t) / 3_600_000);
+  if (diffH < 1) return "just now";
+  if (diffH < 24) return `${diffH}h ago`;
+  return `${Math.floor(diffH / 24)}d ago`;
+}
+
+function refreshedAbsolute(iso: string): string {
+  return new Date(iso).toLocaleString("en-US", {
+    timeZone: DISPLAY_TZ,
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    timeZoneName: "short",
+  });
+}
 
 export const metadata = {
   title: "Emerging issues · Soapbox",
@@ -26,11 +49,21 @@ export default async function EmergingPage() {
         <p className="text-ink-muted mt-3 text-sm leading-relaxed max-w-3xl">
           Issues the shows are talking about that aren&apos;t in our taxonomy yet. We harvest the
           off-taxonomy subjects our classifier flags, cluster them into candidate issues, and rank by
-          reach &times; recency &times; volume. Switch between independent and legacy outlets to see
+          reach &times; recency &times; volume, where recent episodes count for more (a topic&apos;s
+          weight halves about every week, so fresh bursts rise and last month&apos;s chatter fades).
+          The <span className="text-emerald-600 font-medium">&uarr;</span>/&darr; column shows how each
+          issue moved since the last refresh. Switch between independent and legacy outlets to see
           where the two diverge. These are raw, auto-detected signals, refreshed daily and not
           hand-curated; whether one becomes a tracked Soapbox issue stays a human call. Expand any row
           for the receipts: the exact things shows said, with links to the episodes.
         </p>
+        {refreshedLabel(board.lastUpdated) && (
+          <div className="mt-3 inline-flex items-center gap-1.5 text-[11px] text-muted-foreground tabular-nums">
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" aria-hidden />
+            Board refreshed {refreshedLabel(board.lastUpdated)}
+            <span className="text-ink-faint">· {refreshedAbsolute(board.lastUpdated!)}</span>
+          </div>
+        )}
 
         <div className="mt-8">
           {board.all.length === 0 ? (

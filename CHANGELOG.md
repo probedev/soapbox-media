@@ -7,6 +7,38 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
+## v0.20.0 · 2026-06-14
+
+### Changed
+
+- **/emerging recency is now a continuous decay, not a binary boost - the board
+  was ranking by stale accumulated volume.** Each member topic's reach
+  contribution now halves roughly every 7 days of episode age
+  (`reachFactor x 2^(-ageDays/7)`), replacing the old "x1.5 if the episode aired
+  in the last 7 days, else x1" step. The step barely moved anything: classify
+  harvests off-taxonomy topics long after an episode airs, so the boost fired on
+  only ~17% of members while member episodes ran to ~180 days old, and the board
+  ranked by whatever had the most accumulated mentions - it looked frozen. With
+  decay, genuine bursts surface and last month's chatter fades (validated on the
+  live pending set: a fresh trial story climbs #10 -> #4, a stale-but-huge
+  geopolitics topic settles #1 -> #3). The half-life was tuned against the live
+  data, not guessed. The build-time and board-time weights now share one
+  `topicWeight()` helper so they can't drift.
+
+### Added
+
+- **Rank movement on /emerging.** Each issue shows how it moved since the last
+  daily refresh: a green up arrow, a muted down arrow, "new", or a steady dash.
+  Because the daily rebuild regenerates candidate UUIDs, movement is keyed on a
+  normalized theme (the same token-set key used to de-fragment labels), so a
+  continuing issue keeps its history across rebuilds and minor LLM relabeling.
+  Ranks are snapshotted per cohort each rebuild into the new
+  `emerging_rank_history` table; the live board diffs against the previous
+  refresh (not the latest snapshot, which would read as no movement).
+- **Board freshness line on /emerging** showing when the candidate set was last
+  rebuilt (relative + absolute US Eastern), plus copy explaining the recency
+  weighting and the movement column.
+
 ## v0.19.0 · 2026-06-14
 
 ### Changed
