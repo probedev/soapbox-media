@@ -51,7 +51,8 @@ export default async function EmergingPage() {
           off-taxonomy subjects our classifier flags, cluster them into candidate issues, and rank by
           reach &times; recency &times; volume, where recent episodes count for more (a topic&apos;s
           weight halves about every week, so fresh bursts rise and last month&apos;s chatter fades).
-          The <span className="text-emerald-600 font-medium">&uarr;</span>/&darr; column shows how each
+          Issues the shows stop talking about drop off the board entirely. The
+          <span className="text-emerald-600 font-medium"> &uarr;</span>/&darr; column shows how each
           issue moved since the last refresh. Switch between independent and legacy outlets to see
           where the two diverge. These are raw, auto-detected signals, refreshed daily and not
           hand-curated; whether one becomes a tracked Soapbox issue stays a human call. Expand any row

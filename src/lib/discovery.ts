@@ -50,6 +50,15 @@ function reachFactor(reach: number): number {
 // and it matches the weekly news cycle / the prior 7-day boundary.
 const RECENCY_HALF_LIFE_DAYS = 7;
 
+// Public-board recency gate. A candidate is hidden from /emerging once its most
+// recent member episode (in that cohort) is older than this - an "emerging" board
+// shouldn't carry dead news (e.g. a month-old outbreak) just because it once had
+// volume. Applied only to the public board (computeBoardRanks); the /admin
+// discovery review queue (getDiscoveryCandidates) stays comprehensive, so a human
+// can still promote a once-big theme that has quieted. Tunable; 10d drops clearly
+// stale events while keeping the board full (validated on the live pending set).
+const BOARD_MAX_STALE_DAYS = 10;
+
 /**
  * Reach contribution of one member topic, decayed by episode age. Shared by the
  * build-time weight (buildDiscoveryCandidates) and the board-time weight
@@ -463,9 +472,12 @@ async function computeBoardRanks(): Promise<EmergingBoard> {
 
   const build = (scope: "all" | "independent" | "legacy"): EmergingIssue[] => {
     const rows: EmergingIssue[] = [];
+    const staleBefore = now - BOARD_MAX_STALE_DAYS * 86_400_000;
     for (const id of pendingIds) {
       const acc = accs.get(id)![scope];
       if (acc.topicCount === 0) continue;
+      // Suppress dead news: no member episode in this cohort within the gate.
+      if (acc.latest === 0 || acc.latest < staleBefore) continue;
       const m = meta.get(id)!;
       rows.push({
         id,

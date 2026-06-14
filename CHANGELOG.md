@@ -7,6 +7,20 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
+## v0.20.2 · 2026-06-14
+
+### Changed
+
+- **/emerging now suppresses dead news: an issue drops off the public board once
+  its most recent mention (in that cohort) is more than 10 days old.** The
+  recency decay (v0.20.0) down-weighted stale topics but a high-volume one could
+  still linger mid-board; an "emerging" board carrying a month-old outbreak or a
+  three-week-old shooting reads as stale. The gate applies only to the public
+  board - the /admin/discovery review queue stays comprehensive, so a human can
+  still promote a once-big theme that has quieted. Cutoff is a tunable constant
+  (`BOARD_MAX_STALE_DAYS`); validated on the live set, 10 days drops the clearly
+  dead candidates (6 of 39) while keeping the board full. Copy updated to say so.
+
 ## v0.20.1 · 2026-06-14
 
 ### Fixed
