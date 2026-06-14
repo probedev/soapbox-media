@@ -1,4 +1,5 @@
 import { VERSION } from "@/lib/version";
+import { TAGLINE_FOOTER } from "@/lib/brand";
 
 /**
  * Shared site footer used on every page. Includes the platform version so
@@ -11,7 +12,7 @@ export function Footer() {
       <div className="max-w-5xl mx-auto px-6 py-8 text-sm text-muted-foreground">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
           <div className="flex items-baseline gap-3 flex-wrap">
-            <span>Soapbox.media · online political media, quantified</span>
+            <span>Soapbox.media · {TAGLINE_FOOTER}</span>
             <a
               href="/changelog"
               className="text-xs font-mono text-ink-faint hover:text-ink-body transition"

@@ -951,6 +951,10 @@ export interface HomeSnapshot {
   /** Per-cohort Index for the sub-needles. Optional so snapshots written
    *  before this field still deserialize. */
   cohorts?: { independent: CohortNeedle; legacy: CohortNeedle };
+  /** Site-wide scale counters for the hero copy: hours of audio analyzed
+   *  (public cohorts) and total political mentions scored. Optional so older
+   *  snapshots still deserialize; the home page falls back to a live read. */
+  scale?: { hoursOfAudio: number; totalMentions: number };
 }
 
 /** Stable per-window key for the home snapshot row (e.g. `home:7`). */
@@ -977,12 +981,20 @@ export async function writeHomeSnapshot(windowDays = 7): Promise<HomeSnapshot> {
     await getDashboardData(windowDays, ["independent"]),
     await getDashboardData(windowDays, ["legacy"]),
   ];
+  // Scale counters for the hero. Reuses getSystemStats so the hours figure
+  // matches /log exactly; `classifications` is whole-pipeline but verified to
+  // be within 0.03% of the public-cohort count, so it reads as the panel total.
+  const system = await getSystemStats();
   const snapshot: HomeSnapshot = {
     dashboard,
     breakdown,
     cohorts: {
       independent: { index: indDash.index, hasData: indDash.hasData },
       legacy: { index: legDash.index, hasData: legDash.hasData },
+    },
+    scale: {
+      hoursOfAudio: system.hoursOfAudio,
+      totalMentions: system.classifications,
     },
   };
 

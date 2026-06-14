@@ -6,9 +6,10 @@ import { BiggestMovers } from "@/components/BiggestMovers";
 import { TrustStrip } from "@/components/TrustStrip";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
-import { getDashboardData, getIndexBreakdown, readHomeSnapshot } from "@/lib/aggregate";
+import { getDashboardData, getIndexBreakdown, readHomeSnapshot, getSystemStats } from "@/lib/aggregate";
 import { SubNeedle } from "@/components/SubNeedle";
 import { PUBLIC_COHORTS } from "@/lib/cohort";
+import { TAGLINE } from "@/lib/brand";
 import { DISPLAY_TZ } from "@/lib/utils";
 
 // The home page reads a precomputed snapshot (written at the end of the score
@@ -44,6 +45,17 @@ export default async function HomePage() {
   // otherwise the component computes it live itself (prop left undefined).
   const breakdown =
     snapshot?.breakdown ?? (await getIndexBreakdown(HOMEPAGE_WINDOW_DAYS));
+  // Hero scale counters (hours of audio analyzed, total political mentions
+  // scored). From the snapshot when present; otherwise a live read - transient,
+  // until the next score cron writes the field. Null-safe so the hero degrades
+  // to a number-free sentence if both paths fail.
+  const scale =
+    snapshot?.scale ??
+    (await getSystemStats()
+      .then((s) => ({ hoursOfAudio: s.hoursOfAudio, totalMentions: s.classifications }))
+      .catch(() => null));
+  const heroHours = scale ? Math.round(scale.hoursOfAudio) : null;
+  const heroMentions = scale ? scale.totalMentions : null;
   const directionLabel = data.index >= 0 ? "R+" : "L+";
   const directionWord = data.index >= 0 ? "right" : "left";
   const indexColor = data.index >= 0 ? "text-red-600" : "text-blue-600";
@@ -59,17 +71,40 @@ export default async function HomePage() {
       {/* Hero - needle + headline number + sparkline + trust strip */}
       <section className="px-6 pt-12 pb-10 max-w-5xl mx-auto text-center">
         <div className="uppercase text-xs font-semibold tracking-wider text-muted-foreground mb-2">
-          The Soapbox Index · updated daily
+          The Soapbox Index
         </div>
         <h1 className="text-3xl md:text-4xl font-semibold tracking-tight">
-          Where is online political media leaning right now?
+          {TAGLINE}
         </h1>
         <p className="text-ink-muted mt-3 max-w-2xl mx-auto leading-relaxed">
-          Soapbox uses language models to quantify what political media on YouTube and
-          podcasts says about US policy issues, and how{" "}
-          <span className="font-medium">independent creators</span> and{" "}
-          <span className="font-medium">legacy media</span> differ. New episodes
-          processed daily.
+          {heroHours && heroMentions ? (
+            <>
+              We&apos;ve analyzed{" "}
+              <span className="font-medium text-ink-body tabular-nums">
+                {heroHours.toLocaleString()} hours
+              </span>{" "}
+              of political audio from{" "}
+              <span className="font-medium text-ink-body tabular-nums">
+                {data.numChannels}
+              </span>{" "}
+              independent and legacy shows and scored{" "}
+              <span className="font-medium text-ink-body tabular-nums">
+                {heroMentions.toLocaleString()}
+              </span>{" "}
+              mentions, and counting. Soapbox measures what they say, how far it
+              reaches, and which way it moves the conversation.
+            </>
+          ) : (
+            <>
+              Soapbox listens to{" "}
+              <span className="font-medium text-ink-body tabular-nums">
+                {data.numChannels}
+              </span>{" "}
+              independent and legacy shows across YouTube and podcasts, measuring
+              what they say, how far it reaches, and which way it moves the
+              conversation. Updated daily.
+            </>
+          )}
         </p>
 
         <div className="mt-10 flex justify-center">

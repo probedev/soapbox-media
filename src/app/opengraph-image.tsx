@@ -18,12 +18,13 @@ import { ImageResponse } from "next/og";
 import fs from "fs";
 import path from "path";
 import { getDashboardData } from "@/lib/aggregate";
+import { SITE_TITLE, TAGLINE } from "@/lib/brand";
 import { DISPLAY_TZ } from "@/lib/utils";
 
 export const runtime = "nodejs";
 export const revalidate = 3600; // re-generate at most once per hour
 
-export const alt = "Soapbox · Online political media, quantified";
+export const alt = SITE_TITLE;
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
@@ -268,7 +269,7 @@ export default async function OpengraphImage() {
               display: "flex",
             }}
           >
-            Online political media, quantified.
+            {TAGLINE}
           </div>
           <div
             style={{

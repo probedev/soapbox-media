@@ -7,6 +7,28 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
+## v0.19.0 · 2026-06-14
+
+### Changed
+
+- **New home hero + site-wide tagline: "Voice, reach, and influence in
+  political media, measured."** Replaces "Online political media, quantified"
+  as the master positioning line. The hero headline, page `<title>`, OG and
+  Twitter cards, the dynamic OG image, and the footer now all read from one
+  source of truth (`src/lib/brand.ts`: `SITE_TITLE`, `TAGLINE`,
+  `TAGLINE_FOOTER`, `META_DESCRIPTION`) so they can never drift apart again.
+- **Hero subtext now carries live scale counters.** Reads "We've analyzed
+  *N* hours of political audio from *M* independent and legacy shows and scored
+  *K* mentions, and counting." Numbers come from the home snapshot (hours of
+  audio and total scored mentions added to `HomeSnapshot.scale`, written by the
+  score cron via `getSystemStats`), with a live fallback before the first cron
+  populates the field and a number-free fallback if both paths fail.
+
+### Added
+
+- `src/lib/brand.ts` - canonical brand copy constants, mirroring `version.ts`
+  as a single source of truth.
+
 ## v0.18.3 · 2026-06-14
 
 ### Fixed
