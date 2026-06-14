@@ -329,6 +329,9 @@ export interface EmergingIssue {
   channelCount: number;
   weight: number;
   movement: RankMovement;
+  /** Most recent member-episode air date in this cohort (ISO), or null. The board
+   *  ranks on decayed volume, so this makes each row's actual freshness explicit. */
+  latestMention: string | null;
 }
 
 export interface EmergingBoard {
@@ -429,8 +432,15 @@ async function computeBoardRanks(): Promise<EmergingBoard> {
     episodes: Set<string>;
     channels: Set<string>;
     weight: number;
+    latest: number; // max published_at (ms); 0 = none
   }
-  const newAcc = (): Acc => ({ topicCount: 0, episodes: new Set(), channels: new Set(), weight: 0 });
+  const newAcc = (): Acc => ({
+    topicCount: 0,
+    episodes: new Set(),
+    channels: new Set(),
+    weight: 0,
+    latest: 0,
+  });
   const accs = new Map<string, { all: Acc; independent: Acc; legacy: Acc }>();
   for (const id of pendingIds) accs.set(id, { all: newAcc(), independent: newAcc(), legacy: newAcc() });
 
@@ -438,11 +448,13 @@ async function computeBoardRanks(): Promise<EmergingBoard> {
     const a = accs.get(t.candidate_id);
     if (!a) continue;
     const w = topicWeight(t.reach, t.published_at, now);
+    const tms = new Date(t.published_at).getTime();
     const add = (acc: Acc) => {
       acc.topicCount++;
       acc.episodes.add(t.episode_id);
       acc.channels.add(t.channel);
       acc.weight += w;
+      if (!Number.isNaN(tms) && tms > acc.latest) acc.latest = tms;
     };
     add(a.all);
     if (t.cohort === "independent") add(a.independent);
@@ -465,6 +477,7 @@ async function computeBoardRanks(): Promise<EmergingBoard> {
         channelCount: acc.channels.size,
         weight: Number(acc.weight.toFixed(2)),
         movement: { status: "none", delta: 0, prevRank: null },
+        latestMention: acc.latest > 0 ? new Date(acc.latest).toISOString() : null,
       });
     }
     rows.sort((a, b) => b.weight - a.weight);

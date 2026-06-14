@@ -73,6 +73,25 @@ function formatDate(iso: string): string {
   return formatDateET(iso, { month: "short", day: "numeric", year: "numeric" });
 }
 
+/** Per-row freshness: how recently this issue was last mentioned. The board ranks
+ *  on decayed volume, so showing the latest-mention date makes each row's currency
+ *  explicit (and a genuinely stale topic obvious) instead of leaving it implied. */
+function LatestMention({ iso }: { iso: string | null }) {
+  if (!iso) return null;
+  const t = new Date(iso).getTime();
+  if (Number.isNaN(t)) return null;
+  const days = Math.floor((Date.now() - t) / 86_400_000);
+  const rel = days <= 0 ? "today" : days === 1 ? "yesterday" : `${days}d ago`;
+  return (
+    <div
+      className="mt-1 text-[11px] text-ink-faint tabular-nums"
+      title={`Most recent mention: ${formatDate(iso)}`}
+    >
+      Last mentioned {rel}
+    </div>
+  );
+}
+
 /** Source channel's editorial lean as a colored chip, matching the site convention
  *  (blue = Left, red = Right, gray = Middle). These off-taxonomy topics aren't
  *  scored, so we color by who is saying it rather than by a sentiment value. */
@@ -274,6 +293,7 @@ const columns: ColumnDef<EmergingIssue>[] = [
         {row.original.summary && (
           <div className="text-xs text-ink-muted mt-0.5">{row.original.summary}</div>
         )}
+        <LatestMention iso={row.original.latestMention} />
       </div>
     ),
   },

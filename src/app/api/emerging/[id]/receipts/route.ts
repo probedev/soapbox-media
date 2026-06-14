@@ -1,7 +1,8 @@
 /**
  * Public receipts for one emerging-topic candidate: real supporting quotes from
  * the episodes whose off-taxonomy mentions were clustered into this candidate.
- * Lazy-loaded when a row on /emerging is expanded. Highest-reach episode first,
+ * Lazy-loaded when a row on /emerging is expanded. Most-recent episode first
+ * (this is an "emerging / what they're saying now" board, so freshness leads),
  * one receipt per episode. Quotes are excerpts only, never full transcripts.
  *
  * Public data, read server-side via the service-role client like every read.
@@ -83,8 +84,16 @@ export async function GET(
     });
   }
 
-  // Highest-reach first, one receipt per episode, capped to a tidy set.
-  rows.sort((a, b) => b.reach - a.reach);
+  // Most-recent first so the proof matches the "emerging / now" framing - the old
+  // reach-first sort buried a topic's fresh quotes under months-old high-reach
+  // episodes (a topic active yesterday could show only 2-week-old receipts).
+  // Tie-break by reach so the most influential quote leads within a given day.
+  rows.sort((a, b) => {
+    const ta = new Date(a.publishedAt).getTime();
+    const tb = new Date(b.publishedAt).getTime();
+    if (tb !== ta) return tb - ta;
+    return b.reach - a.reach;
+  });
   const seen = new Set<string>();
   const receipts: EmergingReceipt[] = [];
   for (const r of rows) {

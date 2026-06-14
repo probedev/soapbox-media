@@ -7,6 +7,24 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
+## v0.20.1 · 2026-06-14
+
+### Fixed
+
+- **/emerging receipts now lead with the most recent quotes, not the
+  highest-reach ones.** The expand panel sorted by channel reach, so a topic
+  that was active yesterday could show only 1-2 week-old receipts (its fresh
+  mentions came from smaller channels and fell below the 12-row cap), which read
+  as a stale, non-credible board. Receipts now sort most-recent-first, tie-broken
+  by reach so the most influential quote still leads within a given day.
+
+### Added
+
+- **"Last mentioned" freshness line on each /emerging row.** Because the board
+  ranks on decayed volume, each row now shows how recently the issue was actually
+  discussed (e.g. "Last mentioned yesterday"), making a row's currency explicit
+  instead of implied - and a genuinely stale topic obvious at a glance.
+
 ## v0.20.0 · 2026-06-14
 
 ### Changed
