@@ -7,6 +7,19 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
+## v0.18.2 · 2026-06-14
+
+### Added
+
+- **MCP connector now advertises the Soapbox crate logo.** The server's
+  `initialize` response (`serverInfo`) now carries the MCP `icons` + `websiteUrl`
+  metadata (SDK 1.26.0 `Implementation` schema), pointing at a public, unauthenticated
+  asset (`public/mcp-icon.png`, the 256x256 crate mark). MCP clients that read
+  server-advertised icons (and claude.ai's connector list, if/when it renders them
+  for custom connectors) can show the brand mark instead of a generic globe.
+  Note: the icon is read at connection time, so an already-added connector must be
+  removed and re-added to pick up the new metadata.
+
 ## v0.18.1 · 2026-06-12
 
 ### Added

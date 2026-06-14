@@ -20,6 +20,7 @@
  * are read-only via the service client; RLS posture unchanged.
  */
 import { createMcpHandler, withMcpAuth } from "mcp-handler";
+import type { Implementation } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
 
 import { getDashboardData, getIssueDrillDown, getChannelDrillDown, getPanelStats, readHomeSnapshot } from "@/lib/aggregate";
@@ -28,6 +29,26 @@ import { verifyMcpToken, isStaticKey, RESOURCE_METADATA_PATH } from "@/lib/mcp-a
 import { VERSION } from "@/lib/version";
 
 export const maxDuration = 60;
+
+// Canonical public origin (matches the Stripe/auth helpers). Used to build the
+// absolute, unauthenticated icon URL advertised in `serverInfo` so MCP clients
+// (claude.ai connector list, etc.) can render the Soapbox crate mark instead of
+// a generic globe. The asset lives at public/mcp-icon.png and is not gated by
+// middleware (only /admin/* is), so it is fetchable without credentials.
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://www.soapbox.media";
+
+// Returned in the `initialize` response. Per the MCP Implementation schema
+// (SDK 1.26.0) `icons` + `websiteUrl` let clients brand the connector. Typed as
+// Implementation (a superset of mcp-handler's narrow serverInfo type) so the
+// extra fields type-check and still pass through to McpServer at runtime.
+const SERVER_INFO: Implementation = {
+  name: "soapbox-media",
+  version: VERSION,
+  websiteUrl: SITE_URL,
+  icons: [
+    { src: `${SITE_URL}/mcp-icon.png`, mimeType: "image/png", sizes: ["256x256"] },
+  ],
+};
 
 const json = (data: unknown) => ({
   content: [{ type: "text" as const, text: JSON.stringify(data, null, 1) }],
@@ -157,7 +178,7 @@ const handler = createMcpHandler(
     );
   },
   {
-    serverInfo: { name: "soapbox-media", version: VERSION },
+    serverInfo: SERVER_INFO,
   },
   {
     basePath: "/api/mcp",
