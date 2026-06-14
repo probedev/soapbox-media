@@ -7,6 +7,18 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
+## v0.18.3 · 2026-06-14
+
+### Fixed
+
+- **Serve `/favicon.ico` (was 404).** Added a real multi-size `public/favicon.ico`
+  (16-256px, built from the crate mark). Beyond fixing the missing site favicon,
+  this is the one fetch-verified difference between our MCP connector and a custom
+  connector that does render a logo in claude.ai (Higgsfield: its registrable
+  domain serves `/favicon.ico` 200; its MCP host 404s; ours 404'd everywhere) -
+  evidence that claude.ai resolves a custom connector's icon from the registrable
+  domain's favicon, not `serverInfo.icons`. Pairs with the v0.18.2 serverInfo icons.
+
 ## v0.18.2 · 2026-06-14
 
 ### Added
