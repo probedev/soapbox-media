@@ -7,6 +7,23 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
+## v0.21.0 · 2026-06-14
+
+### Added
+
+- **"Breaking" signal on /emerging.** A flame badge marks issues whose attention
+  roughly doubled week-over-week (mentions aired in the last 7 days vs the prior
+  7), or that appeared fresh, off a non-trivial base. This surfaces what's
+  *accelerating* now, distinct from the rank-movement arrows (position change)
+  and the weight/rank (accumulated size) - a genuinely breaking story can be
+  small in total volume but spiking. Thresholds are tunable constants
+  (`BREAKING_MIN_RECENT = 8`, `BREAKING_RATIO = 2`) with a recent-count floor so a
+  3-on-1-mention blip doesn't flag; validated on the live set it marks the
+  accelerating handful (e.g. a fresh trial 35-vs-9, a White House event 12-vs-4)
+  and skips the noise. Computed per cohort in `computeBoardRanks`, mirroring the
+  home Biggest Movers week-over-week volume idiom. Badge is amber/flame,
+  deliberately not red (red = "Right" lean site-wide).
+
 ## v0.20.2 · 2026-06-14
 
 ### Changed

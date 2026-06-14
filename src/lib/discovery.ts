@@ -59,6 +59,15 @@ const RECENCY_HALF_LIFE_DAYS = 7;
 // stale events while keeping the board full (validated on the live pending set).
 const BOARD_MAX_STALE_DAYS = 10;
 
+// "Breaking" velocity signal: flag a candidate whose attention roughly doubled
+// week-over-week (mentions aired in the last 7d vs the prior 7d), or that
+// appeared fresh, off a non-trivial base. Mirrors the home Biggest Movers volume
+// idiom (week-over-week ratio). The MIN_RECENT floor kills 3-on-1-mention noise.
+// Tuned on the live set: flags the genuinely accelerating handful (a fresh trial
+// 35-vs-9, a White House event 12-vs-4) and skips tiny spikes. Both tunable.
+const BREAKING_MIN_RECENT = 8; // min mentions in the last 7d to be eligible
+const BREAKING_RATIO = 2; // recent7 / prior7 threshold (>= 2 = doubled)
+
 /**
  * Reach contribution of one member topic, decayed by episode age. Shared by the
  * build-time weight (buildDiscoveryCandidates) and the board-time weight
@@ -67,6 +76,19 @@ const BOARD_MAX_STALE_DAYS = 10;
 function topicWeight(reach: number, publishedAt: string, now: number): number {
   const ageDays = Math.max((now - new Date(publishedAt).getTime()) / 86_400_000, 0);
   return reachFactor(reach) * Math.pow(2, -ageDays / RECENCY_HALF_LIFE_DAYS);
+}
+
+/** Classify a cohort's week-over-week counts into the "breaking" velocity signal. */
+function computeVelocity(recent7: number, prior7: number): Velocity {
+  if (recent7 < BREAKING_MIN_RECENT) {
+    // Below the floor: never "breaking" (avoids 3-on-1-mention noise).
+    return { breaking: false, ratio: prior7 > 0 ? Number((recent7 / prior7).toFixed(1)) : null, recent7, prior7 };
+  }
+  if (prior7 === 0) {
+    return { breaking: true, ratio: null, recent7, prior7 }; // brand-new surge
+  }
+  const r = recent7 / prior7;
+  return { breaking: r >= BREAKING_RATIO, ratio: Number(r.toFixed(1)), recent7, prior7 };
 }
 
 // Stopwords stripped when building the token-set grouping key. Kept tiny on
@@ -326,6 +348,19 @@ export interface RankMovement {
   prevRank: number | null;
 }
 
+/**
+ * Week-over-week acceleration ("breaking"). A breaking row is being talked about
+ * much more this week than last (or appeared fresh) off a non-trivial base -
+ * distinct from rank movement (position change) and weight (accumulated size).
+ */
+export interface Velocity {
+  breaking: boolean;
+  /** recent7 / prior7, 1 dp; null when prior7 == 0 (a brand-new surge). */
+  ratio: number | null;
+  recent7: number;
+  prior7: number;
+}
+
 /** Lean public shape for the /emerging board (pending candidates only). */
 export interface EmergingIssue {
   id: string;
@@ -341,6 +376,8 @@ export interface EmergingIssue {
   /** Most recent member-episode air date in this cohort (ISO), or null. The board
    *  ranks on decayed volume, so this makes each row's actual freshness explicit. */
   latestMention: string | null;
+  /** Week-over-week acceleration for the "breaking" badge. */
+  velocity: Velocity;
 }
 
 export interface EmergingBoard {
@@ -442,6 +479,8 @@ async function computeBoardRanks(): Promise<EmergingBoard> {
     channels: Set<string>;
     weight: number;
     latest: number; // max published_at (ms); 0 = none
+    recent7: number; // mentions aired in the last 7d
+    prior7: number; // mentions aired in the prior 7d (7-14d ago)
   }
   const newAcc = (): Acc => ({
     topicCount: 0,
@@ -449,6 +488,8 @@ async function computeBoardRanks(): Promise<EmergingBoard> {
     channels: new Set(),
     weight: 0,
     latest: 0,
+    recent7: 0,
+    prior7: 0,
   });
   const accs = new Map<string, { all: Acc; independent: Acc; legacy: Acc }>();
   for (const id of pendingIds) accs.set(id, { all: newAcc(), independent: newAcc(), legacy: newAcc() });
@@ -458,12 +499,17 @@ async function computeBoardRanks(): Promise<EmergingBoard> {
     if (!a) continue;
     const w = topicWeight(t.reach, t.published_at, now);
     const tms = new Date(t.published_at).getTime();
+    const ageMs = now - tms;
     const add = (acc: Acc) => {
       acc.topicCount++;
       acc.episodes.add(t.episode_id);
       acc.channels.add(t.channel);
       acc.weight += w;
-      if (!Number.isNaN(tms) && tms > acc.latest) acc.latest = tms;
+      if (!Number.isNaN(tms)) {
+        if (tms > acc.latest) acc.latest = tms;
+        if (ageMs < 7 * 86_400_000) acc.recent7++;
+        else if (ageMs < 14 * 86_400_000) acc.prior7++;
+      }
     };
     add(a.all);
     if (t.cohort === "independent") add(a.independent);
@@ -490,6 +536,7 @@ async function computeBoardRanks(): Promise<EmergingBoard> {
         weight: Number(acc.weight.toFixed(2)),
         movement: { status: "none", delta: 0, prevRank: null },
         latestMention: acc.latest > 0 ? new Date(acc.latest).toISOString() : null,
+        velocity: computeVelocity(acc.recent7, acc.prior7),
       });
     }
     rows.sort((a, b) => b.weight - a.weight);

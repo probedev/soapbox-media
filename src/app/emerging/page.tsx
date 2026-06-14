@@ -53,7 +53,8 @@ export default async function EmergingPage() {
           weight halves about every week, so fresh bursts rise and last month&apos;s chatter fades).
           Issues the shows stop talking about drop off the board entirely. The
           <span className="text-emerald-600 font-medium"> &uarr;</span>/&darr; column shows how each
-          issue moved since the last refresh. Switch between independent and legacy outlets to see
+          issue moved since the last refresh, and a <span className="text-amber-700 font-medium">flame</span>
+          marks issues breaking out: mentioned far more this week than last. Switch between independent and legacy outlets to see
           where the two diverge. These are raw, auto-detected signals, refreshed daily and not
           hand-curated; whether one becomes a tracked Soapbox issue stays a human call. Expand any row
           for the receipts: the exact things shows said, with links to the episodes.

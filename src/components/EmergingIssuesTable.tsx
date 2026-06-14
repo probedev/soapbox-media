@@ -19,7 +19,7 @@ import {
   getExpandedRowModel,
   useReactTable,
 } from "@tanstack/react-table";
-import { ArrowUp, ArrowDown, ChevronDown, ChevronRight, ExternalLink, Minus } from "lucide-react";
+import { ArrowUp, ArrowDown, ChevronDown, ChevronRight, ExternalLink, Flame, Minus } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import {
@@ -249,6 +249,26 @@ function MovementCell({ m }: { m: EmergingIssue["movement"] }) {
   return null; // "none" - no prior snapshot to compare against yet
 }
 
+/** "Breaking" badge: shown when an issue's attention roughly doubled (or appeared
+ *  fresh) week-over-week. Amber/flame, deliberately NOT red (red = "Right" lean
+ *  site-wide). Surfaces what's accelerating now, distinct from rank movement. */
+function BreakingBadge({ v }: { v: EmergingIssue["velocity"] }) {
+  if (!v.breaking) return null;
+  const label = v.ratio ? `${v.ratio}×` : "new";
+  const tip = v.ratio
+    ? `Breaking: ${v.recent7} mentions this week vs ${v.prior7} last week (${v.ratio}×)`
+    : `Breaking: ${v.recent7} mentions this week, none the week before`;
+  return (
+    <span
+      title={tip}
+      className="inline-flex shrink-0 items-center gap-0.5 rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700"
+    >
+      <Flame className="h-3 w-3" aria-hidden />
+      {label}
+    </span>
+  );
+}
+
 const columns: ColumnDef<EmergingIssue>[] = [
   {
     id: "expander",
@@ -289,7 +309,10 @@ const columns: ColumnDef<EmergingIssue>[] = [
     enableSorting: false,
     cell: ({ row }) => (
       <div className="min-w-0">
-        <div className="font-medium text-ink-strong">{row.original.label}</div>
+        <div className="flex items-center gap-2">
+          <span className="font-medium text-ink-strong">{row.original.label}</span>
+          <BreakingBadge v={row.original.velocity} />
+        </div>
         {row.original.summary && (
           <div className="text-xs text-ink-muted mt-0.5">{row.original.summary}</div>
         )}
