@@ -6,6 +6,10 @@
         "shadcn@latest",
         "mcp"
       ]
+    },
+    "github": {
+      "type": "http",
+      "url": "https://api.githubcopilot.com/mcp/"
     }
   }
 }
