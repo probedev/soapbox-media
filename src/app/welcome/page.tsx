@@ -88,13 +88,13 @@ export default function WelcomePage() {
                 <Button className="w-full" onClick={() => (window.location.href = "/connect")}>
                   Connect your agent: step by step
                 </Button>
-                <button
-                  type="button"
-                  className="w-full text-center text-xs text-muted-foreground underline"
+                <Button
+                  variant="link"
+                  className="w-full h-auto p-0 text-xs text-muted-foreground underline"
                   onClick={() => (window.location.href = "/account")}
                 >
                   Go to your account
-                </button>
+                </Button>
               </div>
             )}
           </CardContent>

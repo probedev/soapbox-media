@@ -21,13 +21,9 @@ import {
 } from "@tanstack/react-table";
 import { ArrowUp, ArrowDown, ChevronDown, ChevronRight, ExternalLink, Flame, Minus } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   Table,
   TableBody,
@@ -37,6 +33,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { cn, formatDateET } from "@/lib/utils";
+import { leanChipStyle } from "@/lib/lean";
 import type { EmergingIssue } from "@/lib/discovery";
 import type { EmergingReceiptsResponse } from "@/app/api/emerging/[id]/receipts/route";
 
@@ -59,10 +56,11 @@ function SortHeader({
 }) {
   const sorted = column.getIsSorted();
   return (
-    <button
-      type="button"
+    <Button
+      variant="ghost"
+      size="sm"
       onClick={() => column.toggleSorting(sorted === "asc")}
-      className="inline-flex items-center gap-1 flex-row-reverse hover:text-foreground"
+      className="h-auto gap-1 p-0 flex-row-reverse text-[11px] font-medium uppercase tracking-wider hover:bg-transparent hover:text-foreground"
     >
       {label}
       {sorted === "asc" ? (
@@ -70,7 +68,7 @@ function SortHeader({
       ) : sorted === "desc" ? (
         <ArrowDown className="w-3 h-3" />
       ) : null}
-    </button>
+    </Button>
   );
 }
 
@@ -97,15 +95,6 @@ function LatestMention({ iso }: { iso: string | null }) {
       <TooltipContent>Most recent mention: {formatDate(iso)}</TooltipContent>
     </Tooltip>
   );
-}
-
-/** Source channel's editorial lean as a colored chip, matching the site convention
- *  (blue = Left, red = Right, gray = Middle). These off-taxonomy topics aren't
- *  scored, so we color by who is saying it rather than by a sentiment value. */
-function leanChip(lean: string): { text: string; cls: string } {
-  if (lean === "L") return { text: "L", cls: "bg-blue-100 text-blue-800" };
-  if (lean === "R") return { text: "R", cls: "bg-red-100 text-red-800" };
-  return { text: "M", cls: "bg-muted text-ink-body" };
 }
 
 /** Lazy-loaded episode receipts for one emerging-topic candidate. */
@@ -164,7 +153,7 @@ function ReceiptsPanel({
       </div>
       <div className="space-y-2.5">
         {receipts.map((r, i) => {
-          const chip = leanChip(r.lean);
+          const chip = leanChipStyle(r.lean);
           return (
             <div
               key={i}
@@ -299,18 +288,19 @@ const columns: ColumnDef<EmergingIssue>[] = [
     header: "",
     enableSorting: false,
     cell: ({ row }) => (
-      <button
-        type="button"
+      <Button
+        variant="ghost"
+        size="icon"
         onClick={row.getToggleExpandedHandler()}
         aria-label={row.getIsExpanded() ? "Hide receipts" : "Show receipts"}
-        className="text-ink-faint hover:text-ink-body"
+        className="h-6 w-6 text-ink-faint hover:bg-transparent hover:text-ink-body"
       >
         {row.getIsExpanded() ? (
           <ChevronDown className="w-4 h-4" />
         ) : (
           <ChevronRight className="w-4 h-4" />
         )}
-      </button>
+      </Button>
     ),
   },
   {
@@ -398,9 +388,8 @@ export function EmergingIssuesTable({
   });
 
   return (
-    <TooltipProvider delayDuration={150}>
-      <Card className="overflow-hidden">
-        <Table>
+    <Card className="overflow-hidden">
+      <Table>
         <TableHeader>
           {table.getHeaderGroups().map((hg) => (
             <TableRow key={hg.id}>
@@ -454,7 +443,6 @@ export function EmergingIssuesTable({
           )}
         </TableBody>
       </Table>
-      </Card>
-    </TooltipProvider>
+    </Card>
   );
 }

@@ -6,6 +6,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { formatLean, leanColor } from "@/lib/lean";
 
 interface Mover {
   slug: string;
@@ -26,18 +27,6 @@ interface Mover {
 
 interface BiggestMoversProps {
   movers: Mover[];
-}
-
-function formatLean(v: number): string {
-  if (v > 0.05) return `R+${v.toFixed(1)}`;
-  if (v < -0.05) return `L+${Math.abs(v).toFixed(1)}`;
-  return "0.0";
-}
-
-function leanColor(v: number): string {
-  if (v > 0.05) return "text-red-600";
-  if (v < -0.05) return "text-blue-600";
-  return "text-ink-body";
 }
 
 /**

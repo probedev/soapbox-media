@@ -13,6 +13,7 @@ import { InfoTip } from "@/components/InfoTip";
 import { Input } from "@/components/ui/input";
 import { CohortBadge } from "@/components/CohortBadge";
 import { getChannelExternalUrl } from "@/lib/channelLinks";
+import { leanChipStyle } from "@/lib/lean";
 import { ExternalLink, Search } from "lucide-react";
 
 export interface PlatformRef {
@@ -32,17 +33,6 @@ export interface ShowRow {
   cohort: "independent" | "legacy";
 }
 
-function leanBadge(lean: "L" | "M" | "R"): string {
-  switch (lean) {
-    case "L":
-      return "bg-blue-100 text-blue-800";
-    case "R":
-      return "bg-red-100 text-red-800";
-    default:
-      return "bg-muted text-ink-body";
-  }
-}
-
 function platformAbbrev(p: "youtube" | "podcast"): string {
   return p === "youtube" ? "YT" : "Pod";
 }
@@ -54,7 +44,7 @@ function ShowCard({ show, showCohort }: { show: ShowRow; showCohort: boolean }) 
       <a href={`/channels/${show.canonical_id}`} className="block p-4 pr-20">
         <div className="flex items-start justify-between gap-2">
           <div className="font-medium text-foreground flex items-center gap-2">
-            <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${leanBadge(show.political_lean)}`}>
+            <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${leanChipStyle(show.political_lean).cls}`}>
               {show.political_lean}
             </span>
             {showCohort && <CohortBadge cohort={show.cohort} />}

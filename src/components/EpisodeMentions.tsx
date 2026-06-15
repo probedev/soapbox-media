@@ -12,34 +12,9 @@
  * mis-scores before scaling channels.
  */
 import * as React from "react";
-import { cn } from "@/lib/utils";
 import { InfoTip } from "@/components/InfoTip";
+import { SentimentChip, IntensityMeter } from "@/components/Lean";
 import type { EpisodeMention, EpisodeMentionsResponse } from "@/lib/episodes";
-
-/** Sentiment as an L+/R+ chip, matching the site-wide lean convention
- *  (negative = Left/blue, positive = Right/red). */
-function sentimentChip(sentiment: number | null): { text: string; cls: string } {
-  if (sentiment == null) return { text: "unscored", cls: "bg-muted text-muted-foreground" };
-  if (sentiment > 0) return { text: `R+${sentiment.toFixed(1)}`, cls: "bg-red-100 text-red-800" };
-  if (sentiment < 0) return { text: `L+${Math.abs(sentiment).toFixed(1)}`, cls: "bg-blue-100 text-blue-800" };
-  return { text: "0.0", cls: "bg-muted text-ink-muted" };
-}
-
-function IntensityMeter({ intensity }: { intensity: number | null }) {
-  const n = intensity ?? 0;
-  return (
-    <InfoTip label={`Intensity ${n}/5`}>
-      <span className="inline-flex items-center gap-0.5">
-        {[1, 2, 3, 4, 5].map((i) => (
-          <span
-            key={i}
-            className={cn("h-1.5 w-1.5 rounded-full", i <= n ? "bg-ink-body" : "bg-border")}
-          />
-        ))}
-      </span>
-    </InfoTip>
-  );
-}
 
 export function EpisodeMentions({ episodeId }: { episodeId: string }) {
   const [state, setState] = React.useState<{
@@ -82,7 +57,6 @@ export function EpisodeMentions({ episodeId }: { episodeId: string }) {
     );
   }
 
-  const net = sentimentChip(netLean);
   return (
     <div className="px-4 py-3 bg-subtle/70 border-t border-muted">
       <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2.5">
@@ -94,16 +68,13 @@ export function EpisodeMentions({ episodeId }: { episodeId: string }) {
           <>
             {" "}
             · episode net{" "}
-            <span className={cn("inline-flex items-center rounded px-1 py-0.5 font-semibold", net.cls)}>
-              {net.text}
-            </span>
+            <SentimentChip value={netLean} />
           </>
         )}
       </div>
 
       <div className="space-y-2">
         {mentions.map((m, i) => {
-          const chip = sentimentChip(m.sentiment);
           return (
             <div
               key={i}
@@ -117,14 +88,7 @@ export function EpisodeMentions({ episodeId }: { episodeId: string }) {
                   {m.issueName}
                 </a>
               </InfoTip>
-              <span
-                className={cn(
-                  "inline-flex items-center justify-center rounded px-1.5 py-0.5 font-semibold tabular-nums",
-                  chip.cls,
-                )}
-              >
-                {chip.text}
-              </span>
+              <SentimentChip value={m.sentiment} />
               <IntensityMeter intensity={m.intensity} />
               <span className="text-ink-muted leading-snug">
                 <span className="text-ink-faint">&ldquo;</span>

@@ -8,27 +8,11 @@ import { IndexAreaChart } from "@/components/IndexAreaChart";
 import { EpisodeDataTable } from "@/components/EpisodeDataTable";
 import { ChannelIssueBreakdown } from "@/components/ChannelIssueBreakdown";
 import { getEpisodeTableRows } from "@/lib/episodes";
+import { leanColor, leanChipStyle } from "@/lib/lean";
 import { notFound } from "next/navigation";
 import { ExternalLink } from "lucide-react";
 
 export const dynamic = "force-dynamic";
-
-function leanColor(v: number): string {
-  if (v > 0.05) return "text-red-600";
-  if (v < -0.05) return "text-blue-600";
-  return "text-ink-body";
-}
-
-function leanBadge(lean: "L" | "M" | "R"): string {
-  switch (lean) {
-    case "L":
-      return "bg-blue-100 text-blue-800";
-    case "R":
-      return "bg-red-100 text-red-800";
-    default:
-      return "bg-muted text-ink-body";
-  }
-}
 
 function leanLabelWord(lean: "L" | "M" | "R"): string {
   return lean === "L" ? "Left-leaning" : lean === "R" ? "Right-leaning" : "Middle / cross-cutting";
@@ -77,7 +61,7 @@ export default async function ChannelPage({
         <div className="flex items-baseline gap-3 flex-wrap">
           <h1 className="text-3xl md:text-4xl font-semibold tracking-tight">{data.channel_name}</h1>
           <span
-            className={`text-xs font-semibold px-2 py-0.5 rounded ${leanBadge(data.channel_lean)}`}
+            className={`text-xs font-semibold px-2 py-0.5 rounded ${leanChipStyle(data.channel_lean).cls}`}
           >
             {leanLabelWord(data.channel_lean)}
           </span>

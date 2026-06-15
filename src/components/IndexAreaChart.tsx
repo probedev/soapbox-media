@@ -16,6 +16,7 @@ import {
   type ChartConfig,
 } from "@/components/ui/chart";
 import { DISPLAY_TZ } from "@/lib/utils";
+import { formatLean } from "@/lib/lean";
 
 interface IndexAreaChartProps {
   /** Soapbox Index values, oldest first. Range −10..+10. */
@@ -37,12 +38,6 @@ interface IndexAreaChartProps {
    * instead of leaving dead space.
    */
   includeZero?: boolean;
-}
-
-function formatLean(v: number): string {
-  if (v > 0.05) return `R+${v.toFixed(1)}`;
-  if (v < -0.05) return `L+${Math.abs(v).toFixed(1)}`;
-  return "Even";
 }
 
 function formatShortDate(iso: string): string {
@@ -91,8 +86,8 @@ export function IndexAreaChart({
   const lo = Math.max(-10, rawLo - pad);
   const hi = Math.min(10, rawHi + pad);
 
-  const minVal = formatLean(dataMin);
-  const maxVal = formatLean(dataMax);
+  const minVal = formatLean(dataMin, "Even");
+  const maxVal = formatLean(dataMax, "Even");
 
   return (
     <div className={`w-full ${maxWidthClass}`}>
@@ -119,7 +114,7 @@ export function IndexAreaChart({
             tickLine={false}
             axisLine={false}
             tickCount={4}
-            tickFormatter={(v: number) => formatLean(v)}
+            tickFormatter={(v: number) => formatLean(v, "Even")}
           />
           {includeZero && (
             <ReferenceLine y={0} stroke="var(--chart-muted)" strokeDasharray="2 2" />
@@ -135,7 +130,7 @@ export function IndexAreaChart({
                     className="font-semibold tabular-nums"
                     style={{ color: sideColor(Number(value)) }}
                   >
-                    {formatLean(Number(value))}
+                    {formatLean(Number(value), "Even")}
                   </span>
                 )}
               />

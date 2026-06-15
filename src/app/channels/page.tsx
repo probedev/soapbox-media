@@ -6,7 +6,6 @@ import { Footer } from "@/components/Footer";
 import { PanelBalance } from "@/components/PanelBalance";
 import { PanelScale } from "@/components/PanelScale";
 import { ChannelsBrowser, type ShowRow, type PlatformRef } from "@/components/ChannelsBrowser";
-import { TooltipProvider } from "@/components/ui/tooltip";
 
 export const dynamic = "force-dynamic";
 
@@ -83,8 +82,7 @@ export default async function ChannelsListPage() {
     <main className="min-h-screen">
       <Header activePage="channels" />
 
-      <TooltipProvider delayDuration={150}>
-        <section className="px-6 pt-10 pb-16 max-w-5xl mx-auto">
+      <section className="px-6 pt-10 pb-16 max-w-5xl mx-auto">
           <div className="text-xs uppercase tracking-wider text-muted-foreground mb-1">
             <a href="/" className="hover:text-ink-body">
               ← Soapbox Index
@@ -121,8 +119,7 @@ export default async function ChannelsListPage() {
           )}
 
           <ChannelsBrowser shows={shows} showCohort={PUBLIC_COHORTS.length > 1} />
-        </section>
-      </TooltipProvider>
+      </section>
 
       <Footer />
     </main>

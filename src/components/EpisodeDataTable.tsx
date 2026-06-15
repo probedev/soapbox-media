@@ -29,6 +29,7 @@ import { EpisodeMentions } from "@/components/EpisodeMentions";
 import { CohortBadge } from "@/components/CohortBadge";
 import { CohortLegend } from "@/components/CohortLegend";
 import { PUBLIC_COHORTS } from "@/lib/cohort";
+import { leanChipStyle } from "@/lib/lean";
 import { cn, formatDateET } from "@/lib/utils";
 import {
   Table,
@@ -50,12 +51,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 // ── formatting + status helpers ───────────────────────────────────────────
 
@@ -71,9 +67,9 @@ function formatDuration(seconds: number | null): string {
 }
 
 const LEAN: Record<string, { label: string; cls: string }> = {
-  L: { label: "Left", cls: "bg-blue-100 text-blue-800" },
-  M: { label: "Middle", cls: "bg-muted text-ink-body" },
-  R: { label: "Right", cls: "bg-red-100 text-red-800" },
+  L: { label: "Left", cls: leanChipStyle("L").cls },
+  M: { label: "Middle", cls: leanChipStyle("M").cls },
+  R: { label: "Right", cls: leanChipStyle("R").cls },
 };
 
 type Stage = "done" | "failed" | "partial" | "pending" | "no-signal" | "na";
@@ -501,7 +497,6 @@ export function EpisodeDataTable({
   const end = Math.min((pageIndex + 1) * pageSize, totalRows);
 
   return (
-    <TooltipProvider delayDuration={150}>
     <div>
       {/* Toolbar */}
       <div className="flex items-center justify-between gap-3 mb-3">
@@ -653,6 +648,5 @@ export function EpisodeDataTable({
         </div>
       </div>
     </div>
-    </TooltipProvider>
   );
 }

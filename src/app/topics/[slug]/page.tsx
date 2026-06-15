@@ -3,21 +3,10 @@ import { Card } from "@/components/ui/card";
 import { Footer } from "@/components/Footer";
 import { Header } from "@/components/Header";
 import { IndexAreaChart } from "@/components/IndexAreaChart";
+import { formatLean, leanColor } from "@/lib/lean";
 import { notFound } from "next/navigation";
 
 export const dynamic = "force-dynamic";
-
-function formatLean(v: number): string {
-  if (v > 0.05) return `R+${v.toFixed(1)}`;
-  if (v < -0.05) return `L+${Math.abs(v).toFixed(1)}`;
-  return "0.0";
-}
-
-function leanColor(v: number): string {
-  if (v > 0.05) return "text-red-600";
-  if (v < -0.05) return "text-blue-600";
-  return "text-ink-body";
-}
 
 export default async function TopicPage({ params }: { params: { slug: string } }) {
   const data = await getTopicDrillDown(params.slug);

@@ -13,44 +13,11 @@
 import * as React from "react";
 import { ChevronDown, ChevronRight, ExternalLink } from "lucide-react";
 import { Card } from "@/components/ui/card";
-import { cn, formatDateET } from "@/lib/utils";
-import { InfoTip } from "@/components/InfoTip";
+import { formatDateET } from "@/lib/utils";
+import { formatLean, leanColor } from "@/lib/lean";
+import { SentimentChip, IntensityMeter } from "@/components/Lean";
 import type { IssueOnChannel } from "@/lib/aggregate";
 import type { ChannelIssueMentionsResponse } from "@/app/api/channels/[id]/issues/[slug]/mentions/route";
-
-function formatLean(v: number): string {
-  if (v > 0.05) return `R+${v.toFixed(1)}`;
-  if (v < -0.05) return `L+${Math.abs(v).toFixed(1)}`;
-  return "0.0";
-}
-
-function leanColor(v: number): string {
-  if (v > 0.05) return "text-red-600";
-  if (v < -0.05) return "text-blue-600";
-  return "text-ink-body";
-}
-
-/** Sentiment as an L+/R+ chip, matching EpisodeMentions and the site convention. */
-function sentimentChip(sentiment: number): { text: string; cls: string } {
-  if (sentiment > 0) return { text: `R+${sentiment.toFixed(1)}`, cls: "bg-red-100 text-red-800" };
-  if (sentiment < 0) return { text: `L+${Math.abs(sentiment).toFixed(1)}`, cls: "bg-blue-100 text-blue-800" };
-  return { text: "0.0", cls: "bg-muted text-ink-muted" };
-}
-
-function IntensityMeter({ intensity }: { intensity: number }) {
-  return (
-    <InfoTip label={`Intensity ${intensity}/5`}>
-      <span className="inline-flex items-center gap-0.5">
-        {[1, 2, 3, 4, 5].map((i) => (
-          <span
-            key={i}
-            className={cn("h-1.5 w-1.5 rounded-full", i <= intensity ? "bg-ink-body" : "bg-border")}
-          />
-        ))}
-      </span>
-    </InfoTip>
-  );
-}
 
 function formatDate(iso: string): string {
   return formatDateET(iso, { month: "short", day: "numeric", year: "numeric" });
@@ -116,20 +83,12 @@ function IssueMentionsPanel({
 
       <div className="space-y-2.5">
         {mentions.map((m, i) => {
-          const chip = sentimentChip(m.sentiment);
           return (
             <div
               key={i}
               className="grid grid-cols-[3.5rem_auto_minmax(0,1fr)] items-start gap-3 text-xs"
             >
-              <span
-                className={cn(
-                  "inline-flex items-center justify-center rounded px-1.5 py-0.5 font-semibold tabular-nums",
-                  chip.cls,
-                )}
-              >
-                {chip.text}
-              </span>
+              <SentimentChip value={m.sentiment} />
               <IntensityMeter intensity={m.intensity} />
               <div className="min-w-0">
                 <span className="text-ink-muted leading-snug">

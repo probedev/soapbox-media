@@ -7,6 +7,30 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
+## v0.23.0 · 2026-06-15
+
+### Changed
+
+- **Foundation: one source of truth for the L/R lean language (P1).** The site's
+  signature visual - the L+/R+ sentiment chip, the L/R/M lean chip, the lean
+  text-color, and the intensity meter - was copy-pasted across ~12 files
+  (`formatLean` x6, `leanColor` x6, `sentimentChip` x2, `leanBadge`/inline lean
+  maps x5, `IntensityMeter` x2). Consolidated into `src/lib/lean.ts` (formatLean,
+  leanColor, sentimentChipStyle, leanChipStyle, `LEAN_NEUTRAL_BAND`) + shared
+  `src/components/Lean.tsx` (`SentimentChip`, `LeanChip`, `IntensityMeter`). Every
+  call site now imports the single definition, so the red(=Right)/blue(=Left)
+  palette and the lean threshold can never drift. No rendered output changed
+  (verified across /channels, /issues, /log, /emerging, channel + issue pages).
+- **One app-wide `TooltipProvider`** in the root layout; removed the four
+  redundant local providers (channels page, EpisodeDataTable, EmergingIssuesTable,
+  FreshnessBadge). Closes a latent gap where `CohortBadge`'s tooltip needed a
+  local provider ancestor - the global now covers every surface.
+- **Remaining raw `<button>`s → shadcn `Button` (P2):** the /welcome secondary
+  link, and EmergingIssuesTable's sort-header + row expander (matching the pattern
+  EpisodeDataTable already used). The one intentional exception is
+  ChannelIssueBreakdown's full-width expandable issue row - a stacked-content
+  layout trigger, not a Button-shaped control - left as a semantic `<button>`.
+
 ## v0.22.1 · 2026-06-14
 
 ### Fixed

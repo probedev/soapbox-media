@@ -3,6 +3,7 @@ import { Card } from "@/components/ui/card";
 import { AdminNav } from "@/components/AdminNav";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
+import { leanChipStyle } from "@/lib/lean";
 import { AddChannelClient } from "./AddChannelClient";
 
 export const dynamic = "force-dynamic";
@@ -58,13 +59,7 @@ export default async function AdminChannelsPage() {
               >
                 <div className="flex items-center gap-3 min-w-0">
                   <span
-                    className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${
-                      c.political_lean === "L"
-                        ? "bg-blue-100 text-blue-800"
-                        : c.political_lean === "R"
-                        ? "bg-red-100 text-red-800"
-                        : "bg-muted text-ink-body"
-                    }`}
+                    className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${leanChipStyle(c.political_lean).cls}`}
                   >
                     {c.political_lean}
                   </span>

@@ -1,11 +1,6 @@
 import { getDataFreshness } from "@/lib/aggregate";
 import { DISPLAY_TZ } from "@/lib/utils";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 /**
  * The single, site-wide freshness badge - shown in the Header (next to the logo)
@@ -40,16 +35,14 @@ export async function FreshnessBadge() {
   const iso = await getDataFreshness();
   if (!iso) return null;
   return (
-    <TooltipProvider delayDuration={150}>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <span className="inline-flex items-center gap-1.5 text-[11px] text-muted-foreground tabular-nums whitespace-nowrap cursor-default">
-            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" aria-hidden />
-            Updated {relative(iso)}
-          </span>
-        </TooltipTrigger>
-        <TooltipContent>Last pipeline run: {absolute(iso)}</TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <span className="inline-flex items-center gap-1.5 text-[11px] text-muted-foreground tabular-nums whitespace-nowrap cursor-default">
+          <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" aria-hidden />
+          Updated {relative(iso)}
+        </span>
+      </TooltipTrigger>
+      <TooltipContent>Last pipeline run: {absolute(iso)}</TooltipContent>
+    </Tooltip>
   );
 }

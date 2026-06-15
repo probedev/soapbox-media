@@ -10,19 +10,9 @@ import { Card } from "@/components/ui/card";
 import { AdminNav } from "@/components/AdminNav";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
+import { leanChipStyle } from "@/lib/lean";
 
 export const dynamic = "force-dynamic";
-
-function leanBadge(lean: "L" | "M" | "R"): string {
-  switch (lean) {
-    case "L":
-      return "bg-blue-100 text-blue-800";
-    case "R":
-      return "bg-red-100 text-red-800";
-    default:
-      return "bg-muted text-ink-body";
-  }
-}
 
 function formatDate(iso: string | null): string {
   if (!iso) return "never";
@@ -67,7 +57,7 @@ function ChannelCadenceTable({ rows }: { rows: ChannelAuditRow[] }) {
           >
             <div className="flex items-center gap-2 min-w-0">
               <span
-                className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${leanBadge(c.political_lean)}`}
+                className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${leanChipStyle(c.political_lean).cls}`}
               >
                 {c.political_lean}
               </span>
@@ -112,7 +102,7 @@ function ChannelCadenceTable({ rows }: { rows: ChannelAuditRow[] }) {
               >
                 <div className="flex items-center gap-2 min-w-0">
                   <span
-                    className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${leanBadge(c.political_lean)}`}
+                    className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${leanChipStyle(c.political_lean).cls}`}
                   >
                     {c.political_lean}
                   </span>
