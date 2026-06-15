@@ -24,17 +24,37 @@ import { recordScriptRun } from "@/lib/usage";
 // current panel size; concurrency 10 brings the full 30d run to ~1.5h.
 const BACKFILL_CONCURRENCY = 10;
 
-// The taxonomy-expansion issues activated 2026-06-12. Only these get inserted
-// here. (Crypto was a broadening of the existing ai-tech issue, not a new slug,
-// so it is intentionally excluded - a widened issue can't be backfilled without
-// duplicating its existing mentions; it catches crypto go-forward only.)
-const NEW_SLUGS = new Set([
-  "trade-tariffs",
-  "housing",
-  "govt-spending",
-  "public-health",
-  "veterans",
-]);
+// Slugs whose mentions get inserted. Defaults to the 2026-06-12 taxonomy-
+// expansion issues, but override per-run via BACKFILL_SLUGS (comma-separated)
+// to backfill any newly-promoted issue. The classifier always runs against the
+// FULL active taxonomy; only mentions in these slugs are written. (Crypto was a
+// broadening of the existing ai-tech issue, not a new slug, so it was excluded
+// from the default - a widened issue can't be backfilled without duplicating
+// its existing mentions.)
+const NEW_SLUGS = new Set(
+  (process.env.BACKFILL_SLUGS ?? "trade-tariffs,housing,govt-spending,public-health,veterans")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean),
+);
+
+// Optional cost control. When BACKFILL_KEYWORDS is set (comma-separated), only
+// episodes whose transcript contains at least one keyword (case-insensitive)
+// are classified. For a narrow, vocabulary-bound issue this catches ~all real
+// mentions while skipping the (expensive) classify call on unrelated episodes.
+// NOTE: a broad ILIKE over every transcript can exceed the PostgREST statement
+// timeout on a large panel. In that case precompute the matching episode_ids
+// server-side (longer-timeout SQL path) into a one-column table and point
+// BACKFILL_TARGET_TABLE at it instead - the script just reads the id list.
+const KEYWORDS = (process.env.BACKFILL_KEYWORDS ?? "")
+  .split(",")
+  .map((s) => s.trim())
+  .filter(Boolean);
+
+// A table with an `episode_id` column that enumerates the only episodes to
+// classify. Takes precedence over BACKFILL_KEYWORDS. Use for large panels
+// where the inline keyword scan times out.
+const TARGET_TABLE = process.env.BACKFILL_TARGET_TABLE?.trim();
 
 async function main() {
   const windowDays = parseInt(process.argv[2] || "30", 10);
@@ -92,9 +112,52 @@ async function main() {
     if (data.length < 1000) break;
   }
 
-  // 2. Candidates: not already backfilled, newest first, capped at limit.
+  // 1b. Optional keyword pre-filter: collect episode_ids whose transcript
+  //     matches any keyword, so we only classify plausibly-relevant episodes.
+  //     Paginated per keyword; stop only on an empty/short page (pagination
+  //     guardrail - never trust .limit() against the 1000-row cap).
+  let keywordIds: Set<string> | null = null;
+  if (TARGET_TABLE) {
+    keywordIds = new Set<string>();
+    for (let from = 0; ; from += 1000) {
+      const { data, error } = await db
+        .from(TARGET_TABLE)
+        .select("episode_id")
+        .range(from, from + 999);
+      if (error) {
+        console.error(`target table (${TARGET_TABLE}) query error:`, error.message);
+        break;
+      }
+      if (!data || data.length === 0) break;
+      for (const r of data as { episode_id: string }[]) keywordIds.add(r.episode_id);
+      if (data.length < 1000) break;
+    }
+    console.log(`Target table ${TARGET_TABLE}: ${keywordIds.size} episode_ids.`);
+  } else if (KEYWORDS.length > 0) {
+    keywordIds = new Set<string>();
+    for (const kw of KEYWORDS) {
+      for (let from = 0; ; from += 1000) {
+        const { data, error } = await db
+          .from("transcripts")
+          .select("episode_id")
+          .ilike("text", `%${kw}%`)
+          .range(from, from + 999);
+        if (error) {
+          console.error("keyword filter query error:", error.message);
+          break;
+        }
+        if (!data || data.length === 0) break;
+        for (const r of data as { episode_id: string }[]) keywordIds.add(r.episode_id);
+        if (data.length < 1000) break;
+      }
+    }
+    console.log(`Keyword filter [${KEYWORDS.join(", ")}] matched ${keywordIds.size} episodes (any window).`);
+  }
+
+  // 2. Candidates: not already backfilled, optionally keyword-matched, newest
+  //    first, capped at limit.
   const candidateEpisodes = episodes
-    .filter((e) => !done.has(e.id))
+    .filter((e) => !done.has(e.id) && (!keywordIds || keywordIds.has(e.id)))
     .slice(0, Number.isFinite(limit) ? limit : undefined);
 
   // 3. Fetch transcript text for just those candidates, in chunks (bounded).

@@ -7,6 +7,19 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
+## v0.24.1 · 2026-06-15
+
+### Changed
+
+- **Generalized `scripts/backfill-issues.ts` so any newly-promoted issue can be
+  backfilled** without editing the script. New env overrides: `BACKFILL_SLUGS`
+  (which slugs to insert), `BACKFILL_KEYWORDS` (a cheap transcript keyword
+  pre-filter so only plausibly-relevant episodes get the expensive classify
+  call), and `BACKFILL_TARGET_TABLE` (a precomputed `episode_id` allowlist, used
+  when the inline keyword scan exceeds the data-API statement timeout on the full
+  transcript table). Used to backfill the new "Gerrymandering & redistricting"
+  issue (Elections & Democracy) over a 30-day, keyword-targeted window.
+
 ## v0.24.0 · 2026-06-15
 
 ### Changed
