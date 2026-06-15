@@ -7,6 +7,28 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
+## v0.22.1 · 2026-06-14
+
+### Fixed
+
+- **/emerging: the "flame" in the intro copy now renders the actual flame icon**
+  (it was the literal word, and ran into the next word with no space).
+- **/emerging tooltips are now the site shadcn Tooltip, not the native browser
+  title** (breaking badge, up/down movement, "Last mentioned", and the receipt
+  lean chip), matching the project's no-native-tooltips rule.
+- **Footer nav no longer wraps mid-phrase** ("For AI / Agents") after the longer
+  tagline shipped earlier today: links are `whitespace-nowrap` and the group
+  wraps as whole items, right-aligned.
+- **Full sweep of native browser `title=` tooltips -> shadcn.** Every remaining
+  native title hint across the site is now the styled shadcn tooltip via a new
+  shared `InfoTip` helper and one app-wide `TooltipProvider` in the root layout:
+  intensity meters (EpisodeMentions, ChannelIssueBreakdown), the cohort stacked
+  bar (PanelBalance), channel platform links + the issue-activity bars, truncated
+  cells in the /log table (EpisodeDataTable), the footer links, and the admin
+  PipelineHealth / homelab cards. The site is now free of native browser tooltips.
+- Copy/metadata that still said the board refreshes "daily" updated to "through
+  the day" (it moved to a 3-hourly rebuild in v0.22.0).
+
 ## v0.22.0 · 2026-06-14
 
 ### Changed

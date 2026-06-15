@@ -16,6 +16,8 @@
  * adds no DB query (mirrors PanelBalance / PanelScale).
  */
 import { cn } from "@/lib/utils";
+import { Card } from "@/components/ui/card";
+import { InfoTip } from "@/components/InfoTip";
 import { Table, TableBody, TableCell, TableRow } from "@/components/ui/table";
 
 export interface TopicActivityRow {
@@ -59,7 +61,7 @@ export function IssueActivityByTopic({
   const maxMentions = Math.max(...rows.map((r) => r.mentions), 1);
 
   return (
-    <div className="border border-border bg-card rounded-lg p-5">
+    <Card className="p-6">
       <div className="flex items-baseline justify-between mb-1">
         <div className="text-xs uppercase tracking-wider text-muted-foreground">
           What&apos;s being talked about
@@ -100,11 +102,14 @@ export function IssueActivityByTopic({
 
                 {/* mention-volume bar */}
                 <TableCell className="p-0 relative h-5 rounded bg-muted overflow-hidden">
-                  <div
-                    className={cn("absolute inset-y-0 left-0 rounded", barColor(r.lean))}
-                    style={{ width: `${Math.max(widthPct, 2)}%` }}
-                    title={`${r.mentions.toLocaleString()} mentions · ${r.numIssues} issue${r.numIssues === 1 ? "" : "s"}`}
-                  />
+                  <InfoTip
+                    label={`${r.mentions.toLocaleString()} mentions · ${r.numIssues} issue${r.numIssues === 1 ? "" : "s"}`}
+                  >
+                    <div
+                      className={cn("absolute inset-y-0 left-0 rounded", barColor(r.lean))}
+                      style={{ width: `${Math.max(widthPct, 2)}%` }}
+                    />
+                  </InfoTip>
                 </TableCell>
 
                 <TableCell className="p-0 flex items-baseline gap-2 text-xs justify-end">
@@ -125,6 +130,6 @@ export function IssueActivityByTopic({
         Bar length is mention count over the last {windowDays} days; the tint and L/R figure
         show each topic&apos;s volume-weighted lean. The full taxonomy is below.
       </p>
-    </div>
+    </Card>
   );
 }

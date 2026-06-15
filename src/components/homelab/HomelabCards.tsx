@@ -8,6 +8,7 @@
  * and polish, but the data shown here is real.
  */
 import * as React from "react";
+import { InfoTip } from "@/components/InfoTip";
 import {
   Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, ComposedChart, Line,
   ReferenceLine, ResponsiveContainer, Scatter, ScatterChart, Tooltip, Treemap,
@@ -109,13 +110,14 @@ export function HeatGridCard({ issues, weekLabels }: { issues: HeatRow[]; weekLa
                 const base = c.lean === null ? "156,163,175" : c.lean > 0.05 ? "220,38,38" : c.lean < -0.05 ? "37,99,235" : "107,114,128";
                 return (
                   <td key={i} className="p-0.5">
-                    <div
-                      className="h-6 w-full rounded-md flex items-center justify-center text-[9px] text-white/90"
-                      style={{ background: `rgba(${base},${Math.max(intensity, 0.06)})` }}
-                      title={`${row.issue} · wk of ${weekLabels[i]} · ${c.vol} mentions · ${fmtLean(c.lean)}`}
-                    >
-                      {c.vol > maxVol * 0.25 ? c.vol : ""}
-                    </div>
+                    <InfoTip label={`${row.issue} · wk of ${weekLabels[i]} · ${c.vol} mentions · ${fmtLean(c.lean)}`}>
+                      <div
+                        className="h-6 w-full rounded-md flex items-center justify-center text-[9px] text-white/90"
+                        style={{ background: `rgba(${base},${Math.max(intensity, 0.06)})` }}
+                      >
+                        {c.vol > maxVol * 0.25 ? c.vol : ""}
+                      </div>
+                    </InfoTip>
                   </td>
                 );
               })}
@@ -172,8 +174,12 @@ export function GapCard({ d }: { d: GapRow[] }) {
                 width: `${Math.abs(pos(r.indep) - pos(r.legacy))}%`,
               }} />
               <div className="absolute top-1/2 -translate-y-1/2 left-1/2 w-px h-4 bg-input" />
-              <div title={`legacy ${fmtLean(r.legacy)}`} className="absolute top-1/2 -translate-y-1/2 w-2.5 h-2.5 rounded-full border-2 border-white shadow" style={{ left: `calc(${pos(r.legacy)}% - 5px)`, background: "#6b7280" }} />
-              <div title={`independent ${fmtLean(r.indep)}`} className="absolute top-1/2 -translate-y-1/2 w-2.5 h-2.5 rounded-full border-2 border-white shadow" style={{ left: `calc(${pos(r.indep)}% - 5px)`, background: leanColor(r.indep) }} />
+              <InfoTip label={`legacy ${fmtLean(r.legacy)}`}>
+                <div className="absolute top-1/2 -translate-y-1/2 w-2.5 h-2.5 rounded-full border-2 border-white shadow" style={{ left: `calc(${pos(r.legacy)}% - 5px)`, background: "#6b7280" }} />
+              </InfoTip>
+              <InfoTip label={`independent ${fmtLean(r.indep)}`}>
+                <div className="absolute top-1/2 -translate-y-1/2 w-2.5 h-2.5 rounded-full border-2 border-white shadow" style={{ left: `calc(${pos(r.indep)}% - 5px)`, background: leanColor(r.indep) }} />
+              </InfoTip>
             </div>
             <div className="w-14 tabular-nums text-muted-foreground shrink-0">Δ{Math.abs(r.gap).toFixed(1)}</div>
           </div>
@@ -278,7 +284,11 @@ export function FusesCard({ d }: { d: FuseRow[] }) {
           <div className="flex items-end gap-1 h-8 mt-2">
             {f.weekly.map((v, i) => {
               const max = Math.max(...f.weekly, 1);
-              return <div key={i} className={`flex-1 rounded-md ${i === 3 ? "bg-amber-500" : "bg-border"}`} style={{ height: `${Math.max((v / max) * 100, 6)}%` }} title={`${v} mentions`} />;
+              return (
+                <InfoTip key={i} label={`${v} mentions`}>
+                  <div className={`flex-1 rounded-md ${i === 3 ? "bg-amber-500" : "bg-border"}`} style={{ height: `${Math.max((v / max) * 100, 6)}%` }} />
+                </InfoTip>
+              );
             })}
           </div>
           <div className="text-[10px] text-ink-faint mt-1.5 truncate">most active: {f.firstMover}</div>

@@ -41,6 +41,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { InfoTip } from "@/components/InfoTip";
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -281,29 +282,31 @@ const columns: ColumnDef<EpisodeTableRow>[] = [
     accessorKey: "channel_name",
     header: ({ column }) => <SortHeader label="Channel" column={column} />,
     cell: ({ row }) => (
-      <a
-        href={`/channels/${row.original.channel_id}`}
-        title={row.getValue("channel_name") as string}
-        className="block truncate text-ink-body hover:text-foreground hover:underline"
-      >
-        {row.getValue("channel_name")}
-      </a>
+      <InfoTip label={row.getValue("channel_name") as string}>
+        <a
+          href={`/channels/${row.original.channel_id}`}
+          className="block truncate text-ink-body hover:text-foreground hover:underline"
+        >
+          {row.getValue("channel_name")}
+        </a>
+      </InfoTip>
     ),
   },
   {
     accessorKey: "title",
     header: ({ column }) => <SortHeader label="Video" column={column} />,
     cell: ({ row }) => (
-      <a
-        href={row.original.source_url}
-        target="_blank"
-        rel="noopener noreferrer"
-        title={row.getValue("title") as string}
-        className="flex items-center gap-1 min-w-0 font-medium text-foreground hover:underline"
-      >
-        <span className="truncate">{row.getValue("title")}</span>
-        <ExternalLink className="h-3 w-3 shrink-0 text-ink-faint" />
-      </a>
+      <InfoTip label={row.getValue("title") as string}>
+        <a
+          href={row.original.source_url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center gap-1 min-w-0 font-medium text-foreground hover:underline"
+        >
+          <span className="truncate">{row.getValue("title")}</span>
+          <ExternalLink className="h-3 w-3 shrink-0 text-ink-faint" />
+        </a>
+      </InfoTip>
     ),
   },
   {

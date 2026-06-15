@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { GeistSans } from "geist/font/sans";
 import { PostHogProvider } from "@/components/PostHogProvider";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import { SITE_TITLE, META_DESCRIPTION } from "@/lib/brand";
 import "./globals.css";
 
@@ -31,7 +32,11 @@ export default function RootLayout({
   return (
     <html lang="en" className={GeistSans.className}>
       <body className="bg-card text-foreground antialiased">
-        <PostHogProvider>{children}</PostHogProvider>
+        <PostHogProvider>
+          {/* One app-wide tooltip context so every InfoTip / shadcn Tooltip works
+              without a local provider; replaces native browser `title=` hints. */}
+          <TooltipProvider delayDuration={150}>{children}</TooltipProvider>
+        </PostHogProvider>
       </body>
     </html>
   );

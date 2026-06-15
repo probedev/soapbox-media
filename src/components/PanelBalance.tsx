@@ -14,6 +14,7 @@
  */
 import { cn } from "@/lib/utils";
 import { Card } from "@/components/ui/card";
+import { InfoTip } from "@/components/InfoTip";
 
 interface ShowLike {
   political_lean: "L" | "M" | "R";
@@ -62,20 +63,20 @@ function StackedBar({ segments }: { segments: Segment[] }) {
       {segments.map((seg) => {
         const pct = (seg.value / total) * 100;
         return (
-          <div
-            key={seg.key}
-            className={cn(
-              "flex items-center justify-center min-w-0 px-1.5",
-              seg.colorClass,
-            )}
-            style={{
-              flexBasis: `${pct}%`,
-              ...(seg.colorStyle ? { background: seg.colorStyle } : {}),
-            }}
-            title={`${seg.label} (${pct.toFixed(0)}%)`}
-          >
-            <span className="truncate tabular-nums">{seg.label}</span>
-          </div>
+          <InfoTip key={seg.key} label={`${seg.label} (${pct.toFixed(0)}%)`}>
+            <div
+              className={cn(
+                "flex items-center justify-center min-w-0 px-1.5",
+                seg.colorClass,
+              )}
+              style={{
+                flexBasis: `${pct}%`,
+                ...(seg.colorStyle ? { background: seg.colorStyle } : {}),
+              }}
+            >
+              <span className="truncate tabular-nums">{seg.label}</span>
+            </div>
+          </InfoTip>
         );
       })}
     </div>

@@ -14,6 +14,7 @@ import * as React from "react";
 import { ChevronDown, ChevronRight, ExternalLink } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { cn, formatDateET } from "@/lib/utils";
+import { InfoTip } from "@/components/InfoTip";
 import type { IssueOnChannel } from "@/lib/aggregate";
 import type { ChannelIssueMentionsResponse } from "@/app/api/channels/[id]/issues/[slug]/mentions/route";
 
@@ -38,14 +39,16 @@ function sentimentChip(sentiment: number): { text: string; cls: string } {
 
 function IntensityMeter({ intensity }: { intensity: number }) {
   return (
-    <span className="inline-flex items-center gap-0.5" title={`Intensity ${intensity}/5`}>
-      {[1, 2, 3, 4, 5].map((i) => (
-        <span
-          key={i}
-          className={cn("h-1.5 w-1.5 rounded-full", i <= intensity ? "bg-ink-body" : "bg-border")}
-        />
-      ))}
-    </span>
+    <InfoTip label={`Intensity ${intensity}/5`}>
+      <span className="inline-flex items-center gap-0.5">
+        {[1, 2, 3, 4, 5].map((i) => (
+          <span
+            key={i}
+            className={cn("h-1.5 w-1.5 rounded-full", i <= intensity ? "bg-ink-body" : "bg-border")}
+          />
+        ))}
+      </span>
+    </InfoTip>
   );
 }
 

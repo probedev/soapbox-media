@@ -13,6 +13,7 @@
  */
 import * as React from "react";
 import { cn } from "@/lib/utils";
+import { InfoTip } from "@/components/InfoTip";
 import type { EpisodeMention, EpisodeMentionsResponse } from "@/lib/episodes";
 
 /** Sentiment as an L+/R+ chip, matching the site-wide lean convention
@@ -27,14 +28,16 @@ function sentimentChip(sentiment: number | null): { text: string; cls: string } 
 function IntensityMeter({ intensity }: { intensity: number | null }) {
   const n = intensity ?? 0;
   return (
-    <span className="inline-flex items-center gap-0.5" title={`Intensity ${n}/5`}>
-      {[1, 2, 3, 4, 5].map((i) => (
-        <span
-          key={i}
-          className={cn("h-1.5 w-1.5 rounded-full", i <= n ? "bg-ink-body" : "bg-border")}
-        />
-      ))}
-    </span>
+    <InfoTip label={`Intensity ${n}/5`}>
+      <span className="inline-flex items-center gap-0.5">
+        {[1, 2, 3, 4, 5].map((i) => (
+          <span
+            key={i}
+            className={cn("h-1.5 w-1.5 rounded-full", i <= n ? "bg-ink-body" : "bg-border")}
+          />
+        ))}
+      </span>
+    </InfoTip>
   );
 }
 
@@ -106,13 +109,14 @@ export function EpisodeMentions({ episodeId }: { episodeId: string }) {
               key={i}
               className="grid grid-cols-[minmax(0,9rem)_3.5rem_auto_minmax(0,1fr)] items-start gap-3 text-xs"
             >
-              <a
-                href={`/issues/${m.issueSlug}`}
-                title={m.issueName}
-                className="font-medium text-ink-strong hover:underline truncate"
-              >
-                {m.issueName}
-              </a>
+              <InfoTip label={m.issueName}>
+                <a
+                  href={`/issues/${m.issueSlug}`}
+                  className="font-medium text-ink-strong hover:underline truncate"
+                >
+                  {m.issueName}
+                </a>
+              </InfoTip>
               <span
                 className={cn(
                   "inline-flex items-center justify-center rounded px-1.5 py-0.5 font-semibold tabular-nums",

@@ -3,6 +3,7 @@ import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { EmergingBoard } from "@/components/EmergingBoard";
 import { DISPLAY_TZ } from "@/lib/utils";
+import { Flame } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
@@ -31,7 +32,7 @@ function refreshedAbsolute(iso: string): string {
 export const metadata = {
   title: "Emerging issues · Soapbox",
   description:
-    "Political issues alt-media is talking about that aren't in our taxonomy yet - auto-detected, clustered, and ranked by reach, split by independent vs legacy, with episode receipts. Refreshed daily.",
+    "Political issues alt-media is talking about that aren't in our taxonomy yet - auto-detected, clustered, and ranked by reach and momentum, split by independent vs legacy, with episode receipts. Refreshed through the day.",
 };
 
 export default async function EmergingPage() {
@@ -54,11 +55,12 @@ export default async function EmergingPage() {
           Recent episodes count for far more (a topic&apos;s weight halves about every week), and issues
           the shows stop talking about drop off the board entirely. The
           <span className="text-emerald-600 font-medium"> &uarr;</span>/&darr; column shows how each
-          issue moved since the last refresh, and a <span className="text-amber-700 font-medium">flame</span>
-          marks issues breaking out: mentioned far more this week than last. Switch between independent and legacy outlets to see
-          where the two diverge. These are raw, auto-detected signals, refreshed daily and not
-          hand-curated; whether one becomes a tracked Soapbox issue stays a human call. Expand any row
-          for the receipts: the exact things shows said, with links to the episodes.
+          issue moved since the last refresh, and a flame badge (
+          <Flame className="inline h-3.5 w-3.5 align-text-bottom text-amber-700" aria-label="flame" />
+          ) marks issues breaking out: mentioned far more this week than last. Switch between independent
+          and legacy outlets to see where the two diverge. These are raw, auto-detected signals, refreshed
+          through the day and not hand-curated; whether one becomes a tracked Soapbox issue stays a human
+          call. Expand any row for the receipts: the exact things shows said, with links to the episodes.
         </p>
         {refreshedLabel(board.lastUpdated) && (
           <div className="mt-3 inline-flex items-center gap-1.5 text-[11px] text-muted-foreground tabular-nums">
@@ -71,7 +73,7 @@ export default async function EmergingPage() {
         <div className="mt-8">
           {board.all.length === 0 ? (
             <div className="text-sm text-muted-foreground italic">
-              No emerging issues right now. Check back after the next daily refresh.
+              No emerging issues right now. Check back after the next refresh.
             </div>
           ) : (
             <EmergingBoard

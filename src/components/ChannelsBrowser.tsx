@@ -9,6 +9,7 @@
  */
 import * as React from "react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { InfoTip } from "@/components/InfoTip";
 import { Input } from "@/components/ui/input";
 import { CohortBadge } from "@/components/CohortBadge";
 import { getChannelExternalUrl } from "@/lib/channelLinks";
@@ -80,20 +81,20 @@ function ShowCard({ show, showCohort }: { show: ShowRow; showCohort: boolean }) 
             name: show.name,
           });
           return (
-            <a
-              key={p.platform}
-              href={ext.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              aria-label={`${ext.label} (${platformAbbrev(p.platform)})`}
-              title={`${ext.label} (${platformAbbrev(p.platform)})`}
-              className="inline-flex items-center gap-0.5 text-ink-faint hover:text-foreground px-1 py-1 opacity-60 group-hover:opacity-100 transition"
-            >
-              <span className="text-[9px] font-semibold uppercase tracking-wider">
-                {platformAbbrev(p.platform)}
-              </span>
-              <ExternalLink className="w-3 h-3" />
-            </a>
+            <InfoTip key={p.platform} label={`${ext.label} (${platformAbbrev(p.platform)})`}>
+              <a
+                href={ext.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label={`${ext.label} (${platformAbbrev(p.platform)})`}
+                className="inline-flex items-center gap-0.5 text-ink-faint hover:text-foreground px-1 py-1 opacity-60 group-hover:opacity-100 transition"
+              >
+                <span className="text-[9px] font-semibold uppercase tracking-wider">
+                  {platformAbbrev(p.platform)}
+                </span>
+                <ExternalLink className="w-3 h-3" />
+              </a>
+            </InfoTip>
           );
         })}
       </div>

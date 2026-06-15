@@ -23,6 +23,12 @@ import { ArrowUp, ArrowDown, ChevronDown, ChevronRight, ExternalLink, Flame, Min
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
   Table,
   TableBody,
   TableCell,
@@ -82,12 +88,14 @@ function LatestMention({ iso }: { iso: string | null }) {
   const days = Math.floor((Date.now() - t) / 86_400_000);
   const rel = days <= 0 ? "today" : days === 1 ? "yesterday" : `${days}d ago`;
   return (
-    <div
-      className="mt-1 text-[11px] text-ink-faint tabular-nums"
-      title={`Most recent mention: ${formatDate(iso)}`}
-    >
-      Last mentioned {rel}
-    </div>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <span className="mt-1 block w-fit cursor-default text-[11px] text-ink-faint tabular-nums">
+          Last mentioned {rel}
+        </span>
+      </TooltipTrigger>
+      <TooltipContent>Most recent mention: {formatDate(iso)}</TooltipContent>
+    </Tooltip>
   );
 }
 
@@ -162,15 +170,21 @@ function ReceiptsPanel({
               key={i}
               className="grid grid-cols-[2rem_minmax(0,1fr)] items-start gap-3 text-xs"
             >
-              <span
-                className={cn(
-                  "inline-flex items-center justify-center rounded px-1.5 py-0.5 font-semibold",
-                  chip.cls,
-                )}
-                title={`${r.channel} (${chip.text})`}
-              >
-                {chip.text}
-              </span>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span
+                    className={cn(
+                      "inline-flex cursor-default items-center justify-center rounded px-1.5 py-0.5 font-semibold",
+                      chip.cls,
+                    )}
+                  >
+                    {chip.text}
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent>
+                  {r.channel} ({chip.text})
+                </TooltipContent>
+              </Tooltip>
               <div className="min-w-0">
                 <span className="text-ink-muted leading-snug">
                   <span className="text-ink-faint">&ldquo;</span>
@@ -218,31 +232,40 @@ function MovementCell({ m }: { m: EmergingIssue["movement"] }) {
   }
   if (m.status === "up") {
     return (
-      <span
-        className="inline-flex items-center gap-0.5 font-medium tabular-nums text-emerald-600"
-        title={`Up ${m.delta} from #${m.prevRank} last refresh`}
-      >
-        <ArrowUp className="h-3 w-3" aria-hidden />
-        {m.delta}
-      </span>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span className="inline-flex cursor-default items-center gap-0.5 font-medium tabular-nums text-emerald-600">
+            <ArrowUp className="h-3 w-3" aria-hidden />
+            {m.delta}
+          </span>
+        </TooltipTrigger>
+        <TooltipContent>Up {m.delta} from #{m.prevRank} last refresh</TooltipContent>
+      </Tooltip>
     );
   }
   if (m.status === "down") {
     return (
-      <span
-        className="inline-flex items-center gap-0.5 font-medium tabular-nums text-muted-foreground"
-        title={`Down ${m.delta} from #${m.prevRank} last refresh`}
-      >
-        <ArrowDown className="h-3 w-3" aria-hidden />
-        {m.delta}
-      </span>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span className="inline-flex cursor-default items-center gap-0.5 font-medium tabular-nums text-muted-foreground">
+            <ArrowDown className="h-3 w-3" aria-hidden />
+            {m.delta}
+          </span>
+        </TooltipTrigger>
+        <TooltipContent>Down {m.delta} from #{m.prevRank} last refresh</TooltipContent>
+      </Tooltip>
     );
   }
   if (m.status === "same") {
     return (
-      <span className="text-ink-faint" title="No change since last refresh">
-        <Minus className="h-3 w-3" aria-hidden />
-      </span>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span className="inline-flex cursor-default text-ink-faint">
+            <Minus className="h-3 w-3" aria-hidden />
+          </span>
+        </TooltipTrigger>
+        <TooltipContent>No change since last refresh</TooltipContent>
+      </Tooltip>
     );
   }
   return null; // "none" - no prior snapshot to compare against yet
@@ -258,13 +281,15 @@ function BreakingBadge({ v }: { v: EmergingIssue["velocity"] }) {
     ? `Breaking: ${v.recent7} mentions this week vs ${v.prior7} last week (${v.ratio}×)`
     : `Breaking: ${v.recent7} mentions this week, none the week before`;
   return (
-    <span
-      title={tip}
-      className="inline-flex shrink-0 items-center gap-0.5 rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700"
-    >
-      <Flame className="h-3 w-3" aria-hidden />
-      {label}
-    </span>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <span className="inline-flex shrink-0 cursor-default items-center gap-0.5 rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700">
+          <Flame className="h-3 w-3" aria-hidden />
+          {label}
+        </span>
+      </TooltipTrigger>
+      <TooltipContent>{tip}</TooltipContent>
+    </Tooltip>
   );
 }
 
@@ -373,8 +398,9 @@ export function EmergingIssuesTable({
   });
 
   return (
-    <Card className="overflow-hidden">
-      <Table>
+    <TooltipProvider delayDuration={150}>
+      <Card className="overflow-hidden">
+        <Table>
         <TableHeader>
           {table.getHeaderGroups().map((hg) => (
             <TableRow key={hg.id}>
@@ -422,12 +448,13 @@ export function EmergingIssuesTable({
           ) : (
             <TableRow>
               <TableCell colSpan={columns.length} className="h-24 text-center text-muted-foreground">
-                No emerging issues right now. Check back after the next daily refresh.
+                No emerging issues right now. Check back after the next refresh.
               </TableCell>
             </TableRow>
           )}
         </TableBody>
       </Table>
-    </Card>
+      </Card>
+    </TooltipProvider>
   );
 }

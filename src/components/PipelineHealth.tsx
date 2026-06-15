@@ -1,5 +1,6 @@
 import type { UsageLogRow } from "@/lib/usage";
 import { Card } from "@/components/ui/card";
+import { InfoTip } from "@/components/InfoTip";
 import {
   Table,
   TableBody,
@@ -194,11 +195,12 @@ export function PipelineHealth({ runs }: { runs: UsageLogRow[] }) {
                 {trend.map((r) => {
                   const s = stageStatus(r, key);
                   return (
-                    <span
+                    <InfoTip
                       key={r.id}
-                      className={`w-2.5 h-2.5 rounded-md ${CELL_CLASS[s]}`}
-                      title={`${shortDate(r.ran_at)} ${shortTime(r.ran_at)} - ${STATUS_WORD[s]}`}
-                    />
+                      label={`${shortDate(r.ran_at)} ${shortTime(r.ran_at)} - ${STATUS_WORD[s]}`}
+                    >
+                      <span className={`w-2.5 h-2.5 rounded-md ${CELL_CLASS[s]}`} />
+                    </InfoTip>
                   );
                 })}
               </div>
@@ -272,9 +274,11 @@ export function PipelineHealth({ runs }: { runs: UsageLogRow[] }) {
                       {STATUS_WORD[rs]}
                     </span>
                     {row.error_message && (
-                      <div className="text-red-600 text-[10px] mt-1 max-w-xs truncate" title={row.error_message}>
-                        {row.error_message}
-                      </div>
+                      <InfoTip label={row.error_message}>
+                        <div className="text-red-600 text-[10px] mt-1 max-w-xs truncate">
+                          {row.error_message}
+                        </div>
+                      </InfoTip>
                     )}
                   </TableCell>
                 </TableRow>
