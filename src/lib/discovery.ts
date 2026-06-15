@@ -68,6 +68,14 @@ const BOARD_MAX_STALE_DAYS = 10;
 const BREAKING_MIN_RECENT = 8; // min mentions in the last 7d to be eligible
 const BREAKING_RATIO = 2; // recent7 / prior7 threshold (>= 2 = doubled)
 
+// "Emerging" sort key = decayed reach-volume x smoothed week-over-week momentum,
+// so an accelerating issue outranks a bigger-but-plateaued one (the board is
+// "emerging", not "biggest" - ranking purely by decayed volume kept concluded
+// races and fading stories on top of genuinely breaking ones). Laplace smoothing
+// keeps a tiny topic with a near-zero prior week from getting an explosive ratio;
+// magnitude stays the anchor so substance still matters. Tunable.
+const EMERGING_MOMENTUM_SMOOTHING = 3;
+
 /**
  * Reach contribution of one member topic, decayed by episode age. Shared by the
  * build-time weight (buildDiscoveryCandidates) and the board-time weight
@@ -89,6 +97,12 @@ function computeVelocity(recent7: number, prior7: number): Velocity {
   }
   const r = recent7 / prior7;
   return { breaking: r >= BREAKING_RATIO, ratio: Number(r.toFixed(1)), recent7, prior7 };
+}
+
+/** Public-board sort key: decayed reach-volume tilted by smoothed momentum. */
+function emergingScore(weight: number, recent7: number, prior7: number): number {
+  const k = EMERGING_MOMENTUM_SMOOTHING;
+  return weight * ((recent7 + k) / (prior7 + k));
 }
 
 // Stopwords stripped when building the token-set grouping key. Kept tiny on
@@ -539,7 +553,13 @@ async function computeBoardRanks(): Promise<EmergingBoard> {
         velocity: computeVelocity(acc.recent7, acc.prior7),
       });
     }
-    rows.sort((a, b) => b.weight - a.weight);
+    // Rank by the emerging score (volume x momentum), not raw decayed volume, so
+    // accelerating issues top the board and plateaued/fading ones sink.
+    rows.sort(
+      (a, b) =>
+        emergingScore(b.weight, b.velocity.recent7, b.velocity.prior7) -
+        emergingScore(a.weight, a.velocity.recent7, a.velocity.prior7),
+    );
     rows.forEach((r, i) => {
       r.rank = i + 1;
     });

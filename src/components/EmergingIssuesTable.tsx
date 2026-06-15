@@ -38,12 +38,11 @@ const COL_WIDTH: Record<string, string> = {
   expander: "3%",
   rank: "4%",
   movement: "6%",
-  weight: "10%",
-  topicCount: "10%",
-  episodeCount: "10%",
-  channelCount: "10%",
+  topicCount: "11%",
+  episodeCount: "11%",
+  channelCount: "11%",
 };
-const RIGHT_COLS = new Set(["weight", "topicCount", "episodeCount", "channelCount"]);
+const RIGHT_COLS = new Set(["topicCount", "episodeCount", "channelCount"]);
 
 function SortHeader({
   column,
@@ -321,15 +320,6 @@ const columns: ColumnDef<EmergingIssue>[] = [
     ),
   },
   {
-    accessorKey: "weight",
-    header: ({ column }) => <SortHeader column={column} label="Weight" />,
-    cell: ({ row }) => (
-      <div className="text-right font-semibold tabular-nums">
-        {Math.round(row.original.weight).toLocaleString()}
-      </div>
-    ),
-  },
-  {
     accessorKey: "topicCount",
     header: ({ column }) => <SortHeader column={column} label="Mentions" />,
     cell: ({ row }) => (
@@ -365,7 +355,9 @@ export function EmergingIssuesTable({
   data: EmergingIssue[];
   cohort?: "independent" | "legacy";
 }) {
-  const [sorting, setSorting] = React.useState<SortingState>([{ id: "weight", desc: true }]);
+  // Default to the server's emerging-rank order (volume x momentum); columns stay
+  // click-sortable for ad-hoc exploration (e.g. by mentions).
+  const [sorting, setSorting] = React.useState<SortingState>([]);
   const [expanded, setExpanded] = React.useState<ExpandedState>({});
 
   const table = useReactTable({

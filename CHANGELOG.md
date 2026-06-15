@@ -7,6 +7,33 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
+## v0.22.0 · 2026-06-14
+
+### Changed
+
+- **/emerging now ranks by momentum, not just decayed volume - the board was
+  surfacing big-but-over stories above genuinely emerging ones.** Ranking by
+  decayed reach-volume alone kept concluded races and fading stories on top (a
+  decided Senate primary at #1 on flat velocity; a fading topic at #2 on 0.25x
+  week-over-week), while a story breaking *today* sat at #12. The sort key is now
+  `decayed weight x smoothed week-over-week momentum` (`(recent7 + k)/(prior7 + k)`,
+  k=3 Laplace smoothing so a tiny topic with a near-empty prior week can't get an
+  explosive ratio; magnitude stays the anchor). Validated on the live set: a
+  breaking trial goes #4 -> #1, a "happening today" event #12 -> #3, and fading
+  high-volume topics sink. Tunable via `EMERGING_MOMENTUM_SMOOTHING`.
+- **Dropped the opaque "Weight" column** from the board. It was an internal score
+  that, once rank stopped tracking it 1:1, only invited "why is #1 not the highest
+  number?" Rank (the momentum-blended order) plus mentions / episodes / channels
+  and the breaking badge carry the story; the table now defaults to rank order and
+  columns stay click-sortable.
+- **The /emerging board now refreshes every 3h instead of once a day** (discover
+  cron `0 11 * * *` -> `50 */3 * * *`, just after each 2-hourly classify harvest).
+  The board's candidate set was rebuilt only at 11:00 UTC, so off-taxonomy topics
+  harvested the rest of the day (often ~180) sat unclustered and off-board until
+  the next morning - the freshest YouTube signal was a day late. Re-clustering is
+  one cheap Haiku call (~$0.03/run, ~$0.25/day). Note: composition can jitter
+  slightly between intraday rebuilds; rank movement is unaffected (day-over-day).
+
 ## v0.21.0 · 2026-06-14
 
 ### Added

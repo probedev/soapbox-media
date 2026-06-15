@@ -48,10 +48,11 @@ export default async function EmergingPage() {
         <h1 className="text-3xl md:text-4xl font-semibold tracking-tight">Emerging issues</h1>
         <p className="text-ink-muted mt-3 text-sm leading-relaxed max-w-3xl">
           Issues the shows are talking about that aren&apos;t in our taxonomy yet. We harvest the
-          off-taxonomy subjects our classifier flags, cluster them into candidate issues, and rank by
-          reach &times; recency &times; volume, where recent episodes count for more (a topic&apos;s
-          weight halves about every week, so fresh bursts rise and last month&apos;s chatter fades).
-          Issues the shows stop talking about drop off the board entirely. The
+          off-taxonomy subjects our classifier flags, cluster them into candidate issues, and rank them
+          by reach, recency, and momentum: an issue accelerating this week outranks a bigger one that has
+          plateaued or is fading, so the top is what&apos;s emerging, not just what&apos;s loudest.
+          Recent episodes count for far more (a topic&apos;s weight halves about every week), and issues
+          the shows stop talking about drop off the board entirely. The
           <span className="text-emerald-600 font-medium"> &uarr;</span>/&darr; column shows how each
           issue moved since the last refresh, and a <span className="text-amber-700 font-medium">flame</span>
           marks issues breaking out: mentioned far more this week than last. Switch between independent and legacy outlets to see
