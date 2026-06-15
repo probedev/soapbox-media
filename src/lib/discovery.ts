@@ -8,6 +8,9 @@
  */
 import { createServiceClient } from "@/lib/db";
 import { clusterTopics, type LabelInput } from "@/modules/discover";
+import { topicWeight, computeVelocity, emergingScore, type Velocity } from "@/lib/emerging-score";
+
+export type { Velocity };
 
 interface TopicRow {
   id: string;
@@ -34,22 +37,6 @@ export interface DiscoveryCandidate {
   reviewed_at: string | null;
 }
 
-function reachFactor(reach: number): number {
-  return Math.log10(Math.max(reach, 10));
-}
-
-// Recency model. Each member topic's reach contribution decays with the age of
-// the episode it aired in (published_at), halving every RECENCY_HALF_LIFE_DAYS.
-// This replaced a binary "x1.5 if <7d else x1" boost that barely moved the board:
-// classify harvests off-taxonomy topics long AFTER an episode airs (backlog), so
-// the boost fired on only ~17% of members while episodes ran to ~180 days old.
-// The board therefore ranked by accumulated stale volume and looked frozen.
-// Continuous decay buries old backlog and lets genuine bursts surface. The
-// half-life was tuned on the live pending set: at 7 days, 80%-recent bursts climb
-// into the top tier (e.g. a fresh trial story #10 -> #4) without over-twitching,
-// and it matches the weekly news cycle / the prior 7-day boundary.
-const RECENCY_HALF_LIFE_DAYS = 7;
-
 // Public-board recency gate. A candidate is hidden from /emerging once its most
 // recent member episode (in that cohort) is older than this - an "emerging" board
 // shouldn't carry dead news (e.g. a month-old outbreak) just because it once had
@@ -58,52 +45,6 @@ const RECENCY_HALF_LIFE_DAYS = 7;
 // can still promote a once-big theme that has quieted. Tunable; 10d drops clearly
 // stale events while keeping the board full (validated on the live pending set).
 const BOARD_MAX_STALE_DAYS = 10;
-
-// "Breaking" velocity signal: flag a candidate whose attention roughly doubled
-// week-over-week (mentions aired in the last 7d vs the prior 7d), or that
-// appeared fresh, off a non-trivial base. Mirrors the home Biggest Movers volume
-// idiom (week-over-week ratio). The MIN_RECENT floor kills 3-on-1-mention noise.
-// Tuned on the live set: flags the genuinely accelerating handful (a fresh trial
-// 35-vs-9, a White House event 12-vs-4) and skips tiny spikes. Both tunable.
-const BREAKING_MIN_RECENT = 8; // min mentions in the last 7d to be eligible
-const BREAKING_RATIO = 2; // recent7 / prior7 threshold (>= 2 = doubled)
-
-// "Emerging" sort key = decayed reach-volume x smoothed week-over-week momentum,
-// so an accelerating issue outranks a bigger-but-plateaued one (the board is
-// "emerging", not "biggest" - ranking purely by decayed volume kept concluded
-// races and fading stories on top of genuinely breaking ones). Laplace smoothing
-// keeps a tiny topic with a near-zero prior week from getting an explosive ratio;
-// magnitude stays the anchor so substance still matters. Tunable.
-const EMERGING_MOMENTUM_SMOOTHING = 3;
-
-/**
- * Reach contribution of one member topic, decayed by episode age. Shared by the
- * build-time weight (buildDiscoveryCandidates) and the board-time weight
- * (computeBoardRanks) so the two rankings can't drift apart.
- */
-function topicWeight(reach: number, publishedAt: string, now: number): number {
-  const ageDays = Math.max((now - new Date(publishedAt).getTime()) / 86_400_000, 0);
-  return reachFactor(reach) * Math.pow(2, -ageDays / RECENCY_HALF_LIFE_DAYS);
-}
-
-/** Classify a cohort's week-over-week counts into the "breaking" velocity signal. */
-function computeVelocity(recent7: number, prior7: number): Velocity {
-  if (recent7 < BREAKING_MIN_RECENT) {
-    // Below the floor: never "breaking" (avoids 3-on-1-mention noise).
-    return { breaking: false, ratio: prior7 > 0 ? Number((recent7 / prior7).toFixed(1)) : null, recent7, prior7 };
-  }
-  if (prior7 === 0) {
-    return { breaking: true, ratio: null, recent7, prior7 }; // brand-new surge
-  }
-  const r = recent7 / prior7;
-  return { breaking: r >= BREAKING_RATIO, ratio: Number(r.toFixed(1)), recent7, prior7 };
-}
-
-/** Public-board sort key: decayed reach-volume tilted by smoothed momentum. */
-function emergingScore(weight: number, recent7: number, prior7: number): number {
-  const k = EMERGING_MOMENTUM_SMOOTHING;
-  return weight * ((recent7 + k) / (prior7 + k));
-}
 
 // Stopwords stripped when building the token-set grouping key. Kept tiny on
 // purpose - just the connective words that vary between phrasings of one theme.
@@ -367,14 +308,6 @@ export interface RankMovement {
  * much more this week than last (or appeared fresh) off a non-trivial base -
  * distinct from rank movement (position change) and weight (accumulated size).
  */
-export interface Velocity {
-  breaking: boolean;
-  /** recent7 / prior7, 1 dp; null when prior7 == 0 (a brand-new surge). */
-  ratio: number | null;
-  recent7: number;
-  prior7: number;
-}
-
 /** Lean public shape for the /emerging board (pending candidates only). */
 export interface EmergingIssue {
   id: string;

@@ -7,6 +7,31 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
+## v0.24.0 · 2026-06-15
+
+### Changed
+
+- **Extracted the pure scoring math into testable modules** (`src/lib/scoring.ts`
+  and `src/lib/emerging-score.ts`) - no DB, no env, so the product's headline
+  numbers can be unit-tested in isolation. `aggregate.ts` and `discovery.ts` now
+  import from them. In the process, consolidated three pieces of duplication:
+  the Soapbox Index scale (`clamp(lean * 2, -10, 10)`) was inlined **14 times** and
+  is now one `toIndexScale()`; the Biggest-Movers eligibility/ranking rules became
+  `moverHasEnoughMentions` / `moverIsInteresting` / `moverScore`; and `reachFactor`
+  is now single-source (shared by the Index and the emerging score). Verified
+  byte-for-byte behavior on the home Index, movers, and drilldowns.
+
+### Added
+
+- **Tests for the math that matters** (`scoring.test.ts`, `emerging-score.test.ts`):
+  the reach weighting -> weighted lean -> -10..+10 Index scale, the movers OR-rule
+  and `max(|leanΔ|/2, |log2(ratio)|)` ranking, the recency half-life decay, the
+  breaking-velocity rule, and the momentum-blended emerging score. 30 tests total
+  across the three suites, all green.
+- **CI gate** (`.github/workflows/ci.yml`): typecheck + tests + build on every push
+  to main and on PRs - making the checks non-optional (Vercel builds on push but
+  doesn't run the tests). ESLint isn't configured, so no lint step yet.
+
 ## v0.23.1 · 2026-06-15
 
 ### Added

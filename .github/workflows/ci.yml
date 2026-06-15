@@ -1,0 +1,32 @@
+name: CI
+
+# Typecheck + tests + build on every push to main and on PRs. Vercel already
+# builds on push, but it doesn't run the unit tests or typecheck as a gate -
+# this makes those non-optional. Fast (no DB; the app reads env lazily at
+# request time, so build doesn't need real secrets).
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+        env:
+          # Placeholders so the build can't trip a lazy env read. Pages are
+          # force-dynamic (no DB at build); these are never used to connect.
+          NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder
+          SUPABASE_SERVICE_ROLE_KEY: placeholder
+          ANTHROPIC_API_KEY: placeholder

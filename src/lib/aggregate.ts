@@ -23,6 +23,16 @@
 import { cache as reactCache } from "react";
 import { createServiceClient } from "./db";
 import { type Cohort, PUBLIC_COHORTS } from "./cohort";
+import {
+  clamp,
+  reachFactor,
+  weightedLean,
+  toIndexScale,
+  MOVER_MAX_ROWS,
+  moverHasEnoughMentions,
+  moverIsInteresting,
+  moverScore,
+} from "./scoring";
 
 /**
  * Per-request memoization wrapper. React's `cache()` only exists inside the
@@ -105,29 +115,6 @@ export interface DashboardData {
   hasData: boolean;
 }
 
-function clamp(n: number, min: number, max: number): number {
-  return Math.max(min, Math.min(max, n));
-}
-
-function reachFactor(reach: number): number {
-  return Math.log10(Math.max(reach, 10));
-}
-
-function weightedLean(rows: ScoreRow[]): { lean: number; weight: number } {
-  let weightedSum = 0;
-  let totalWeight = 0;
-  for (const r of rows) {
-    const rf = reachFactor(r.channel_reach);
-    const w = rf * r.intensity;
-    weightedSum += w * r.sentiment;
-    totalWeight += w;
-  }
-  return {
-    lean: totalWeight > 0 ? weightedSum / totalWeight : 0,
-    weight: totalWeight,
-  };
-}
-
 /** Returns ISO date (YYYY-MM-DD) of the Monday of the week containing `iso`. */
 function weekStartIso(iso: string): string {
   const d = new Date(iso);
@@ -163,7 +150,7 @@ function rollingLeanTrend(
       return d >= windowStart && d < windowEnd;
     });
     if (wRows.length === 0) continue;
-    values.push(clamp(weightedLean(wRows).lean * 2, -10, 10));
+    values.push(toIndexScale(weightedLean(wRows).lean));
     dates.push(windowEnd.toISOString().slice(0, 10));
   }
   return { values, dates };
@@ -292,34 +279,10 @@ const fetchScoreRows = cache(
   return all;
 });
 
-/**
- * Minimum mentions an issue needs in BOTH the current and prior window to be
- * eligible as a "biggest mover". Without this, a quiet week (few mentions) can
- * produce a large, noisy lean swing and grab the headline on a thin sample -
- * e.g. an 18-mention week outranking a 400-mention one. The lean swing is only
- * trustworthy once each side of the comparison has enough rows behind it.
- * The same floor applies to the volume-swing axis: a 4 → 12 mention spike is
- * mathematically a 3× rise but well within noise.
- */
-const MOVER_MIN_MENTIONS = 25;
-
-/**
- * Movers eligibility OR-rule thresholds. A row earns its spot if EITHER the
- * lean shifted by at least `MOVER_LEAN_DELTA_FLOOR` OR mention volume rose
- * past `MOVER_VOLUME_RATIO_UP` / fell below `MOVER_VOLUME_RATIO_DOWN`.
- * Tuned so 0.5 lean swing (≈ smallest visible step in the L+/R+ display) and
- * a 1.5× / 0.67× volume swing are roughly comparable "interesting" magnitudes.
- */
-const MOVER_LEAN_DELTA_FLOOR = 0.5;
-const MOVER_VOLUME_RATIO_UP = 1.5;
-const MOVER_VOLUME_RATIO_DOWN = 1 / MOVER_VOLUME_RATIO_UP; // ≈ 0.667
-
-/**
- * Cap on the number of movers shown. Set on the aggregate side (not at the
- * call site) so every surface that consumes `DashboardData.movers` agrees
- * on the leaderboard length.
- */
-const MOVER_MAX_ROWS = 6;
+// Biggest-Movers eligibility / ranking thresholds + helpers now live in
+// scoring.ts (MOVER_MIN_MENTIONS=25, lean floor 0.5, volume 1.5x / 0.67x, cap
+// MOVER_MAX_ROWS=6), where they're unit-tested. The detailed rationale for each
+// threshold is in git history.
 
 /**
  * Returns dashboard data using a trailing N-day rolling window (default 7).
@@ -390,14 +353,14 @@ export async function getDashboardData(
   const currentStart = new Date(now);
   currentStart.setUTCDate(currentStart.getUTCDate() - windowDays);
   const currentRows = rowsInRange(currentStart, currentEnd);
-  const currentIndex = clamp(weightedLean(currentRows).lean * 2, -10, 10);
+  const currentIndex = toIndexScale(weightedLean(currentRows).lean);
 
   // Previous window: the N days immediately before the current window
   const prevEnd = currentStart;
   const prevStart = new Date(prevEnd);
   prevStart.setUTCDate(prevStart.getUTCDate() - windowDays);
   const prevRows = rowsInRange(prevStart, prevEnd);
-  const prevIndex = clamp(weightedLean(prevRows).lean * 2, -10, 10);
+  const prevIndex = toIndexScale(weightedLean(prevRows).lean);
   const delta = prevRows.length > 0 ? currentIndex - prevIndex : 0;
 
   // Sparkline: rolling N-day Index value for each of the last 30 days.
@@ -413,7 +376,7 @@ export async function getDashboardData(
     windowStart.setUTCDate(windowStart.getUTCDate() - windowDays);
     const wRows = rowsInRange(windowStart, windowEnd);
     if (wRows.length === 0) continue;
-    sparkline.push(clamp(weightedLean(wRows).lean * 2, -10, 10));
+    sparkline.push(toIndexScale(weightedLean(wRows).lean));
     sparklineDates.push(windowEnd.toISOString().slice(0, 10));
   }
 
@@ -438,7 +401,7 @@ export async function getDashboardData(
         (r) => r.issue_slug === slug,
       );
       if (wRows.length === 0) continue;
-      out.push(clamp(weightedLean(wRows).lean * 2, -10, 10));
+      out.push(toIndexScale(weightedLean(wRows).lean));
     }
     return out;
   }
@@ -449,7 +412,7 @@ export async function getDashboardData(
     issueAggregates.push({
       slug,
       name: rs[0]?.issue_name || slug,
-      lean: clamp(lean * 2, -10, 10),
+      lean: toIndexScale(lean),
       volume: Math.round(weight),
       numClassifications: rs.length,
       trend: issueTrend(slug),
@@ -476,19 +439,11 @@ export async function getDashboardData(
       const prs = prevByIssue.get(issue.slug) || [];
       // Require enough mentions on BOTH sides of the comparison; a thin window
       // makes both the lean swing and the volume ratio too noisy to headline.
-      if (
-        issue.numClassifications < MOVER_MIN_MENTIONS ||
-        prs.length < MOVER_MIN_MENTIONS
-      )
-        continue;
-      const fromLean = clamp(weightedLean(prs).lean * 2, -10, 10);
+      if (!moverHasEnoughMentions(issue.numClassifications, prs.length)) continue;
+      const fromLean = toIndexScale(weightedLean(prs).lean);
       const delta = issue.lean - fromLean;
       const volumeRatio = issue.numClassifications / prs.length;
-      const leanInteresting = Math.abs(delta) >= MOVER_LEAN_DELTA_FLOOR;
-      const volumeInteresting =
-        volumeRatio >= MOVER_VOLUME_RATIO_UP ||
-        volumeRatio <= MOVER_VOLUME_RATIO_DOWN;
-      if (!leanInteresting && !volumeInteresting) continue;
+      if (!moverIsInteresting(delta, volumeRatio)) continue;
       movers.push({
         slug: issue.slug,
         name: issue.name,
@@ -503,17 +458,9 @@ export async function getDashboardData(
     // Rank by max(|leanΔ|/2, |log2(volumeRatio)|): each axis scaled so a
     // 2-point lean swing and a 2× volume swing carry equal ranking weight.
     // log2 keeps "doubled" and "halved" symmetric (both score 1.0).
-    movers.sort((a, b) => {
-      const scoreA = Math.max(
-        Math.abs(a.delta) / 2,
-        Math.abs(Math.log2(a.volumeRatio)),
-      );
-      const scoreB = Math.max(
-        Math.abs(b.delta) / 2,
-        Math.abs(Math.log2(b.volumeRatio)),
-      );
-      return scoreB - scoreA;
-    });
+    movers.sort(
+      (a, b) => moverScore(b.delta, b.volumeRatio) - moverScore(a.delta, a.volumeRatio),
+    );
     if (movers.length > MOVER_MAX_ROWS) movers.length = MOVER_MAX_ROWS;
   }
 
@@ -919,7 +866,7 @@ export async function getIndexBreakdown(
   issues.sort((a, b) => Math.abs(b.contribution) - Math.abs(a.contribution));
 
   const overallLean = weightedLean(windowed).lean;
-  const index = clamp(overallLean * 2, -10, 10);
+  const index = toIndexScale(overallLean);
 
   return { index, windowDays, totalClassifications: windowed.length, issues };
 }
@@ -1206,14 +1153,14 @@ export async function getIssueDrillDown(slug: string): Promise<IssueDrillDown | 
       channel_id,
       channel_name: rs[0].channel_name,
       channel_lean: rs[0].channel_lean,
-      lean: clamp(lean * 2, -10, 10),
+      lean: toIndexScale(lean),
       numMentions: rs.length,
       weight: Math.round(weight),
     });
   }
   channels.sort((a, b) => b.weight - a.weight);
 
-  const overall = clamp(weightedLean(issueRows).lean * 2, -10, 10);
+  const overall = toIndexScale(weightedLean(issueRows).lean);
 
   // Trend uses all rows for this issue (the helpers themselves window to the
   // last ~37 days), independent of the 30-day leaderboard slice above. The
@@ -1299,14 +1246,14 @@ export async function getTopicDrillDown(slug: string): Promise<TopicDrillDown | 
     issues.push({
       issue_slug,
       issue_name: rs[0].issue_name,
-      lean: clamp(lean * 2, -10, 10),
+      lean: toIndexScale(lean),
       numMentions: rs.length,
       weight: Math.round(weight),
     });
   }
   issues.sort((a, b) => b.weight - a.weight);
 
-  const overall = clamp(weightedLean(topicRows).lean * 2, -10, 10);
+  const overall = toIndexScale(weightedLean(topicRows).lean);
   const trend = rollingLeanTrend(
     rows.filter((r) => r.issue_topic_slug === slug),
     new Date(),
@@ -1381,14 +1328,14 @@ export async function getChannelDrillDown(channelId: string): Promise<ChannelDri
     issues.push({
       issue_slug: slug,
       issue_name: rs[0].issue_name,
-      lean: clamp(lean * 2, -10, 10),
+      lean: toIndexScale(lean),
       numMentions: rs.length,
       weight: Math.round(weight),
     });
   }
   issues.sort((a, b) => b.weight - a.weight);
 
-  const netLean = clamp(weightedLean(channelRows).lean * 2, -10, 10);
+  const netLean = toIndexScale(weightedLean(channelRows).lean);
 
   // Net-lean trend across all this channel's issues (helper windows to ~37d).
   const trend = rollingLeanTrend(
