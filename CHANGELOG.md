@@ -7,6 +7,20 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
+## v0.23.1 · 2026-06-15
+
+### Added
+
+- **Vitest test framework (lite) - the first automated tests in the repo.** Node
+  environment, tests colocated as `*.test.ts`, `@/` alias mirroring tsconfig, no
+  jsdom/testing-library yet (add when we want component tests). Scripts: `npm test`
+  (one-shot) and `npm run test:watch`. Chosen over Jest for native ESM/TS + speed;
+  the API is Jest-compatible so tests stay portable. First suite locks the L/R
+  lean convention (`src/lib/lean.test.ts`, 12 tests): the red=Right/blue=Left
+  palette, L+/R+ labels, the 0.05 aggregate-lean neutral band, and the
+  sentiment-chip flips-at-exactly-0 rule. Foundation to expand to the aggregation
+  + scoring math next.
+
 ## v0.23.0 · 2026-06-15
 
 ### Changed
