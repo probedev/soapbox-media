@@ -1,9 +1,12 @@
 name: CI
 
-# Typecheck + tests + build on every push to main and on PRs. Vercel already
-# builds on push, but it doesn't run the unit tests or typecheck as a gate -
-# this makes those non-optional. Fast (no DB; the app reads env lazily at
-# request time, so build doesn't need real secrets).
+# Tests + build on every push to main and on PRs. Vercel already builds on push
+# but doesn't run the unit tests as a gate - this makes them non-optional.
+# `next build` is the type-check gate: it runs tsc (no ignoreBuildErrors) AND
+# generates next-env.d.ts first (the gitignored file that declares image-module
+# types). A standalone `tsc --noEmit` would FAIL in a fresh checkout because
+# next-env.d.ts isn't there yet, so we let build do the type-checking. No DB
+# needed (pages are force-dynamic; env is read lazily at request time).
 
 on:
   push:
@@ -20,7 +23,6 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - run: npm run typecheck
       - run: npm test
       - run: npm run build
         env:
