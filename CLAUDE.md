@@ -20,9 +20,12 @@ Design history lives in `ARCHITECTURE.md`; release-by-release detail in
 
 ## Release ritual (every shippable change)
 
-1. Bump **both** `package.json` `version` and `src/lib/version.ts` `VERSION`.
+1. Bump **both** `package.json` `version` and `src/lib/version.ts` `VERSION`,
+   then run `npm install` so `package-lock.json`'s version stays in sync -
+   CI runs `npm ci`, which aborts on any package.json/lock mismatch (incl. the
+   root `version`).
 2. Add a dated `CHANGELOG.md` entry (SemVer; patch bumps for fixes).
-3. `npm run typecheck` clean.
+3. `npm run typecheck` clean (CI also runs `npm test` + `npm run build`).
 4. `git ls-remote --tags origin vX.Y.Z` (confirm unused) → commit → push → tag.
 5. Push to `main` auto-deploys on Vercel. The footer shows `VERSION`.
 
