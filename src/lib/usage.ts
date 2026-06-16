@@ -34,6 +34,9 @@ interface PipelineSummary {
     transcribe?: { detail?: any };
     classify?: { detail?: any };
     score?: { detail?: any };
+    /** Emerging-favorability scoring. Its own cron; folded into the cost columns
+     *  below so /admin/costs counts its (small) spend against the budget. */
+    "score-emerging"?: { detail?: any };
   };
 }
 
@@ -51,13 +54,20 @@ export async function recordPipelineRun(
   const transcribe = summary.stages?.transcribe?.detail || {};
   const classify = summary.stages?.classify?.detail || {};
   const score = summary.stages?.score?.detail || {};
+  const scoreEmerging = summary.stages?.["score-emerging"]?.detail || {};
 
   const inputTokens =
-    (Number(classify.inputTokens) || 0) + (Number(score.inputTokens) || 0);
+    (Number(classify.inputTokens) || 0) +
+    (Number(score.inputTokens) || 0) +
+    (Number(scoreEmerging.inputTokens) || 0);
   const outputTokens =
-    (Number(classify.outputTokens) || 0) + (Number(score.outputTokens) || 0);
+    (Number(classify.outputTokens) || 0) +
+    (Number(score.outputTokens) || 0) +
+    (Number(scoreEmerging.outputTokens) || 0);
   const cost =
-    (Number(classify.approxCostUsd) || 0) + (Number(score.approxCostUsd) || 0);
+    (Number(classify.approxCostUsd) || 0) +
+    (Number(score.approxCostUsd) || 0) +
+    (Number(scoreEmerging.approxCostUsd) || 0);
 
   const { error } = await db.from("usage_log").insert({
     duration_ms: summary.totalDurationMs || 0,

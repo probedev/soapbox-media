@@ -126,3 +126,129 @@ export async function scoreClassification(input: ScoreInput): Promise<ScoreResul
     rawText,
   };
 }
+
+// ─── Emerging-topic favorability ──────────────────────────────────────────
+//
+// A SEPARATE axis from the L/R sentiment above. Emerging topics (off-taxonomy
+// events on /emerging) have no left/right poles to score against - "the left
+// position on the UFC-at-the-White-House event" is fiction. What IS meaningful
+// is how FAVORABLE vs. critical the conversation is toward the subject itself.
+// So this scorer rates favorability, not ideological alignment, and the result
+// is presented with its own gauge (never the red/blue L/R needle). Reuses the
+// same Haiku model + parse/clamp machinery as scoreClassification.
+
+export interface EmergingScoreInput {
+  quote: string;
+  channelName: string;
+  politicalLean: "L" | "M" | "R";
+  /** The emerging subject this quote is about (the topic's own stable label). */
+  subject: string;
+  /** Short context for the subject (the candidate summary), for disambiguation. */
+  subjectContext?: string;
+}
+
+export interface EmergingScoreResult {
+  /** -5 (hostile/scathing) .. 0 (neutral/descriptive) .. +5 (celebratory). */
+  favorability: number;
+  intensity: number;
+  inputTokens?: number;
+  outputTokens?: number;
+  rawText: string;
+}
+
+/**
+ * Prompt version - BUMP whenever buildEmergingPrompt changes. This is a new axis
+ * the L/R gold set does not cover; v1 ships on a manual spot-check, with a
+ * dedicated favorability gold set as the gate before it becomes load-bearing
+ * (i.e. before MCP exposes it). Surfaced read-only at /admin/prompts.
+ */
+export const EMERGING_SCORE_PROMPT_VERSION = "v1";
+
+function buildEmergingPrompt(input: EmergingScoreInput): string {
+  const context = input.subjectContext
+    ? `\nSUBJECT CONTEXT: ${input.subjectContext}`
+    : "";
+  return `You are rating how FAVORABLE a single political statement is toward a specific emerging subject, and the intensity with which the speaker expresses it. This is NOT a left/right rating - judge only how positive vs. negative the speaker is about the subject.
+
+SUBJECT: ${input.subject}${context}
+
+QUOTE - spoken on ${input.channelName} (editorial lean: ${input.politicalLean}):
+"${input.quote}"
+
+SCORING DEFINITIONS:
+
+favorability - a number from -5.0 to +5.0, the speaker's stance TOWARD the subject:
+  -5.0 = scathing, hostile, condemns it outright
+  -2.5 = critical, disapproving
+   0.0 = neutral, balanced, or purely descriptive (e.g. straight news reporting)
+  +2.5 = approving, supportive
+  +5.0 = celebratory, glowing, champions it
+
+intensity - a number from 1 to 5:
+  1 = passing remark, casual mention
+  2 = clear but brief statement
+  3 = deliberate well-formed statement of view
+  4 = strongly emphasized, repeated, or central to surrounding discussion
+  5 = passionate, extensive, primary argument of the segment
+
+IMPORTANT:
+- Rate favorability toward THE SUBJECT, on the statement's own merits.
+- Do NOT use the channel's lean - a left-leaning channel can be favorable and vice versa.
+- Neutral, factual, or descriptive reporting scores near 0, regardless of the subject.
+
+Return ONLY a JSON object with two numeric fields. No prose, no code fences,
+no leading "+" on positive numbers (write 4.2 not +4.2 - JSON does not allow
+a leading "+").
+
+Examples:
+{"favorability": -3.2, "intensity": 4}
+{"favorability": 2.7, "intensity": 5}
+{"favorability": 0, "intensity": 1}`;
+}
+
+/**
+ * The emerging-favorability prompt rendered with labeled placeholders, for the
+ * read-only /admin/prompts view. Built from the real builder so it can't drift.
+ */
+export function scoreEmergingPromptPreview(): string {
+  return buildEmergingPrompt({
+    quote: "{{QUOTE}}",
+    channelName: "{{CHANNEL_NAME}}",
+    politicalLean: "{{LEAN}}" as EmergingScoreInput["politicalLean"],
+    subject: "{{SUBJECT}}",
+    subjectContext: "{{subject context}}",
+  });
+}
+
+export async function scoreEmergingMention(
+  input: EmergingScoreInput,
+): Promise<EmergingScoreResult> {
+  const client = getAnthropicClient();
+  const prompt = buildEmergingPrompt(input);
+
+  const response = await client.messages.create({
+    model: MODEL_SCORE,
+    max_tokens: SCORE_MAX_TOKENS,
+    messages: [{ role: "user", content: prompt }],
+  });
+
+  const textBlock = response.content.find((b) => b.type === "text");
+  const rawText = textBlock && textBlock.type === "text" ? textBlock.text : "";
+
+  const parsed = extractJson<{ favorability: number; intensity: number }>(rawText);
+  if (!parsed || typeof parsed.favorability !== "number" || typeof parsed.intensity !== "number") {
+    throw new Error(`Could not parse emerging score from response: ${rawText.slice(0, 200)}`);
+  }
+
+  // Clamp to valid ranges (model occasionally drifts a hair outside).
+  const favorability = Math.max(-5, Math.min(5, parsed.favorability));
+  const intensity = Math.max(1, Math.min(5, parsed.intensity));
+
+  return {
+    favorability,
+    intensity,
+    inputTokens: response.usage?.input_tokens,
+    outputTokens: response.usage?.output_tokens,
+    rawText,
+  };
+}

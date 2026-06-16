@@ -49,3 +49,6 @@ next-env.d.ts
 # Offline attribution eval outputs (not committed)
 eval-attribution/
 eval-stance-impact/
+
+# Local deliverables (marketing demos, audits, one-pagers — not committed)
+deliverables/

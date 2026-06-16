@@ -7,6 +7,36 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
+## v0.25.0 · 2026-06-16
+
+### Added
+
+- **Favorability + cohort-coverage signal on the /emerging board.** Emerging
+  topics now carry a read on how the conversation is landing, not just mention
+  counts. Two deliberately separate axes:
+  - **Favorability** (the credibility anchor): a per-mention sentiment score
+    toward the topic itself (-5 critical .. +5 favorable + intensity), Haiku,
+    aggregated reach x intensity weighted via the existing `weightedLean()`. A
+    distinct axis from the L/R needle (events have no left/right poles), so it
+    gets its own neutral-to-emerald gauge, never the red/blue needle. Each row
+    shows a compact "Reaction" gauge; the expanded panel adds a favorability
+    summary and per-receipt favorability chips.
+  - **Cohort coverage** (the honest "who's amplifying" overlay): L/M/R share of
+    voice, normalized to mentions-per-active-channel so it can't be skewed by
+    panel composition, plus a cohort-over-time trend. Uses the blue/red lean
+    palette on purpose (this IS the lean axis).
+- New `discovery_topic_scores` table (keyed on the stable `discovery_topics.id`,
+  not the ephemeral candidate id), a `score-emerging` cron stage (Haiku, gated
+  to the top-N board candidates, bounded + idempotent like `score`), and the new
+  prompt surfaced read-only at /admin/prompts.
+
+### Notes
+
+- Favorability is a new axis the L/R gold set does not cover. v1 ships validated
+  by a manual spot-check (`scripts/check-emerging-favorability.ts`); a dedicated
+  favorability gold set gates it before it becomes load-bearing (i.e. before the
+  MCP server exposes emerging, deliberately deferred to mature first).
+
 ## v0.24.2 · 2026-06-15
 
 ### Changed

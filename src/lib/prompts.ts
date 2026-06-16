@@ -16,10 +16,12 @@ import {
   SCORE_PROMPT_VERSION,
   SCORE_MAX_TOKENS,
   scorePromptPreview,
+  EMERGING_SCORE_PROMPT_VERSION,
+  scoreEmergingPromptPreview,
 } from "@/modules/score";
 
 export interface PromptSpec {
-  stage: "classify" | "score";
+  stage: "classify" | "score" | "score-emerging";
   title: string;
   model: string;
   version: string;
@@ -63,6 +65,22 @@ export function getPromptCatalog(): PromptSpec[] {
         "channel name + editorial lean",
       ],
       prompt: scorePromptPreview(),
+    },
+    {
+      stage: "score-emerging",
+      title: "Score (emerging favorability)",
+      model: MODEL_SCORE,
+      version: EMERGING_SCORE_PROMPT_VERSION,
+      maxTokens: SCORE_MAX_TOKENS,
+      description:
+        "For emerging (off-taxonomy) topics there are no left/right poles, so this rates how FAVORABLE vs. critical a quote is toward the subject (-5..+5) plus intensity (1..5). A separate axis from the L/R sentiment scale; presented with its own gauge, never the L/R needle. v1 ships on a manual spot-check; a dedicated favorability gold set gates it before MCP exposes it.",
+      dynamicInputs: [
+        "{{QUOTE}} - the off-taxonomy supporting quote produced by classify",
+        "{{SUBJECT}} - the emerging topic's own label",
+        "{{subject context}} - the candidate summary, for disambiguation",
+        "channel name + editorial lean",
+      ],
+      prompt: scoreEmergingPromptPreview(),
     },
   ];
 }

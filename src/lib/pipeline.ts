@@ -12,11 +12,12 @@ import { createServiceClient } from "@/lib/db";
 import { getRecentUploads, getVideoTranscript, getChannelDetailsBatch } from "@/lib/youtube";
 import { getPodcastEpisodes } from "@/lib/podscan";
 import { classifyTranscript, type IssueDef } from "@/modules/classify";
-import { scoreClassification } from "@/modules/score";
+import { scoreClassification, scoreEmergingMention, EMERGING_SCORE_PROMPT_VERSION } from "@/modules/score";
 import { MODEL_CLASSIFY, MODEL_SCORE } from "@/lib/anthropic";
 import { estimateCostUsd } from "@/lib/pricing";
 import { dedupKey, loadSiblingEpisodeKeys } from "@/lib/dedup";
 import { mapPool } from "@/lib/concurrency";
+import { getEmergingBoard } from "@/lib/discovery";
 
 /** Shared cron auth: returns a NextResponse to short-circuit on failure, else null. */
 export function assertCronAuth(request: NextRequest): NextResponse | null {
@@ -59,6 +60,14 @@ export const CLASSIFY_CONCURRENCY = 10;
 // budget with margin; the time-budget guard below is the real backstop.
 export const SCORE_LIMIT = 720;
 export const SCORE_CONCURRENCY = 15;
+// Emerging favorability scoring is gated to the top-N board candidates (the ones
+// users actually see), bounded per run like score. Haiku on short quotes, so the
+// cost is trivial (~well under $1/day); the cap + STAGE_TIME_BUDGET_MS are the
+// real guards. Scores are keyed on the stable discovery_topics.id and upserted
+// (never re-scored - the classify-runaway lesson, CLAUDE.md).
+export const TOP_N_EMERGING = 12;
+export const EMERGING_SCORE_LIMIT = 300;
+export const EMERGING_SCORE_CONCURRENCY = 15;
 // Wall-clock budget per stage. The per-stage cron has a 300s function limit;
 // classify slows as the taxonomy grows (more issues → more mentions/episode),
 // so a fixed LIMIT can overshoot 300s and 504 (no usage_log row). The pool
@@ -672,6 +681,149 @@ export async function runScore(): Promise<Record<string, unknown>> {
     processed: ok + failed,
     succeeded: ok,
     failed,
+    inputTokens,
+    outputTokens,
+    approxCostUsd: Number(estCost.toFixed(4)),
+  };
+}
+
+// ─── Score (emerging favorability) ────────────────────────────────────────
+//
+// Favorability of the conversation on the prominent /emerging events. Mirrors
+// runScore: bounded-concurrency pool, STAGE_TIME_BUDGET_MS wall clock, hard
+// per-run cap, idempotent upsert. Gated to the top-N board candidates and keyed
+// on the stable discovery_topics.id (candidate ids churn every discover run).
+
+export async function runScoreEmerging(): Promise<Record<string, unknown>> {
+  const db = createServiceClient();
+  const stageStart = Date.now();
+
+  // Reuse the public board ranking (volume x momentum) so we score exactly the
+  // prominent events users see, not every micro-cluster.
+  const board = await getEmergingBoard();
+  const top = board.all.slice(0, TOP_N_EMERGING);
+  if (top.length === 0) {
+    return {
+      topCandidates: 0, pendingFound: 0, processed: 0, succeeded: 0, failed: 0,
+      inputTokens: 0, outputTokens: 0, approxCostUsd: 0,
+    };
+  }
+  const topIds = top.map((c) => c.id);
+  const summaryById = new Map(top.map((c) => [c.id, c.summary || ""]));
+
+  // Member topics of the top-N candidates (stable-id paginated; empty-page-only
+  // termination - the deep-join short-page gotcha, v0.6.51).
+  interface MemberRow {
+    id: string;
+    label: string;
+    quote: string | null;
+    candidate_id: string;
+    channel_name: string;
+    political_lean: "L" | "M" | "R";
+  }
+  const members: MemberRow[] = [];
+  const pageSize = 1000;
+  for (let from = 0; ; from += pageSize) {
+    const { data, error } = await db
+      .from("discovery_topics")
+      .select(
+        `id, label, quote, candidate_id,
+         episode:episodes!discovery_topics_episode_id_fkey (
+           channel:channels!episodes_channel_id_fkey ( name, political_lean )
+         )`,
+      )
+      .in("candidate_id", topIds)
+      .not("quote", "is", null)
+      .order("id", { ascending: true })
+      .range(from, from + pageSize - 1);
+    if (error) throw new Error(`runScoreEmerging members: ${error.message}`);
+    if (!data || data.length === 0) break;
+    for (const r of data as any[]) {
+      const ch = r.episode?.channel;
+      if (!ch) continue;
+      members.push({
+        id: r.id,
+        label: r.label,
+        quote: r.quote,
+        candidate_id: r.candidate_id,
+        channel_name: ch.name,
+        political_lean: (ch.political_lean as MemberRow["political_lean"]) || "M",
+      });
+    }
+    if (data.length < pageSize) break;
+  }
+
+  // Already-scored topic ids. The table only ever holds top-N mentions, so it
+  // stays small; load all ids into a Set (mirrors runScore's scored lookup).
+  const scoredSet = new Set<string>();
+  for (let from = 0; ; from += pageSize) {
+    const { data } = await db
+      .from("discovery_topic_scores")
+      .select("discovery_topic_id")
+      .order("discovery_topic_id", { ascending: true })
+      .range(from, from + pageSize - 1);
+    if (!data || data.length === 0) break;
+    for (const s of data as any[]) scoredSet.add(s.discovery_topic_id);
+    if (data.length < pageSize) break;
+  }
+
+  const pending = members.filter((m) => m.quote && !scoredSet.has(m.id));
+  const batch = pending.slice(0, EMERGING_SCORE_LIMIT);
+
+  let ok = 0;
+  let failed = 0;
+  let inputTokens = 0;
+  let outputTokens = 0;
+
+  const { completed } = await mapPool(
+    batch,
+    EMERGING_SCORE_CONCURRENCY,
+    async (m) => {
+      try {
+        const result = await scoreEmergingMention({
+          quote: m.quote as string,
+          channelName: m.channel_name,
+          politicalLean: m.political_lean,
+          subject: m.label,
+          subjectContext: summaryById.get(m.candidate_id) || undefined,
+        });
+        inputTokens += result.inputTokens || 0;
+        outputTokens += result.outputTokens || 0;
+        const { error: insErr } = await db.from("discovery_topic_scores").upsert(
+          {
+            discovery_topic_id: m.id,
+            favorability: result.favorability,
+            intensity: result.intensity,
+            model: MODEL_SCORE,
+            model_version: EMERGING_SCORE_PROMPT_VERSION,
+          },
+          // Idempotent under UNIQUE(discovery_topic_id): overlapping runs no-op.
+          { onConflict: "discovery_topic_id", ignoreDuplicates: true },
+        );
+        if (insErr) {
+          console.error(`[score-emerging] insert failed for topic ${m.id}: ${insErr.message}`);
+          failed++;
+        } else {
+          ok++;
+        }
+      } catch (e: any) {
+        console.error(
+          `[score-emerging] ${e?.constructor?.name || "Error"} for topic ${m.id}: ${e?.message || e}`,
+        );
+        failed++;
+      }
+    },
+    stageStart + STAGE_TIME_BUDGET_MS,
+  );
+
+  const estCost = estimateCostUsd(MODEL_SCORE, { inputTokens, outputTokens });
+  return {
+    topCandidates: top.length,
+    pendingFound: pending.length,
+    processed: ok + failed,
+    succeeded: ok,
+    failed,
+    stoppedAtTimeBudget: completed < batch.length,
     inputTokens,
     outputTokens,
     approxCostUsd: Number(estCost.toFixed(4)),

@@ -18,6 +18,9 @@ export interface EmergingReceipt {
   channel: string;
   /** Source channel's editorial lean: "L" | "M" | "R". Colors the receipt chip. */
   lean: string;
+  /** Favorability of this quote toward the topic, -5..+5; null when unscored.
+   *  A separate axis from the channel lean (how critical vs. celebratory). */
+  favorability: number | null;
   episodeTitle: string;
   episodeUrl: string;
   publishedAt: string;
@@ -44,7 +47,7 @@ export async function GET(
   let q = db
     .from("discovery_topics")
     .select(
-      `quote,
+      `id, quote,
        episode:episodes!discovery_topics_episode_id_fkey!inner (
          title, source_url, published_at,
          channel:channels!episodes_channel_id_fkey!inner ( name, reach, political_lean, cohort )
@@ -58,10 +61,25 @@ export async function GET(
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
+  // Favorability scores for these mentions (separate fetch keyed on the stable
+  // topic id; an overlay, so a failure just leaves favorability null).
+  const topicIds = ((data as any[]) || []).map((r) => r.id).filter(Boolean);
+  const favByTopic = new Map<string, number>();
+  if (topicIds.length > 0) {
+    const { data: scoreData } = await db
+      .from("discovery_topic_scores")
+      .select("discovery_topic_id, favorability")
+      .in("discovery_topic_id", topicIds);
+    for (const s of (scoreData as any[]) || []) {
+      favByTopic.set(s.discovery_topic_id, Number(s.favorability));
+    }
+  }
+
   interface Row {
     quote: string;
     channel: string;
     lean: string;
+    favorability: number | null;
     episodeTitle: string;
     episodeUrl: string;
     publishedAt: string;
@@ -77,6 +95,7 @@ export async function GET(
       quote,
       channel: ch.name,
       lean: ch.political_lean || "M",
+      favorability: favByTopic.has(r.id) ? (favByTopic.get(r.id) as number) : null,
       episodeTitle: e.title || "(untitled)",
       episodeUrl: e.source_url || "#",
       publishedAt: e.published_at,
@@ -103,6 +122,7 @@ export async function GET(
       quote: r.quote,
       channel: r.channel,
       lean: r.lean,
+      favorability: r.favorability,
       episodeTitle: r.episodeTitle,
       episodeUrl: r.episodeUrl,
       publishedAt: r.publishedAt,

@@ -9,6 +9,7 @@
 import { createServiceClient } from "@/lib/db";
 import { clusterTopics, type LabelInput } from "@/modules/discover";
 import { topicWeight, computeVelocity, emergingScore, type Velocity } from "@/lib/emerging-score";
+import { weightedLean, type LeanRow } from "@/lib/scoring";
 
 export type { Velocity };
 
@@ -308,6 +309,28 @@ export interface RankMovement {
  * much more this week than last (or appeared fresh) off a non-trivial base -
  * distinct from rank movement (position change) and weight (accumulated size).
  */
+/** Per-political-lean coverage of one emerging topic (the "who's amplifying"
+ *  overlay). Raw mention/reach counts plus a per-active-channel normalized rate,
+ *  so the honest "Left is amplifying 3x" figure can't be skewed by panel size. */
+export interface LeanCoverage {
+  mentions: number;
+  reach: number;
+  /** mentions per active channel of this lean (normalizes out panel composition). */
+  perChannel: number;
+}
+export interface Coverage {
+  L: LeanCoverage;
+  M: LeanCoverage;
+  R: LeanCoverage;
+}
+/** One day in the cohort-over-time series (mentions by lean). */
+export interface CohortPoint {
+  date: string; // YYYY-MM-DD
+  L: number;
+  M: number;
+  R: number;
+}
+
 /** Lean public shape for the /emerging board (pending candidates only). */
 export interface EmergingIssue {
   id: string;
@@ -325,6 +348,16 @@ export interface EmergingIssue {
   latestMention: string | null;
   /** Week-over-week acceleration for the "breaking" badge. */
   velocity: Velocity;
+  /** Cohort coverage overlay: L/M/R share of voice (who's amplifying). */
+  coverage: Coverage;
+  /** Favorability of the conversation toward the topic, reach x intensity weighted,
+   *  -5 (critical) .. +5 (favorable). null when no member mention is scored yet
+   *  (only the top-N board candidates get scored). A SEPARATE axis from L/R. */
+  favorability: number | null;
+  /** How many member mentions are scored (for "based on N of M mentions"). */
+  scoredCount: number;
+  /** Daily L/M/R mention counts over the recent window, for the sparkline. */
+  cohortSeries: CohortPoint[];
 }
 
 export interface EmergingBoard {
@@ -379,10 +412,12 @@ async function computeBoardRanks(): Promise<EmergingBoard> {
   // Member topics of all pending candidates, with channel cohort + reach and the
   // episode published_at for the recency boost. Paginate (stable id order).
   interface TopicRow {
+    topic_id: string;
     candidate_id: string;
     episode_id: string;
     channel: string;
     cohort: string;
+    lean: "L" | "M" | "R";
     reach: number;
     published_at: string;
   }
@@ -395,7 +430,7 @@ async function computeBoardRanks(): Promise<EmergingBoard> {
         `id, candidate_id, episode_id,
          episode:episodes!discovery_topics_episode_id_fkey!inner (
            published_at,
-           channel:channels!episodes_channel_id_fkey!inner ( name, cohort, reach )
+           channel:channels!episodes_channel_id_fkey!inner ( name, cohort, reach, political_lean )
          )`,
       )
       .in("candidate_id", pendingIds)
@@ -407,11 +442,14 @@ async function computeBoardRanks(): Promise<EmergingBoard> {
       const e = r.episode;
       const ch = e?.channel;
       if (!e || !ch) continue;
+      const lean = ch.political_lean === "L" || ch.political_lean === "R" ? ch.political_lean : "M";
       topics.push({
+        topic_id: r.id,
         candidate_id: r.candidate_id,
         episode_id: r.episode_id,
         channel: ch.name,
         cohort: ch.cohort,
+        lean,
         reach: Number(ch.reach) || 0,
         published_at: e.published_at,
       });
@@ -419,7 +457,47 @@ async function computeBoardRanks(): Promise<EmergingBoard> {
     if (data.length < pageSize) break;
   }
 
+  // Favorability scores for the member topics (only the top-N board candidates
+  // ever get scored, so this table is small - load it all into a map). An overlay:
+  // a failure here must never break the board, so swallow errors.
+  const scoreByTopic = new Map<string, { favorability: number; intensity: number }>();
+  for (let from = 0; ; from += pageSize) {
+    const { data, error } = await db
+      .from("discovery_topic_scores")
+      .select("discovery_topic_id, favorability, intensity")
+      .order("discovery_topic_id", { ascending: true })
+      .range(from, from + pageSize - 1);
+    if (error) {
+      console.error("getEmergingBoard scores:", error.message);
+      break;
+    }
+    if (!data || data.length === 0) break;
+    for (const s of data as any[]) {
+      scoreByTopic.set(s.discovery_topic_id, {
+        favorability: Number(s.favorability),
+        intensity: Number(s.intensity),
+      });
+    }
+    if (data.length < pageSize) break;
+  }
+
+  // Active channels per lean: the normalization denominator for coverage, so the
+  // "who's amplifying" figure is mentions-per-channel (not skewed by how many of
+  // each lean we happen to track). v1 uses the active panel; documented in copy.
+  const activeByLean: Record<"L" | "M" | "R", number> = { L: 0, M: 0, R: 0 };
+  {
+    const { data } = await db.from("channels").select("political_lean").eq("active", true);
+    for (const c of (data as any[]) || []) {
+      const l: "L" | "M" | "R" = c.political_lean === "L" || c.political_lean === "R" ? c.political_lean : "M";
+      activeByLean[l]++;
+    }
+  }
+
   const now = Date.now();
+  interface LeanAgg {
+    mentions: number;
+    reach: number;
+  }
   interface Acc {
     topicCount: number;
     episodes: Set<string>;
@@ -428,6 +506,9 @@ async function computeBoardRanks(): Promise<EmergingBoard> {
     latest: number; // max published_at (ms); 0 = none
     recent7: number; // mentions aired in the last 7d
     prior7: number; // mentions aired in the prior 7d (7-14d ago)
+    lean: { L: LeanAgg; M: LeanAgg; R: LeanAgg }; // coverage by political lean
+    scoredRows: LeanRow[]; // scored member mentions, for weightedLean favorability
+    series: Map<string, { L: number; M: number; R: number }>; // daily lean counts
   }
   const newAcc = (): Acc => ({
     topicCount: 0,
@@ -437,6 +518,9 @@ async function computeBoardRanks(): Promise<EmergingBoard> {
     latest: 0,
     recent7: 0,
     prior7: 0,
+    lean: { L: { mentions: 0, reach: 0 }, M: { mentions: 0, reach: 0 }, R: { mentions: 0, reach: 0 } },
+    scoredRows: [],
+    series: new Map(),
   });
   const accs = new Map<string, { all: Acc; independent: Acc; legacy: Acc }>();
   for (const id of pendingIds) accs.set(id, { all: newAcc(), independent: newAcc(), legacy: newAcc() });
@@ -447,6 +531,8 @@ async function computeBoardRanks(): Promise<EmergingBoard> {
     const w = topicWeight(t.reach, t.published_at, now);
     const tms = new Date(t.published_at).getTime();
     const ageMs = now - tms;
+    const score = scoreByTopic.get(t.topic_id);
+    const day = Number.isNaN(tms) ? null : new Date(tms).toISOString().slice(0, 10);
     const add = (acc: Acc) => {
       acc.topicCount++;
       acc.episodes.add(t.episode_id);
@@ -456,6 +542,20 @@ async function computeBoardRanks(): Promise<EmergingBoard> {
         if (tms > acc.latest) acc.latest = tms;
         if (ageMs < 7 * 86_400_000) acc.recent7++;
         else if (ageMs < 14 * 86_400_000) acc.prior7++;
+      }
+      // Coverage by lean (who's amplifying).
+      acc.lean[t.lean].mentions++;
+      acc.lean[t.lean].reach += t.reach;
+      // Favorability: collect scored rows; weightedLean() runs at build time. A
+      // mention's favorability IS its sentiment on the favorability axis.
+      if (score) {
+        acc.scoredRows.push({ sentiment: score.favorability, intensity: score.intensity, channel_reach: t.reach });
+      }
+      // Daily lean histogram for the sparkline.
+      if (day) {
+        const pt = acc.series.get(day) || { L: 0, M: 0, R: 0 };
+        pt[t.lean]++;
+        acc.series.set(day, pt);
       }
     };
     add(a.all);
@@ -472,6 +572,17 @@ async function computeBoardRanks(): Promise<EmergingBoard> {
       // Suppress dead news: no member episode in this cohort within the gate.
       if (acc.latest === 0 || acc.latest < staleBefore) continue;
       const m = meta.get(id)!;
+      const perChannel = (lean: "L" | "M" | "R") =>
+        activeByLean[lean] > 0 ? Number((acc.lean[lean].mentions / activeByLean[lean]).toFixed(2)) : 0;
+      const coverage: Coverage = {
+        L: { mentions: acc.lean.L.mentions, reach: acc.lean.L.reach, perChannel: perChannel("L") },
+        M: { mentions: acc.lean.M.mentions, reach: acc.lean.M.reach, perChannel: perChannel("M") },
+        R: { mentions: acc.lean.R.mentions, reach: acc.lean.R.reach, perChannel: perChannel("R") },
+      };
+      const cohortSeries: CohortPoint[] = [...acc.series.entries()]
+        .sort((x, y) => (x[0] < y[0] ? -1 : 1))
+        .slice(-21)
+        .map(([date, p]) => ({ date, L: p.L, M: p.M, R: p.R }));
       rows.push({
         id,
         rank: 0,
@@ -484,6 +595,10 @@ async function computeBoardRanks(): Promise<EmergingBoard> {
         movement: { status: "none", delta: 0, prevRank: null },
         latestMention: acc.latest > 0 ? new Date(acc.latest).toISOString() : null,
         velocity: computeVelocity(acc.recent7, acc.prior7),
+        coverage,
+        favorability: acc.scoredRows.length ? Number(weightedLean(acc.scoredRows).lean.toFixed(2)) : null,
+        scoredCount: acc.scoredRows.length,
+        cohortSeries,
       });
     }
     // Rank by the emerging score (volume x momentum), not raw decayed volume, so

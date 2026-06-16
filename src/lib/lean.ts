@@ -42,3 +42,31 @@ export function leanChipStyle(lean: string): { text: string; cls: string } {
   if (lean === "R") return { text: "R", cls: "bg-red-100 text-red-800" };
   return { text: "M", cls: "bg-muted text-ink-body" };
 }
+
+/**
+ * Favorability is a SEPARATE axis from L/R sentiment (how critical vs. celebratory
+ * the conversation is toward an emerging subject), so it gets its own visual
+ * language - deliberately NOT the red(Right)/blue(Left) palette, to keep it from
+ * reading as the ideological needle. Emerald = favorable, slate = critical, muted
+ * = neutral; the text label ("Favorable"/"Critical"/"Neutral") carries the meaning
+ * so color is never the only signal. `null` = unscored.
+ */
+export const FAVORABILITY_NEUTRAL_BAND = 0.25;
+
+/** Word for an aggregate favorability value (used in copy + aria labels). */
+export function favorabilityLabel(v: number | null): string {
+  if (v == null) return "Unscored";
+  if (v > FAVORABILITY_NEUTRAL_BAND) return "Favorable";
+  if (v < -FAVORABILITY_NEUTRAL_BAND) return "Critical";
+  return "Neutral";
+}
+
+/** Badge text + bg/text classes for a favorability chip (per-mention or aggregate). */
+export function favorabilityChipStyle(favorability: number | null): { text: string; cls: string } {
+  if (favorability == null) return { text: "unscored", cls: "bg-muted text-muted-foreground" };
+  if (favorability > FAVORABILITY_NEUTRAL_BAND)
+    return { text: `+${favorability.toFixed(1)}`, cls: "bg-emerald-100 text-emerald-800" };
+  if (favorability < -FAVORABILITY_NEUTRAL_BAND)
+    return { text: favorability.toFixed(1), cls: "bg-slate-200 text-slate-700" };
+  return { text: favorability.toFixed(1), cls: "bg-muted text-ink-muted" };
+}
