@@ -7,6 +7,41 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
+## v0.26.0 · 2026-06-16
+
+### Added
+
+- **homelab2: a staging redesign of the home page** at `/admin/homelab2` (admin
+  Basic Auth; the public home is untouched). A scrolling, panel-based "enterprise
+  analytics dashboard with a realtime feed", built as the experiment ground before
+  promoting pieces to the live home. Progressive disclosure: the needle anchor and
+  public hooks lead, analyst/B2B depth follows.
+  - **Hero**: retains the master Index needle + the two cohort sub-needles, but
+    gives EACH needle its own labeled trend (fixing the old ambiguity where one
+    sparkline sat under the sub-needles yet plotted the master), plus an
+    interactive index chart with a 7/14/30-day horizon toggle and the cohort lines
+    overlaid.
+  - **Reworks the three inversions**: "why the index is here" now leads with
+    mention volume (bold number per diverging bar, `chart-bar-negative` style);
+    "top issues" is volume-led (ranked horizontal bars, lean as color).
+  - **Elevates the signature slice**: "Two Americas" (independent-vs-legacy trend
+    + per-issue divergence), and ties in the v0.25.0 emerging board ("what's
+    breaking" with favorability + cohort coverage).
+  - Plus reworked depth panels (ownership quadrant, issue heat grid, channel
+    momentum, cross-talk) and a clean scale strip + channel landscape.
+  - Charts standardize on the shadcn `ChartContainer` system; a `Reveal` wrapper
+    (IntersectionObserver) mounts panels on scroll so charts animate into view.
+- Cut from the old 14-card lab: polarization strip (exposed the bimodal
+  calibration weakness), lit fuses, the standalone receipts tile, audio-vs-video.
+
+### Notes
+
+- Staging queries live, but leans on the precomputed home snapshot
+  (`readHomeSnapshot`) for the master/issues/movers/breakdown data and reuses
+  `getHomelabData`'s `twoConv` for cohort trends - so it runs ~2 heavy pulls, not
+  ~6. Promoting any panel to the public home is a separate step (its aggregates go
+  into `writeHomeSnapshot`).
+
 ## v0.25.0 · 2026-06-16
 
 ### Added
