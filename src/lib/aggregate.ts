@@ -902,6 +902,11 @@ export interface HomeSnapshot {
    *  (public cohorts) and total political mentions scored. Optional so older
    *  snapshots still deserialize; the home page falls back to a live read. */
   scale?: { hoursOfAudio: number; totalMentions: number };
+  /** Full pipeline-scale stats for the /log <SystemStats> panel, so it serves
+   *  the cron-computed snapshot instead of re-running getSystemStats (5 count
+   *  queries + a full duration scan) on every request. Optional so older
+   *  snapshots still deserialize; <SystemStats> falls back to a live read. */
+  systemStats?: SystemStats;
 }
 
 /** Stable per-window key for the home snapshot row (e.g. `home:7`). */
@@ -943,6 +948,7 @@ export async function writeHomeSnapshot(windowDays = 7): Promise<HomeSnapshot> {
       hoursOfAudio: system.hoursOfAudio,
       totalMentions: system.classifications,
     },
+    systemStats: system,
   };
 
   const db = createServiceClient();
@@ -974,6 +980,24 @@ export async function readHomeSnapshot(
     .maybeSingle();
   if (error) throw new Error(`readHomeSnapshot: ${error.message}`);
   return (data?.payload as HomeSnapshot) ?? null;
+}
+
+/**
+ * Read just the pipeline-scale stats from the home snapshot (written by the
+ * score cron). Returns null when absent (before the first cron run after a
+ * deploy, or an older snapshot predating the field) so <SystemStats> can fall
+ * back to a live getSystemStats. SystemStats is window-independent, so this
+ * always reads the canonical `home:7` row.
+ */
+export async function readSystemStatsSnapshot(): Promise<SystemStats | null> {
+  const db = createServiceClient();
+  const { data, error } = await db
+    .from("dashboard_snapshot")
+    .select("payload")
+    .eq("key", homeSnapshotKey(7))
+    .maybeSingle();
+  if (error) throw new Error(`readSystemStatsSnapshot: ${error.message}`);
+  return ((data?.payload as HomeSnapshot)?.systemStats) ?? null;
 }
 
 /**

@@ -7,6 +7,20 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
+## v0.24.2 · 2026-06-15
+
+### Changed
+
+- **Serve pipeline-scale stats and the social/OG card from the home snapshot
+  instead of recomputing them per request** (perf). `<SystemStats>` (on /log)
+  now reads the cron-precomputed snapshot rather than running 5 count queries
+  plus a full per-episode duration scan on every render, falling back to a live
+  read only if the snapshot predates the field. The dynamic Open Graph image
+  (`opengraph-image.tsx`) reads the snapshot's dashboard data instead of the
+  live ~10-15s deep-join aggregate, so the shared-link preview card generates
+  fast on a cache miss. `HomeSnapshot` gains a `systemStats` field, written by
+  the score cron / `refresh:snapshot`.
+
 ## v0.24.1 · 2026-06-15
 
 ### Changed

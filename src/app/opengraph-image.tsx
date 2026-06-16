@@ -11,13 +11,16 @@
  * references the same image for Twitter cards via `summary_large_image`.
  *
  * Runtime: nodejs (not edge) - we need fs.readFileSync to inline the
- * crate PNG, and `getDashboardData` can pull thousands of rows with deep
- * joins. Vercel caches OG images by URL so cold-start cost is amortized.
+ * crate PNG. The Index data comes from the precomputed home snapshot (one
+ * indexed row), falling back to the live deep-join aggregate only if the
+ * snapshot is missing - the live path can take ~10-15s, which made the
+ * shared card slow to generate on every cache miss. Vercel caches OG images
+ * by URL so generation cost is otherwise amortized.
  */
 import { ImageResponse } from "next/og";
 import fs from "fs";
 import path from "path";
-import { getDashboardData } from "@/lib/aggregate";
+import { getDashboardData, readHomeSnapshot } from "@/lib/aggregate";
 import { SITE_TITLE, TAGLINE } from "@/lib/brand";
 import { DISPLAY_TZ } from "@/lib/utils";
 
@@ -54,7 +57,10 @@ function loadCrateDataUri(): string | null {
 export default async function OpengraphImage() {
   let data: Awaited<ReturnType<typeof getDashboardData>>;
   try {
-    data = await getDashboardData(7);
+    // Prefer the precomputed snapshot (one indexed row) over the live deep-join
+    // aggregate, so the card generates fast on a cache miss. Same data shape.
+    const snap = await readHomeSnapshot(7).catch(() => null);
+    data = snap?.dashboard ?? (await getDashboardData(7));
   } catch {
     data = {
       asOfDate: new Date().toISOString().slice(0, 10),

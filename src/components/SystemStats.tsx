@@ -1,4 +1,4 @@
-import { getSystemStats } from "@/lib/aggregate";
+import { getSystemStats, readSystemStatsSnapshot } from "@/lib/aggregate";
 import { Card } from "@/components/ui/card";
 
 function compactNumber(n: number): string {
@@ -45,7 +45,13 @@ function Stat({ value, label, sublabel }: StatProps) {
 }
 
 export async function SystemStats() {
-  const stats = await getSystemStats();
+  // Prefer the cron-precomputed snapshot (refreshed every 3h) so /log doesn't
+  // re-run getSystemStats - 5 count queries + a full per-episode duration scan -
+  // on every request. Falls back to a live read if the snapshot predates the
+  // field (first render after a deploy) or errors. The stats are pipeline-scale
+  // counters that only move as the pipeline runs, so 3h-stale is fine here.
+  const stats =
+    (await readSystemStatsSnapshot().catch(() => null)) ?? (await getSystemStats());
   const leanSplit = `${stats.channelsByLean.L} L · ${stats.channelsByLean.M} M · ${stats.channelsByLean.R} R`;
 
   // /log SystemStats is *pipeline-scale* only - what the system has been
