@@ -15,6 +15,7 @@
     "transcribe": "tsx scripts/transcribe.ts",
     "classify": "tsx scripts/classify.ts",
     "score": "tsx scripts/score.ts",
+  "score:emerging": "tsx scripts/score-emerging.ts",
     "refresh:snapshot": "tsx scripts/refresh-snapshot.ts",
     "refresh:trending": "tsx scripts/refresh-trending.ts",
     "drain": "tsx scripts/drain.ts",
