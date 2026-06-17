@@ -38,7 +38,7 @@ export default async function AdminChannelsPage() {
         <h1 className="text-2xl md:text-3xl font-semibold tracking-tight">Channels</h1>
         <p className="text-ink-muted mt-2 text-sm leading-relaxed max-w-3xl">
           Add a new alt-media channel to the panel. Enter a YouTube handle or
-          URL; we resolve it via the YT API, validate the **300K subscriber
+          URL; we resolve it via the YT API, validate the **200K subscriber
           floor**, insert it, and deep-ingest the last 30 episodes so it
           doesn&apos;t start empty. The transcribe → classify → score crons
           pick them up over the next 1–3 days.

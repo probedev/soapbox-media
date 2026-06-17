@@ -1,6 +1,6 @@
 {
   "name": "soapbox",
-  "version": "0.26.0",
+  "version": "0.27.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -22,8 +22,7 @@
     "discover": "tsx scripts/discover.ts",
     "discover:backfill": "tsx scripts/backfill-discovery.ts",
     "backfill:issues": "tsx scripts/backfill-issues.ts",
-    "discover:channels": "tsx scripts/discover-channels.ts",
-    "discover:podcasts": "tsx scripts/discover-podcasts.ts",
+    "channels": "tsx scripts/channels.ts",
     "seed:podcasts": "tsx scripts/seed-podcasts.ts",
     "backfill:channel-history": "tsx scripts/backfill-channel-history.ts",
     "eval:extract-gold-set": "tsx scripts/extract-gold-set.ts",

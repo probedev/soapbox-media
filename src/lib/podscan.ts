@@ -175,3 +175,43 @@ export async function getEpisodeTranscript(episodeId: string): Promise<string | 
     return null;
   }
 }
+
+// --- Field normalizers ---------------------------------------------------
+// PodScan's response keys vary by endpoint, so picking id/title/reach/url is
+// fallback logic. These were copied verbatim across several seed scripts; this
+// is now their single home (imported by addPodcastChannel + the channels CLI).
+
+/** The podcast's PodScan id, trying every key variant. */
+export function pickPodcastId(p: PodscanPodcast): string | null {
+  return p.podcast_id || p.id || p.uuid || p.pscid || p.slug || null;
+}
+
+/** The podcast's display title, trying every key variant. */
+export function pickPodcastTitle(p: PodscanPodcast): string {
+  return p.podcast_name || p.title || p.name || "(untitled)";
+}
+
+/**
+ * Best-effort editorial reach prior. PodScan's audience metrics are unreliable
+ * (see pipeline.ts), so this falls back to a 300K placeholder - which is the
+ * editorial seeder default, NOT the sub-floor (podcasts are never floor-gated).
+ * `apply-reach-estimates.ts` overwrites placeholders with anchored estimates.
+ */
+export function pickPodcastReach(p: PodscanPodcast): number {
+  const cands = [p.reach, p.reach_estimate, p.audience_size, p.monthly_listeners];
+  for (const x of cands) {
+    const n = typeof x === "string" ? parseInt(x, 10) : (x as number);
+    if (Number.isFinite(n) && (n as number) > 0) return Math.round(n as number);
+  }
+  return 300_000;
+}
+
+/** A stable unique source_url for an episode (audio, else permalink#guid). */
+export function episodeSourceUrl(ep: PodscanEpisode): string | null {
+  const audio = ep.episode_audio_url || ep.episode_audio_url_normalized || ep.audio_url;
+  const link = ep.episode_url || ep.episode_permalink || ep.url;
+  const guid = ep.episode_guid || ep.episode_id;
+  if (audio) return String(audio);
+  if (link && guid) return `${link}#${guid}`;
+  return link ? String(link) : guid ? `podscan:${guid}` : null;
+}

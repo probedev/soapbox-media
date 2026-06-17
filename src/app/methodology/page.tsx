@@ -174,10 +174,11 @@ export default function MethodologyPage() {
             until a transcript becomes available.
           </li>
           <li>
-            <strong>Short-form content</strong>: YouTube Shorts (under 3 minutes) are filtered
-            from ingestion because they don&apos;t contain enough discussion to score reliably.
-            That underweights creators (e.g., Adam Mockler, Matt Walsh) whose YouTube presence is
-            primarily clips. Their podcast feeds, where available, fill the gap.
+            <strong>Short-form content</strong>: very short clips (under ~2 minutes) are filtered
+            from ingestion because they rarely contain enough discussion to score reliably. The
+            floor was lowered in 2026 to admit substantive short-form shows (e.g., NowThis Impact);
+            creators whose presence is primarily sub-2-minute clips remain underweighted, and their
+            podcast feeds, where available, fill the gap.
           </li>
           <li>
             <strong>Scoring is model-produced and being calibrated</strong>: sentiment and

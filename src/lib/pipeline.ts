@@ -33,8 +33,12 @@ export function assertCronAuth(request: NextRequest): NextResponse | null {
   return null;
 }
 
-export const MIN_DURATION_SEC = 180;
-export const INGEST_PER_CHANNEL = 3;
+// Lowered from 180s to admit curated short-form (e.g. NowThis Impact). Shorter
+// transcripts also classify cheaper per episode.
+export const MIN_DURATION_SEC = 126;
+// Cost lever for the 250-show panel: at ~265-270 active rows, 3/run breaches the
+// $1k/mo budget (~$1.0k+); 2/run holds it near ~$785/mo. Set BEFORE the +70.
+export const INGEST_PER_CHANNEL = 2;
 // Transcribe runs through a concurrency pool too. Each Supadata call takes a
 // few seconds, so concurrency 8 keeps the request rate ~2/s - well under the
 // 10/s Supadata limit. Higher per-run limit since it's no longer serial.

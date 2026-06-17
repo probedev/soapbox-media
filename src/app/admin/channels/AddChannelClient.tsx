@@ -161,7 +161,7 @@ export function AddChannelClient() {
             <span className="text-amber-700"> ⚠ Already in the panel - adding will be rejected.</span>
           )}
           {preview.belowFloor && (
-            <span className="text-amber-700"> ⚠ Below the 300K subscriber floor.</span>
+            <span className="text-amber-700"> ⚠ Below the 200K subscriber floor.</span>
           )}
         </div>
       )}
@@ -183,7 +183,7 @@ export function AddChannelClient() {
         </Button>
       </div>
       <div className="text-[11px] text-muted-foreground mt-2">
-        Resolves via YT API. Requires ≥300K subscribers. &ldquo;Resolve &amp; draft&rdquo;
+        Resolves via YT API. Requires ≥200K subscribers. &ldquo;Resolve &amp; draft&rdquo;
         auto-generates the description (Haiku) for you to edit. Deep-ingests 30 recent
         episodes; the cron processes them automatically.
       </div>

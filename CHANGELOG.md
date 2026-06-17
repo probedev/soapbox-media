@@ -7,6 +7,69 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
+## v0.27.0 · 2026-06-17
+
+### Added
+
+- **Consolidated channel-expansion CLI** (`npm run channels -- <subcommand>`,
+  `scripts/channels.ts`) toward a 250-show panel. One repeatable loop replaces
+  the fragmented one-off discovery/seed scripts: `discover` (YouTube
+  featured-channels + iTunes search + an `--editorial file.json` curated-list
+  path, persisted to the new `channel_candidates` table, deduped centrally vs
+  the live panel), `vet` (quality predicates), `relevance` (a cheap batched
+  Haiku screen that demotes off-topic / foreign-language candidates, biased to
+  keep when uncertain), `review` (ranked CSV + table for manual sign-off),
+  `approve`, `promote`
+  (onboards only approved candidates; dry-run by default), plus `audit` and
+  `prune` for panel cleanup. Approval is manual: nothing reaches the panel
+  without a human flipping a candidate to `approved`.
+- **`channel_candidates` table** (migration `20260617120000`): durable, re-runnable
+  candidate store with a status lifecycle and central dedup key.
+- **Podcast onboarding parity**: `addPodcastChannel()` in `src/lib/channels.ts`
+  (the podcast counterpart to `addYouTubeChannel`), plus `addYouTubeChannelById()`
+  for id-based onboarding from featured-channel discovery. PodScan field
+  normalizers consolidated into `src/lib/podscan.ts`.
+- **Pure, unit-tested libs**: `src/lib/channel-dedup.ts` (one name matcher,
+  replacing four scattered normalizers) and `src/lib/channel-vet.ts`
+  (reach/recency/lean predicates), each with a Vitest suite.
+- **Curation helpers**: `siblings` (excludes candidates already in the panel on
+  the other platform, plus same-platform duplicates the matcher missed),
+  `recover` (re-resolves stale/misresolved podcast feeds to their live feed via
+  the freshness-anchored resolver, pruning any with no live feed),
+  `review --describe` (batched site-voice one-line descriptions to speed manual
+  review), and a `--platform` review filter.
+
+### Changed
+
+- **Reach floor 300K -> 200K, YouTube only.** Podcast reach is editorial and is
+  never floor-gated. `SUB_FLOOR` now lives in `channel-vet.ts` as the single
+  source of truth.
+- **Duration floor 180s -> 126s** (`MIN_DURATION_SEC`) to admit curated
+  short-form (e.g. NowThis Impact). Methodology + admin copy updated.
+- **`INGEST_PER_CHANNEL` 3 -> 2** (cost lever): keeps a ~250-show panel within
+  the ~$1k/mo budget before the expansion lands.
+- Retired the folded `discover-channels` / `discover-podcasts` scripts (and their
+  npm aliases) in favor of `channels discover`.
+
+### Fixed
+
+- **Channel-dedup precision**: `nameMatches` matched on a shared longest token,
+  over-matching channels that share only a generic first name or word ("David
+  Frum" vs "David Pakman", "Glenn Beck" vs "Glenn Greenwald", "Lincoln Project"
+  vs "Chris Cuomo Project"). Replaced with full-substring containment (shorter
+  name fully inside the longer, >= 5 chars and multi-word or >= 7 chars). The
+  `siblings` sweep also now catches same-platform duplicates the old matcher let
+  slip. Locked with tests.
+- **Podcast feed resolution**: `addPodcastChannel` now freshness-anchors -
+  searches query variants (normalizing curly apostrophes that broke search),
+  keeps only title-matching feeds, picks the newest-episode one, and refuses any
+  feed whose freshest episode is > 120 days old. The prior "first search hit"
+  onboarded dead/abandoned feeds (2018-era Anderson Cooper, empty feeds).
+- **Podcast episode filter**: `addPodcastChannel` no longer drops episodes whose
+  PodScan duration is missing/0 (podcasts are long-form; the duration floor now
+  applies only when a duration is known), so feeds without duration metadata
+  still backfill.
+
 ## v0.26.0 · 2026-06-16
 
 ### Added

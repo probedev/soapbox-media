@@ -18,7 +18,7 @@ import "./_load-env";
 import { createServiceClient } from "@/lib/db";
 import { getUploadsSince } from "@/lib/youtube";
 
-const MIN_DURATION_SEC = 180;
+const MIN_DURATION_SEC = 126; // admits curated short-form; mirrors pipeline.ts
 
 async function main() {
   const perDay = parseInt(process.argv[2] || "3", 10);

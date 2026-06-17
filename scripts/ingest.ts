@@ -31,10 +31,9 @@ interface ChannelRow {
 }
 
 /** Minimum duration in seconds for an episode to be ingested.
- *  Episodes shorter than this are typically YouTube Shorts, podcast
- *  promos, or trailers — too short for meaningful per-issue sentiment
- *  classification. Setting to 3 minutes per Gregg 2026-05-11. */
-const MIN_DURATION_SEC = 180;
+ *  Lowered from 180s (2026-06-17) to admit curated short-form (e.g. NowThis
+ *  Impact); shorter still filters most promos/trailers. Mirrors pipeline.ts. */
+const MIN_DURATION_SEC = 126;
 
 interface IngestResult {
   channel: string;

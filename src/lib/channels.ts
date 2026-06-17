@@ -5,16 +5,31 @@
  * action. Encapsulates: handle parsing, YT resolve + sub-floor check,
  * dedup-against-panel, insert, and historical backfill.
  *
- * v1 scope: YouTube only. Podcast onboarding (via PodScan search) is a
- * planned follow-on; the data model already supports it.
+ * Covers both platforms: addYouTubeChannel (YT resolve + sub-floor) and
+ * addPodcastChannel (PodScan resolve + inline-transcript ingest). Podcast
+ * onboarding consolidates logic that was copied across the retired seed scripts.
  */
 import { createServiceClient } from "./db";
-import { resolveChannelByHandle, getRecentUploads } from "./youtube";
+import { resolveChannelByHandle, getRecentUploads, getChannelDetailsBatch } from "./youtube";
+import {
+  searchPodcasts,
+  getPodcastById,
+  getPodcastEpisodes,
+  pickPodcastId,
+  pickPodcastTitle,
+  pickPodcastReach,
+  episodeSourceUrl,
+  type PodscanPodcast,
+  type PodscanEpisode,
+} from "./podscan";
 import { getAnthropicClient, MODEL_RATIONALE } from "./anthropic";
 import type { Cohort } from "./cohort";
+import { SUB_FLOOR } from "./channel-vet";
+import { matchChannel, nameMatches } from "./channel-dedup";
 
-const MIN_DURATION_SEC = 180;
-const SUB_FLOOR = 300_000;
+// Admits curated short-form (e.g. NowThis Impact). Lowered from 180s; the YT
+// sub floor (SUB_FLOOR) is the single source of truth, imported from channel-vet.
+const MIN_DURATION_SEC = 126;
 
 const LEAN_LABEL = { L: "Left", M: "Middle / cross-cutting", R: "Right" } as const;
 
@@ -247,5 +262,308 @@ export async function addYouTubeChannel(input: AddChannelInput): Promise<AddChan
     fetched: videos.length,
     kept: longEnough.length,
     upserted,
+  };
+}
+
+/**
+ * Add a YouTube channel by its channel id (not handle) + deep-ingest history.
+ * Used by `channels promote`, whose featured-channel candidates carry the
+ * channel id rather than a handle. The uploads playlist id follows YouTube's
+ * stable UC->UU convention, so no extra resolve call is needed.
+ */
+export async function addYouTubeChannelById(input: {
+  channelId: string;
+  lean: "L" | "M" | "R";
+  rationale?: string;
+  cohort?: Cohort;
+  nameOverride?: string;
+  reachOverride?: number;
+  backfillCount?: number;
+}): Promise<AddChannelResult> {
+  const { channelId } = input;
+  const details = await getChannelDetailsBatch([channelId]);
+  const d = details.get(channelId);
+  if (!d) throw new Error(`YouTube channel ${channelId} not found.`);
+
+  const reach = input.reachOverride ?? d.subscriberCount;
+  if (reach < SUB_FLOOR) {
+    throw new Error(
+      `${d.title} has ${d.subscriberCount.toLocaleString()} subscribers - below the ${SUB_FLOOR.toLocaleString()} floor.`,
+    );
+  }
+
+  const db = createServiceClient();
+  const { data: existing } = await db
+    .from("channels")
+    .select("id, name")
+    .eq("platform", "youtube")
+    .eq("platform_id", channelId)
+    .maybeSingle();
+  if (existing) throw new Error(`"${existing.name}" is already in the panel.`);
+
+  const rationale =
+    input.rationale?.trim() ||
+    (await generateChannelRationale({ title: d.title, description: d.description, lean: input.lean }));
+
+  const { data: inserted, error: insErr } = await db
+    .from("channels")
+    .insert({
+      name: input.nameOverride?.trim() || d.title,
+      platform: "youtube",
+      platform_id: channelId,
+      political_lean: input.lean,
+      cohort: input.cohort ?? "independent",
+      reach,
+      classification_rationale: rationale,
+      active: true,
+    })
+    .select("id, name")
+    .single();
+  if (insErr || !inserted) throw new Error(`Insert failed: ${insErr?.message || "unknown"}`);
+
+  // Deep-ingest via the UC->UU uploads-playlist convention (best-effort).
+  let videos: Awaited<ReturnType<typeof getRecentUploads>> = [];
+  if (channelId.startsWith("UC")) {
+    const uploadsPlaylistId = "UU" + channelId.slice(2);
+    try {
+      videos = await getRecentUploads(uploadsPlaylistId, input.backfillCount ?? 30);
+    } catch {
+      /* best-effort: the channel is still added; the next cron ingest fills in */
+    }
+  }
+  const longEnough = videos.filter((v) => (v.durationSec ?? 0) >= MIN_DURATION_SEC);
+  let upserted = 0;
+  for (const v of longEnough) {
+    const { error, data } = await db
+      .from("episodes")
+      .upsert(
+        {
+          channel_id: inserted.id,
+          title: v.title,
+          published_at: v.publishedAt,
+          source_url: v.url,
+          duration_sec: v.durationSec ?? null,
+        },
+        { onConflict: "channel_id,source_url", ignoreDuplicates: false },
+      )
+      .select();
+    if (!error && data && data.length > 0) upserted++;
+  }
+
+  return {
+    channelId: inserted.id,
+    name: inserted.name,
+    subscriberCount: reach,
+    fetched: videos.length,
+    kept: longEnough.length,
+    upserted,
+  };
+}
+
+export interface AddPodcastInput {
+  /** PodScan search query (typically the show name). Ignored if podcastId set. */
+  query?: string;
+  /** Explicit PodScan podcast id - skips search. */
+  podcastId?: string;
+  lean: "L" | "M" | "R";
+  /** One-sentence rationale; auto-drafted in house voice if omitted. */
+  rationale?: string;
+  cohort?: Cohort;
+  nameOverride?: string;
+  /** Editorial reach override; else best-effort from PodScan (300K placeholder). */
+  reachOverride?: number;
+  /** Max episodes to deep-ingest after adding. Default 30. */
+  backfillCount?: number;
+}
+
+export interface AddPodcastResult {
+  channelId: string;
+  name: string;
+  reach: number;
+  fetched: number;
+  kept: number;
+  upserted: number;
+  transcripts: number;
+}
+
+// A feed whose newest episode is older than this is treated as dead and never
+// onboarded (PodScan returns many abandoned/duplicate feeds for a show name).
+const FEED_STALE_LIMIT_MS = 120 * 24 * 60 * 60 * 1000;
+
+/** Query variants for a show name: normalize curly apostrophes (which break
+ *  PodScan search) and add a shortened form, so "Bill O'Reilly's No Spin News
+ *  and Analysis" still resolves. */
+function podcastQueryVariants(q: string): string[] {
+  const straight = q.replace(/[‘’ʼ`']/g, "'");
+  const noApos = q.replace(/[‘’ʼ`']/g, "");
+  const words = q.split(/\s+/).filter(Boolean);
+  const variants = [q, straight, noApos];
+  if (words.length > 4) variants.push(words.slice(0, 4).join(" "));
+  return [...new Set(variants.map((v) => v.trim()).filter(Boolean))];
+}
+
+/**
+ * Resolve a podcast NAME to its LIVE PodScan feed. Searches several query
+ * variants, keeps only feeds whose title matches the query (anchor-gated, so a
+ * wrong feed can't sneak in - this is what onboarded "Hell and High Water" for
+ * "Impolitic"), and picks the one with the NEWEST episode. Rejects feeds with
+ * no recent episode so dead/abandoned feeds (2018-era Anderson Cooper, empty
+ * feeds) are never onboarded. Mirrors the proven recover-feeds.ts logic.
+ */
+export async function resolveLiveFeed(query: string): Promise<PodscanPodcast> {
+  const seen = new Map<string, { pod: PodscanPodcast; latest: number }>();
+  for (const q of podcastQueryVariants(query)) {
+    let results: PodscanPodcast[] = [];
+    try {
+      results = await searchPodcasts(q);
+    } catch {
+      continue;
+    }
+    for (const p of results.slice(0, 5)) {
+      const id = pickPodcastId(p);
+      if (!id || seen.has(id)) continue;
+      if (!nameMatches(query, pickPodcastTitle(p))) continue; // title MUST match
+      let latest = 0;
+      try {
+        const eps = await getPodcastEpisodes(id, 1);
+        const d = eps[0]?.posted_at || eps[0]?.published_at || eps[0]?.created_at;
+        latest = d ? Date.parse(String(d)) || 0 : 0;
+      } catch {
+        /* leave latest = 0 */
+      }
+      seen.set(id, { pod: p, latest });
+    }
+  }
+  let best: { pod: PodscanPodcast; latest: number } | null = null;
+  for (const v of seen.values()) if (!best || v.latest > best.latest) best = v;
+  if (!best) throw new Error(`No PodScan title match for "${query}".`);
+  if (!best.latest) throw new Error(`No live feed for "${query}" (no datable episodes).`);
+  if (Date.now() - best.latest > FEED_STALE_LIMIT_MS) {
+    throw new Error(
+      `No live feed for "${query}" (freshest episode ${Math.floor((Date.now() - best.latest) / 86_400_000)}d old).`,
+    );
+  }
+  return best.pod;
+}
+
+/**
+ * Add a podcast channel to the panel + deep-ingest recent episodes with their
+ * inline PodScan transcripts. The podcast counterpart to addYouTubeChannel.
+ * No reach floor: podcast reach is editorial, never floor-gated. Throws on
+ * failure with a user-readable message.
+ */
+export async function addPodcastChannel(input: AddPodcastInput): Promise<AddPodcastResult> {
+  // 1. Resolve the podcast (explicit id, or freshness-anchored live-feed search).
+  let pod: PodscanPodcast | null = null;
+  if (input.podcastId) {
+    pod = (await getPodcastById(input.podcastId)) ?? ({ podcast_id: input.podcastId } as PodscanPodcast);
+  } else if (input.query?.trim()) {
+    pod = await resolveLiveFeed(input.query.trim());
+  } else {
+    throw new Error("Provide a PodScan query or podcastId.");
+  }
+
+  const podcastId = pickPodcastId(pod);
+  if (!podcastId) throw new Error("Resolved podcast has no usable PodScan id.");
+  const name = input.nameOverride?.trim() || pickPodcastTitle(pod);
+  const reach = input.reachOverride ?? pickPodcastReach(pod);
+
+  // 2. Dedup against the panel. A same-platform match is a real duplicate;
+  //    a cross-platform same-name row is a sibling (allowed - the show is on
+  //    both YouTube and a podcast feed by design). Unpaginated select is safe
+  //    here: the panel is bounded well under the 1000-row cap (~250 shows).
+  const db = createServiceClient();
+  const { data: existing } = await db
+    .from("channels")
+    .select("id, name, platform, platform_id");
+  const dup = matchChannel(
+    { name, platform: "podcast", platform_id: podcastId },
+    (existing ?? []) as { id: string; name: string; platform: "youtube" | "podcast"; platform_id: string | null }[],
+  );
+  if (dup.match && dup.samePlatform) {
+    throw new Error(`"${dup.match.name}" is already in the panel.`);
+  }
+
+  // 3. Fetch episodes (for rationale grounding + backfill).
+  const N = input.backfillCount ?? 30;
+  const eps = await getPodcastEpisodes(podcastId, N).catch(() => [] as PodscanEpisode[]);
+
+  // 4. Rationale (auto-draft if not supplied).
+  const rationale =
+    input.rationale?.trim() ||
+    (await generateChannelRationale({
+      title: name,
+      description: pod.description || "",
+      lean: input.lean,
+      recentTitles: eps.slice(0, 8).map((e) => e.episode_title || e.title || "").filter(Boolean),
+    }));
+
+  // 5. Insert the channel.
+  const { data: inserted, error: insErr } = await db
+    .from("channels")
+    .insert({
+      name,
+      platform: "podcast",
+      platform_id: podcastId,
+      political_lean: input.lean,
+      cohort: input.cohort ?? "independent",
+      reach,
+      classification_rationale: rationale,
+      active: true,
+    })
+    .select("id, name")
+    .single();
+  if (insErr || !inserted) throw new Error(`Insert failed: ${insErr?.message || "unknown"}`);
+
+  // 6. Deep-ingest episodes + inline transcripts.
+  let upserted = 0;
+  let transcripts = 0;
+  const seenUrl = new Set<string>();
+  for (const ep of eps) {
+    const url = episodeSourceUrl(ep);
+    const published = ep.posted_at || ep.published_at || ep.created_at;
+    const duration = Number(ep.episode_duration ?? ep.duration ?? 0);
+    // Podcasts are long-form; only drop when the duration is KNOWN and too short.
+    // A missing/0 duration from PodScan must not filter the whole feed out.
+    if (!url || !published || (duration > 0 && duration < MIN_DURATION_SEC) || seenUrl.has(url)) continue;
+    seenUrl.add(url);
+    const { data: er } = await db
+      .from("episodes")
+      .upsert(
+        {
+          channel_id: inserted.id,
+          title: String(ep.episode_title || ep.title || "(untitled)").slice(0, 500),
+          published_at: published,
+          source_url: url,
+          duration_sec: Math.round(duration) || null,
+        },
+        { onConflict: "channel_id,source_url", ignoreDuplicates: false },
+      )
+      .select();
+    if (!er?.[0]) continue;
+    upserted++;
+    const text = ep.episode_transcript || ep.transcript || ep.text;
+    if (text && String(text).trim()) {
+      const { error: te } = await db
+        .from("transcripts")
+        .upsert(
+          { episode_id: er[0].id, text: String(text), provider: "podscan" },
+          { onConflict: "episode_id", ignoreDuplicates: false },
+        );
+      if (!te) {
+        transcripts++;
+        await db.from("episodes").update({ transcript_status: "fetched" }).eq("id", er[0].id);
+      }
+    }
+  }
+
+  return {
+    channelId: inserted.id,
+    name: inserted.name,
+    reach,
+    fetched: eps.length,
+    kept: upserted,
+    upserted,
+    transcripts,
   };
 }
