@@ -18,8 +18,6 @@
  * by URL so generation cost is otherwise amortized.
  */
 import { ImageResponse } from "next/og";
-import fs from "fs";
-import path from "path";
 import { getDashboardData, readHomeSnapshot } from "@/lib/aggregate";
 import { SITE_TITLE, TAGLINE } from "@/lib/brand";
 import { DISPLAY_TZ } from "@/lib/utils";
@@ -41,30 +39,20 @@ function formatAsOf(iso: string): string {
   });
 }
 
-// Inline the crate logo as a base64 data URI. We use the 256x256 favicon
-// version rather than the 1024x1024 source asset - same visual, ~20x
-// smaller payload (~56KB vs ~1.2MB).
-function loadCrateDataUri(): string | null {
-  try {
-    // Read from public/ (not src/app/icon.png): on Vercel the serverless
-    // function can fs-read bundled public assets but not src/app/icon.png, so
-    // the crate was silently dropping off the live card. Same 256px crate.
-    const p = path.join(process.cwd(), "public/brand/soapbox-icon-256.png");
-    const buf = fs.readFileSync(p);
-    return `data:image/png;base64,${buf.toString("base64")}`;
-  } catch {
-    return null;
-  }
-}
+// Brand origin. The crate and wordmark are served as static CDN assets here;
+// the apex redirects to www, so use www directly.
+const BRAND_ORIGIN = "https://www.soapbox.media";
 
-// The wordmark as a pixel-perfect PNG (Protest Strike, outlined) rather than
-// live text: embedding the brand asset keeps the OG logotype identical to the
-// site and avoids forcing a display font into Satori's font set (which would
-// fall back the whole card to it). Body text keeps next/og's default sans.
-function loadWordmarkDataUri(): string | null {
+// Inline a brand image as a base64 data URI. Bytes are sourced by fetching the
+// deployed CDN asset rather than fs.readFileSync(process.cwd()/...): the Vercel
+// serverless function does not reliably bundle public/ files for fs reads (the
+// crate was silently dropping off the live card that way), but the CDN asset is
+// always available. Satori renders data URIs reliably (the wordmark proves it).
+async function fetchImageDataUri(pathname: string): Promise<string | null> {
   try {
-    const p = path.join(process.cwd(), "public/brand/soapbox-wordmark.png");
-    const buf = fs.readFileSync(p);
+    const res = await fetch(`${BRAND_ORIGIN}${pathname}`, { cache: "force-cache" });
+    if (!res.ok) return null;
+    const buf = Buffer.from(await res.arrayBuffer());
     return `data:image/png;base64,${buf.toString("base64")}`;
   } catch {
     return null;
@@ -96,8 +84,10 @@ export default async function OpengraphImage() {
     };
   }
 
-  const crateDataUri = loadCrateDataUri();
-  const wordmarkDataUri = loadWordmarkDataUri();
+  const [crateDataUri, wordmarkDataUri] = await Promise.all([
+    fetchImageDataUri("/brand/soapbox-icon-256.png"),
+    fetchImageDataUri("/brand/soapbox-wordmark.png"),
+  ]);
 
   const indexAbs = Math.abs(data.index);
   const indexColor =

@@ -7,6 +7,17 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
+## v0.29.2 · 2026-06-18
+
+### Fixed
+
+- **OG social card crate now renders on production.** The v0.29.1 attempt (read
+  the crate from `public/` via `fs`) still failed on Vercel, where the
+  serverless function does not reliably bundle `public/` files for `fs` reads.
+  The card now sources both the crate and the wordmark by fetching the deployed
+  CDN assets and inlining them as data URIs (which Satori renders reliably),
+  removing the `fs`-based loaders entirely.
+
 ## v0.29.1 · 2026-06-18
 
 ### Changed
