@@ -46,7 +46,10 @@ function formatAsOf(iso: string): string {
 // smaller payload (~56KB vs ~1.2MB).
 function loadCrateDataUri(): string | null {
   try {
-    const p = path.join(process.cwd(), "src/app/icon.png");
+    // Read from public/ (not src/app/icon.png): on Vercel the serverless
+    // function can fs-read bundled public assets but not src/app/icon.png, so
+    // the crate was silently dropping off the live card. Same 256px crate.
+    const p = path.join(process.cwd(), "public/brand/soapbox-icon-256.png");
     const buf = fs.readFileSync(p);
     return `data:image/png;base64,${buf.toString("base64")}`;
   } catch {

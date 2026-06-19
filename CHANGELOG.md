@@ -7,6 +7,23 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
+## v0.29.1 · 2026-06-18
+
+### Changed
+
+- **Higher-fidelity crate everywhere.** Swapped the wooden-crate mark to the
+  polished source render across the header, app icon (`src/app/icon.png`), MCP
+  icon, the OG card, and the brand download assets (logo PNGs + 256px icon).
+  `public/favicon.ico` is left as-is (indistinguishable from the new crate at
+  16px without an ICO toolchain locally).
+
+### Fixed
+
+- **OG social card was missing the crate on production.** It read the crate from
+  `src/app/icon.png`, which the Vercel serverless function cannot `fs`-read (the
+  wordmark, read from `public/`, rendered fine, which is what surfaced it). The
+  card now reads the crate from `public/`, so it renders on the live card again.
+
 ## v0.29.0 · 2026-06-18
 
 ### Changed
