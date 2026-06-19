@@ -15,12 +15,12 @@ import {
 // product's headline numbers; a change here should be deliberate.
 
 describe("reachFactor", () => {
-  it("is log10 with a floor at reach 10", () => {
-    expect(reachFactor(10_000_000)).toBeCloseTo(7);
-    expect(reachFactor(100_000)).toBeCloseTo(5);
-    expect(reachFactor(10)).toBeCloseTo(1);
-    expect(reachFactor(1)).toBeCloseTo(1); // floored at 10, not -> 0 or negative
-    expect(reachFactor(0)).toBeCloseTo(1);
+  it("is sqrt anchored at 10M -> 7, floored at reach 10", () => {
+    expect(reachFactor(10_000_000)).toBeCloseTo(7); // the anchor
+    expect(reachFactor(40_000_000)).toBeCloseTo(14); // 4x reach -> 2x weight (sqrt)
+    expect(reachFactor(100_000)).toBeCloseTo(0.7);
+    expect(reachFactor(1)).toBeCloseTo(reachFactor(10)); // floored at 10, not -> 0
+    expect(reachFactor(0)).toBeCloseTo(reachFactor(10));
   });
 });
 
@@ -31,13 +31,15 @@ describe("weightedLean", () => {
 
   it("weights each mention by reachFactor x intensity", () => {
     // single row: lean == its sentiment, weight == reachFactor(reach) * intensity
-    const row = { sentiment: 3, intensity: 2, channel_reach: 100_000 }; // rf = 5
-    expect(weightedLean([row])).toEqual({ lean: 3, weight: 10 });
+    const row = { sentiment: 3, intensity: 2, channel_reach: 100_000 }; // rf = 0.7
+    const { lean, weight } = weightedLean([row]);
+    expect(lean).toBeCloseTo(3); // weighted mean of one row == its sentiment
+    expect(weight).toBeCloseTo(1.4); // reachFactor(100k)=0.7 x intensity 2
   });
 
   it("lets a higher-reach, higher-intensity mention dominate the mean", () => {
     const big = { sentiment: 4, intensity: 5, channel_reach: 10_000_000 }; // rf 7, w 35
-    const small = { sentiment: -4, intensity: 1, channel_reach: 10 }; // rf 1, w 1
+    const small = { sentiment: -4, intensity: 1, channel_reach: 10 }; // rf ~0.007, w ~0.007
     expect(weightedLean([big, small]).lean).toBeGreaterThan(3); // pulled toward +4
   });
 });

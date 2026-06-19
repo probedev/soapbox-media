@@ -5,10 +5,12 @@
  * (this page may take ~10s - fine for an admin decision tool, NOT the shape
  * production cards will use; those will be folded into the home snapshot).
  *
- * All weighting matches the Index: weight = intensity × log10(reach);
- * lean = Σ(sent·w)/Σw; index = clip(lean × 2, −10, +10).
+ * All weighting matches the Index: weight = intensity × reachFactor(reach)
+ * (sqrt-weighted, shared with the Index); lean = Σ(sent·w)/Σw;
+ * index = clip(lean × 2, −10, +10).
  */
 import { createServiceClient } from "@/lib/db";
+import { reachFactor } from "@/lib/scoring";
 
 export interface LabRow {
   sent: number;
@@ -26,7 +28,7 @@ export interface LabRow {
 }
 
 const DAY = 86_400_000;
-const rf = (reach: number) => Math.log10(Math.max(reach, 10));
+const rf = reachFactor; // shared with the Index (sqrt-weighted), never drift
 const w = (r: LabRow) => r.inten * rf(r.reach);
 const clip = (n: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, n));
 

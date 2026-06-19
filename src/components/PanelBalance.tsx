@@ -217,7 +217,7 @@ export function PanelBalance({ shows }: PanelBalanceProps) {
             <span className="tabular-nums">{compactReach(avg[smallest])}</span>{" "}
             for {sideLabel(smallest)}), so total reach skews {biggest}. The
             Soapbox Index weights every mention by{" "}
-            <code className="text-[11px] bg-muted px-1 rounded">log10(reach)</code>,
+            <code className="text-[11px] bg-muted px-1 rounded">sqrt(reach)</code>,
             which dampens this asymmetry but doesn&apos;t erase it - worth
             knowing when reading the Index number.
           </>

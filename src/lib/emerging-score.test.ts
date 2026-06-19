@@ -16,18 +16,18 @@ describe("topicWeight (recency decay)", () => {
   const now = Date.UTC(2026, 0, 8);
 
   it("is full reach weight at age 0 and halves every half-life", () => {
-    const reach = 100_000; // reachFactor = 5
-    expect(topicWeight(reach, new Date(now).toISOString(), now)).toBeCloseTo(5);
+    const reach = 10_000_000; // reachFactor = 7 (sqrt anchor)
+    expect(topicWeight(reach, new Date(now).toISOString(), now)).toBeCloseTo(7);
     expect(
       topicWeight(reach, new Date(now - RECENCY_HALF_LIFE_DAYS * DAY).toISOString(), now),
-    ).toBeCloseTo(2.5);
+    ).toBeCloseTo(3.5);
     expect(
       topicWeight(reach, new Date(now - 2 * RECENCY_HALF_LIFE_DAYS * DAY).toISOString(), now),
-    ).toBeCloseTo(1.25);
+    ).toBeCloseTo(1.75);
   });
 
   it("treats a future-dated episode as age 0 (never negative age)", () => {
-    expect(topicWeight(100_000, new Date(now + 5 * DAY).toISOString(), now)).toBeCloseTo(5);
+    expect(topicWeight(10_000_000, new Date(now + 5 * DAY).toISOString(), now)).toBeCloseTo(7);
   });
 });
 

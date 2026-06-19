@@ -7,6 +7,41 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
+## v0.30.0 · 2026-06-19
+
+### Changed
+
+- **Reach weighting moves from log10 to sqrt, system-wide.** The Index is an
+  audience-impact measure, but `log10(reach)` turned a 95x audience gap into a
+  ~1.4x weight gap (one notch of intensity outweighed it). `reachFactor` is now
+  `7 x sqrt(reach / 1e7)` (anchored so 10M reach still maps to 7, keeping
+  displayed weights and the published scale familiar): a 100x larger audience now
+  carries ~10x the weight, so a mega-channel genuinely moves the needle without a
+  single show running away with it. Single source of truth in `src/lib/scoring.ts`;
+  `weightedLean`, the emerging-board weight, and `/admin/homelab` all inherit it.
+  Measured impact on the live Index is moderate (overall ~0.2, most issues < 0.7).
+- **Dual-platform shows are weighted by their YouTube audience.** For any show
+  tracked on both YouTube and as a podcast, the podcast row's reach is synced to
+  the measured, daily-refreshed YouTube subscriber count rather than an editorial
+  podcast estimate (e.g. Joe Rogan: 14.5M estimate -> 21M subscribers). New
+  `scripts/sync-reach.ts` (audit by default, `--apply` to write). This matters
+  more under sqrt, which leans harder on reach accuracy.
+- **Methodology page updated** to describe sqrt weighting honestly, including that
+  reach-estimate error now matters more (a 2x error is ~1.4x weight, not ~5%),
+  which is why measured YouTube counts are now preferred.
+
+### Added
+
+- **"Who's driving this issue" breakdown.** A new diverging, reach-weighted
+  contribution chart (`IssueMovementBreakdown`) decomposes an issue's weekly lean
+  into each show's signed pull - the per-show fractal of the Index contribution
+  chart. Shows are canonicalized (a show on both YouTube and podcast collapses to
+  one bar), each carries both its editorial L/M/R badge and its stance-colored
+  bar (they can diverge - a left show can post a right-coded bar), with the
+  audience reach and a representative quote + source link. Renders for the top
+  mover on the home page and on every issue page (7-day window). Shared
+  `src/lib/canonical-show.ts` helper backs both the chart and reach-favoring.
+
 ## v0.29.2 · 2026-06-18
 
 ### Fixed

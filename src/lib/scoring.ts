@@ -10,9 +10,19 @@ export function clamp(n: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, n));
 }
 
-/** log10 reach weight, floored at reach 10 so tiny channels still count a little. */
+/**
+ * Reach weight: sqrt of audience, anchored so 10M reach -> 7 (the same anchor the
+ * old log10 scale hit, so displayed weights and the published scale stay familiar).
+ *
+ * Why sqrt, not log10: the Index is an audience-impact measure, so a far larger
+ * audience should move the needle far more. log10 turned a 95x audience gap into a
+ * ~1.4x weight gap (one notch of intensity outweighed it); sqrt makes that same
+ * gap ~10x. The `/1e7` anchor keeps the output range (~0..10) and the displayed
+ * `weight` integers comparable to log10's, so nothing magnitude-coupled balloons.
+ * Floored at reach 10 to avoid sqrt(0); no real channel is near it.
+ */
 export function reachFactor(reach: number): number {
-  return Math.log10(Math.max(reach, 10));
+  return 7 * Math.sqrt(Math.max(reach, 10) / 1e7);
 }
 
 /** Minimal row shape weightedLean needs; aggregate's ScoreRow satisfies it structurally. */

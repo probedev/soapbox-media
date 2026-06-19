@@ -33,7 +33,7 @@ export default function MethodologyPage() {
           the most recent week of content but updates daily as new episodes are ingested.
         </p>
         <div className="mt-4 p-5 bg-subtle border border-border rounded-md font-mono text-sm text-ink-strong leading-relaxed">
-          reach_factor = log10(max(channel_reach, 10))
+          reach_factor = 7 × sqrt(max(channel_reach, 10) / 10,000,000)
           <br />
           weight = intensity × reach_factor
           <br />
@@ -51,9 +51,12 @@ export default function MethodologyPage() {
         </p>
         <p className="text-ink-body mt-4 leading-relaxed">
           Two deliberate choices keep this honest. First, every voice is weighted by its{" "}
-          <strong>audience reach</strong> (the <code className="text-sm">log10</code> above), so a
-          5M-subscriber show counts for more than a 50K one - the Index reflects what audiences
-          actually hear, not a one-channel-one-vote average. Second, each channel is{" "}
+          <strong>audience reach</strong> (the <code className="text-sm">sqrt</code> above), so a
+          5M-subscriber show counts for much more than a 50K one - the Index reflects what
+          audiences actually hear, not a one-channel-one-vote average. We weight by the square root
+          of reach rather than its logarithm: a 100× larger audience carries about 10× the weight,
+          so a mega-channel genuinely moves the needle, but a single huge show still can&apos;t run
+          away with it. Second, each channel is{" "}
           <strong>capped at 3 episodes per day</strong>, so a high-frequency publisher can&apos;t
           flood the Index by sheer posting volume. The result measures <em>stance per unit of
           audience</em> - where a channel leans and how big its audience is - not who posts most
@@ -106,11 +109,18 @@ export default function MethodologyPage() {
           June&nbsp;2026.
         </p>
         <p className="text-ink-body mt-4 leading-relaxed">
-          Why this is tolerable: the Index weights by <code className="text-sm">log10(reach)</code>,
-          which compresses estimation error. If we&apos;re wrong about a show&apos;s audience by 2×,
-          its weight moves by about 0.3 (log10 of 2), or roughly 5% of a typical weight - not 2×.
-          The ordering across tiers matters far more than precision within a tier, and the
-          ordering is what the anchoring protects.
+          Square-root weighting raises the stakes on reach accuracy, and we want to be plain about
+          that. If we&apos;re wrong about a show&apos;s audience by 2×, its weight moves by about 1.4×
+          (the square root of 2) - not the ~5% an earlier log scale would have absorbed. So reach
+          quality matters more than it used to, and we lean on the cleanest number available.
+        </p>
+        <p className="text-ink-body mt-4 leading-relaxed">
+          That is why, for any show we track on <strong>both</strong> YouTube and as a podcast, the
+          Index now weights it by its <strong>YouTube subscriber count</strong> - a measured,
+          daily-refreshed figure - rather than the editorial podcast estimate. Editorial estimates
+          remain only where there is no measured alternative, and there they are bracketed to coarse
+          tiers; the cross-tier ordering, which the anchoring protects, matters far more than
+          precision within a tier.
         </p>
 
         <h2 className="text-xl font-semibold mt-12">Cohorts: independent vs legacy</h2>

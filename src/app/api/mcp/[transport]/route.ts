@@ -168,7 +168,7 @@ const handler = createMcpHandler(
           version: VERSION,
           pipeline: "Episodes from tracked YouTube channels and podcasts are transcribed, classified against a two-level issue taxonomy (locked topics over living issues) by Claude Sonnet with verbatim supporting quotes, then each mention is scored by Claude Haiku.",
           sentiment_scale: "Per-mention sentiment: -5.0 (strongly left-aligned framing) to +5.0 (strongly right-aligned framing), with intensity 1-5 for how forcefully the position is held.",
-          index: "The Soapbox Index (-10..+10) aggregates mention sentiment weighted by log10(channel reach) x intensity over a trailing window. The public Index uses the independent (alt-media) cohort only; the legacy cohort is tracked for comparison.",
+          index: "The Soapbox Index (-10..+10) aggregates mention sentiment weighted by sqrt(channel reach) x intensity over a trailing window. The public Index uses the independent (alt-media) cohort only; the legacy cohort is tracked for comparison.",
           calibration: "Scores are validated against a human-labeled gold set; humans calibrate and validate, the model measures at scale. Sentiment distribution is bimodal by design (positions cluster left/right).",
           reach_caveat: "Podcast audience estimates are editorial (reviewed at panel-add time); YouTube subscriber counts refresh daily.",
           transcript_policy: "Full transcripts are never republished or exposed via this API - verbatim excerpts with episode source links only.",

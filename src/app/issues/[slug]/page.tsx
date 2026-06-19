@@ -1,9 +1,10 @@
-import { getIssueDrillDown } from "@/lib/aggregate";
+import { getIssueDrillDown, getIssueMovementBreakdown } from "@/lib/aggregate";
 import { Card } from "@/components/ui/card";
 import { Footer } from "@/components/Footer";
 import { Header } from "@/components/Header";
 import { IndexAreaChart } from "@/components/IndexAreaChart";
 import { VolumeAreaChart } from "@/components/VolumeAreaChart";
+import { IssueMovementBreakdown } from "@/components/IssueMovementBreakdown";
 import { formatLean, leanColor, leanChipStyle } from "@/lib/lean";
 import { notFound } from "next/navigation";
 
@@ -14,7 +15,10 @@ export default async function IssuePage({
 }: {
   params: { slug: string };
 }) {
-  const data = await getIssueDrillDown(params.slug);
+  const [data, movement] = await Promise.all([
+    getIssueDrillDown(params.slug),
+    getIssueMovementBreakdown(params.slug),
+  ]);
   if (!data) notFound();
 
   const markerPct = ((data.overallLean + 10) / 20) * 100;
@@ -104,6 +108,15 @@ export default async function IssuePage({
           </div>
         </div>
       </section>
+
+      {/* Who's driving it this week - per-show reach-weighted contribution */}
+      {movement && movement.shows.length > 0 && (
+        <section className="border-t border-border">
+          <div className="max-w-4xl mx-auto px-6 py-10">
+            <IssueMovementBreakdown data={movement} />
+          </div>
+        </section>
+      )}
 
       {/* Channel leaderboard */}
       <section className="border-t border-border bg-subtle">

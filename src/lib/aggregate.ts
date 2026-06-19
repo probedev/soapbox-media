@@ -6,11 +6,15 @@
  *
  * Methodology (published on /methodology):
  *
- *   reach_factor      = log10(max(channel.reach, 10))   // 10M=7, 100K=5, 10K=4
+ *   reach_factor      = 7 × sqrt(max(channel.reach, 10) / 1e7)  // 10M=7, 1M=2.2, 100K=0.7
  *   contribution      = sentiment × intensity × reach_factor
  *   weight            = intensity × reach_factor
  *   weighted_lean     = Σ contribution / Σ weight       // weighted-avg sentiment in [-5..+5]
  *   index_normalized  = clip(weighted_lean × 2, -10, +10)
+ *
+ * Reach is sqrt-weighted (not log10) so a far larger audience moves the needle
+ * far more: a 95× audience gap is ~10× weight, not ~1.4×. The Index therefore
+ * leans harder on reach accuracy than before (see /methodology).
  *
  * Sentiment is already signed by the score model (negative = L-aligned with
  * the issue's left_position; positive = R-aligned). So `direction` is folded
@@ -23,6 +27,7 @@
 import { cache as reactCache } from "react";
 import { createServiceClient } from "./db";
 import { type Cohort, PUBLIC_COHORTS } from "./cohort";
+import { canonicalShowKey } from "./canonical-show";
 import {
   clamp,
   reachFactor,
@@ -1205,6 +1210,193 @@ export async function getIssueDrillDown(slug: string): Promise<IssueDrillDown | 
     numClassifications: issueRows.length,
     trend,
     volumeTrend,
+  };
+}
+
+/**
+ * "Who is moving this issue" - the per-show breakdown behind a mover. Decomposes
+ * one issue's current-week lean into each show's signed, reach-weighted
+ * contribution (the shares sum to the issue lean), so the home/issue page can show
+ * who drove the swing and from which side. Same math as the Index, one level down;
+ * the per-show fractal of <IssueContributionsChart>.
+ *
+ * Two honesty features baked in: (1) shows are canonical (a show tracked on both
+ * YouTube and a podcast collapses to one bar via canonicalShowKey), and (2) we
+ * surface BOTH the show's editorial lean and its stance on this issue, because
+ * they diverge (a left show can post a right-coded bar - e.g. attacking pharma
+ * reads MAHA-right). Reach is the per-show audience (max across its rows; after
+ * reach-favoring this is the YouTube subscriber count).
+ */
+export interface ShowContribution {
+  show: string;
+  editorialLean: "L" | "M" | "R";
+  /** This show's stance on the issue, -10..+10. */
+  lean: number;
+  /** Signed share of the issue's lean, -10..+10; Σ over shows == issueLean. */
+  contribution: number;
+  mentions: number;
+  /** Audience reach (subscribers / estimated listeners) for the canonical show. */
+  reach: number;
+  topQuote: {
+    text: string;
+    sourceUrl: string;
+    episodeTitle: string;
+    sentiment: number;
+    intensity: number;
+  } | null;
+}
+
+export interface IssueMovementBreakdown {
+  slug: string;
+  name: string;
+  /** Overall 7-day lean, -10..+10 (== Σ contributions). */
+  issueLean: number;
+  windowDays: number;
+  mentions: number;
+  /** Canonical shows, sorted by |contribution| descending. */
+  shows: ShowContribution[];
+}
+
+interface ExcerptRow {
+  sentiment: number;
+  intensity: number;
+  channel_name: string;
+  channel_lean: "L" | "M" | "R";
+  channel_reach: number;
+  episode_title: string;
+  source_url: string;
+  quote: string | null;
+}
+
+/** One scoped query for the breakdown: this issue's last-`windowDays` scored
+ *  mentions (public cohort) with the excerpt fields the "why" drill-down needs.
+ *  Self-contained (mirrors fetchScoreRowsFiltered's join) so the excerpt/title
+ *  columns never bloat the shared drill-down/channel fetch paths. */
+async function fetchIssueExcerptRows(slug: string, windowDays: number): Promise<ExcerptRow[]> {
+  const db = createServiceClient();
+  const cutoff = new Date();
+  cutoff.setUTCDate(cutoff.getUTCDate() - windowDays);
+  const rows: ExcerptRow[] = [];
+  const pageSize = 1000;
+  for (let page = 0; page < 50; page++) {
+    const from = page * pageSize;
+    const { data, error } = await db
+      .from("classifications")
+      .select(
+        `
+        supporting_quote,
+        episode:episodes!classifications_episode_id_fkey (
+          published_at, title, source_url,
+          channel:channels!episodes_channel_id_fkey ( name, political_lean, reach, cohort )
+        ),
+        score:sentiment_scores!sentiment_scores_classification_id_fkey ( sentiment, intensity, supporting_quote )
+        `,
+      )
+      .eq("issue_slug", slug)
+      .order("id", { ascending: true })
+      .range(from, from + pageSize - 1);
+    if (error) throw new Error(`fetchIssueExcerptRows: ${error.message}`);
+    if (!data || data.length === 0) break;
+    for (const r of data as any[]) {
+      const score = Array.isArray(r.score) ? r.score[0] : r.score;
+      const e = Array.isArray(r.episode) ? r.episode[0] : r.episode;
+      const ch = e && (Array.isArray(e.channel) ? e.channel[0] : e.channel);
+      if (!score || !e || !ch) continue;
+      if (!PUBLIC_COHORTS.includes(ch.cohort)) continue;
+      if (new Date(e.published_at) < cutoff) continue;
+      rows.push({
+        sentiment: Number(score.sentiment),
+        intensity: Number(score.intensity),
+        channel_name: ch.name,
+        channel_lean: ch.political_lean,
+        channel_reach: Number(ch.reach),
+        episode_title: e.title,
+        source_url: e.source_url,
+        quote: score.supporting_quote ?? r.supporting_quote ?? null,
+      });
+    }
+  }
+  return rows;
+}
+
+export async function getIssueMovementBreakdown(
+  slug: string,
+  windowDays = 7,
+): Promise<IssueMovementBreakdown | null> {
+  const db = createServiceClient();
+  const { data: issue } = await db
+    .from("issues")
+    .select("slug, name")
+    .eq("slug", slug)
+    .single();
+  if (!issue) return null;
+
+  const rows = await fetchIssueExcerptRows(slug, windowDays);
+  const totalWeight = rows.reduce((s, r) => s + reachFactor(r.channel_reach) * r.intensity, 0);
+  if (rows.length === 0 || totalWeight === 0) {
+    return { slug: issue.slug, name: issue.name, issueLean: 0, windowDays, mentions: 0, shows: [] };
+  }
+
+  // Group rows into canonical shows (collapses YouTube + podcast siblings).
+  const groups = new Map<string, ExcerptRow[]>();
+  for (const r of rows) {
+    const key = canonicalShowKey(r.channel_name);
+    if (!key) continue;
+    let bucket = groups.get(key);
+    if (!bucket) {
+      bucket = [];
+      groups.set(key, bucket);
+    }
+    bucket.push(r);
+  }
+
+  const shows: ShowContribution[] = [];
+  for (const members of groups.values()) {
+    let w = 0;
+    let wSent = 0;
+    for (const r of members) {
+      const rw = reachFactor(r.channel_reach) * r.intensity;
+      w += rw;
+      wSent += rw * r.sentiment;
+    }
+    if (w === 0) continue;
+    const leanRaw = wSent / w;
+    // Display name + editorial lean from the highest-reach member (siblings agree).
+    const lead = members.reduce((a, b) => (b.channel_reach > a.channel_reach ? b : a));
+    // Top quote: strongest mention in the show's own direction (so it represents
+    // the bar). dir folds the show's lean sign into the ranking.
+    const dir = leanRaw === 0 ? 1 : Math.sign(leanRaw);
+    const qscore = (r: ExcerptRow) => r.intensity * r.sentiment * dir;
+    const best = members
+      .filter((r) => r.quote)
+      .reduce<ExcerptRow | null>((a, b) => (a === null || qscore(b) > qscore(a) ? b : a), null);
+    shows.push({
+      show: lead.channel_name,
+      editorialLean: lead.channel_lean,
+      lean: toIndexScale(leanRaw),
+      contribution: clamp((wSent / totalWeight) * 2, -10, 10),
+      mentions: members.length,
+      reach: Math.max(...members.map((r) => r.channel_reach)),
+      topQuote: best
+        ? {
+            text: best.quote!,
+            sourceUrl: best.source_url,
+            episodeTitle: best.episode_title,
+            sentiment: best.sentiment,
+            intensity: best.intensity,
+          }
+        : null,
+    });
+  }
+  shows.sort((a, b) => Math.abs(b.contribution) - Math.abs(a.contribution));
+
+  return {
+    slug: issue.slug,
+    name: issue.name,
+    issueLean: toIndexScale(rows.reduce((s, r) => s + reachFactor(r.channel_reach) * r.intensity * r.sentiment, 0) / totalWeight),
+    windowDays,
+    mentions: rows.length,
+    shows,
   };
 }
 
