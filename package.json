@@ -1,6 +1,6 @@
 {
   "name": "soapbox",
-  "version": "0.27.0",
+  "version": "0.28.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -28,7 +28,8 @@
     "eval:extract-gold-set": "tsx scripts/extract-gold-set.ts",
     "seed:gold-set": "tsx scripts/seed-gold-set.ts",
     "discover:socialblade": "tsx scripts/discover-socialblade.ts",
-    "enrich:legacy-wishlist": "tsx scripts/enrich-legacy-wishlist.ts"
+    "enrich:legacy-wishlist": "tsx scripts/enrich-legacy-wishlist.ts",
+    "social:mcp-check": "tsx scripts/social-mcp-check.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.27.3",

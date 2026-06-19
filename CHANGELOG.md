@@ -7,6 +7,21 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
+## v0.28.0 · 2026-06-18
+
+### Added
+
+- **Brand guidelines page** (`/brand`): a public, self-serve brand kit so the
+  logo, color, type, and voice stay consistent everywhere Soapbox appears
+  (starting with the social channels). Includes downloadable transparent-PNG
+  logo assets (1024 / 512 / 256px plus the favicon, served from
+  `public/brand/`), the two color systems kept deliberately separate (the
+  wordmark colors Soapbox Red `#C8202F` / Soapbox Blue `#114A8A` versus the
+  semantic data palette where red is always right and blue always left),
+  click-to-copy color swatches, a Geist type specimen, and the voice rules
+  (name usage, tagline, the no-em-dash rule, color-meaning lock). Linked from
+  the footer.
+
 ## v0.27.0 · 2026-06-17
 
 ### Added

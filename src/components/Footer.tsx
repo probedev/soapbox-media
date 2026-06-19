@@ -28,6 +28,7 @@ export function Footer() {
             <a href="/channels" className="underline hover:text-foreground whitespace-nowrap">Channels</a>
             <a href="/log" className="underline hover:text-foreground whitespace-nowrap">Activity</a>
             <a href="/methodology" className="underline hover:text-foreground whitespace-nowrap">Methodology</a>
+            <a href="/brand" className="underline hover:text-foreground whitespace-nowrap">Brand</a>
             <InfoTip label="Connect your AI agent to Soapbox data">
               <a href="/mcp" className="underline hover:text-foreground whitespace-nowrap">For AI Agents</a>
             </InfoTip>
