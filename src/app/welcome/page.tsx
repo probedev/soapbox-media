@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Wordmark } from "@/components/Wordmark";
 import { getBrowserSupabase } from "@/lib/supabase-browser";
 
 const ENDPOINT = "https://www.soapbox.media/api/mcp/mcp";
@@ -48,7 +49,7 @@ export default function WelcomePage() {
         <Card>
           <CardHeader className="text-center">
             <CardTitle className="text-xl">
-              Welcome to <span className="text-[#C8202F]">soap</span><span className="text-[#114A8A]">box</span>
+              Welcome to <Wordmark />
             </CardTitle>
             <CardDescription>
               {done ? "You're all set" : authed ? "Set a password to finish" : "Payment received"}

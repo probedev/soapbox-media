@@ -1,6 +1,7 @@
 import Image from "next/image";
 import logoCrate from "@/assets/logo-crate.png";
 import { FreshnessBadge } from "@/components/FreshnessBadge";
+import { Wordmark } from "@/components/Wordmark";
 
 type ActivePage = "issues" | "channels" | "emerging" | "activity" | "methodology" | null;
 
@@ -34,10 +35,7 @@ export function Header({ activePage = null }: HeaderProps) {
               className="w-7 h-7 object-contain select-none"
               draggable={false}
             />
-            <span className="font-black text-2xl tracking-tight leading-none relative -top-[2px]">
-              <span className="text-[#C8202F]">soap</span>
-              <span className="text-[#114A8A]">box</span>
-            </span>
+            <Wordmark className="text-2xl relative -top-[2px]" />
           </a>
           <FreshnessBadge />
         </div>

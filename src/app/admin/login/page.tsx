@@ -2,6 +2,7 @@ import { login } from "./actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Wordmark } from "@/components/Wordmark";
 
 export const dynamic = "force-dynamic";
 
@@ -14,10 +15,7 @@ export default function AdminLoginPage({
     <main className="min-h-screen flex items-center justify-center bg-subtle px-6">
       <div className="w-full max-w-sm">
         <div className="text-center mb-6">
-          <div className="font-black text-2xl tracking-tight">
-            <span className="text-[#C8202F]">soap</span>
-            <span className="text-[#114A8A]">box</span>
-          </div>
+          <Wordmark className="text-2xl" />
           <div className="text-xs uppercase tracking-wider text-ink-faint mt-1">Admin</div>
         </div>
         <form

@@ -7,6 +7,30 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
+## v0.29.0 · 2026-06-18
+
+### Changed
+
+- **The wordmark now renders in its real typeface, Protest Strike, everywhere.**
+  The "soapbox" logotype was previously set in Geist Black on the live site (a
+  mismatch with the actual brand). It is now centralized in a single
+  `<Wordmark>` component (self-hosted Protest Strike, the two-color split soap
+  `#C8202F` / box `#114A8A`) used by the header, the account and admin login
+  screens, the welcome screen, and the brand page, so the font can no longer
+  drift. The OG social card embeds the pixel-identical wordmark PNG (avoids
+  forcing a display font through Satori). The brand page typography section now
+  documents the two-typeface system: Protest Strike for the wordmark, Geist for
+  everything else.
+
+### Added
+
+- **Needle + wordmark assets on `/brand`.** The signature Index needle has its
+  own section (live gauge) and a downloadable self-contained `soapbox-needle.svg`
+  (with a note on rotating it to any value). The wordmark ships as real assets
+  rather than something to retype: an outlined vector `soapbox-wordmark.svg`
+  (glyphs as paths, no font dependency) and a transparent `soapbox-wordmark.png`
+  (2000px).
+
 ## v0.28.0 · 2026-06-18
 
 ### Added

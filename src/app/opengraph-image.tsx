@@ -54,6 +54,20 @@ function loadCrateDataUri(): string | null {
   }
 }
 
+// The wordmark as a pixel-perfect PNG (Protest Strike, outlined) rather than
+// live text: embedding the brand asset keeps the OG logotype identical to the
+// site and avoids forcing a display font into Satori's font set (which would
+// fall back the whole card to it). Body text keeps next/og's default sans.
+function loadWordmarkDataUri(): string | null {
+  try {
+    const p = path.join(process.cwd(), "public/brand/soapbox-wordmark.png");
+    const buf = fs.readFileSync(p);
+    return `data:image/png;base64,${buf.toString("base64")}`;
+  } catch {
+    return null;
+  }
+}
+
 export default async function OpengraphImage() {
   let data: Awaited<ReturnType<typeof getDashboardData>>;
   try {
@@ -80,6 +94,7 @@ export default async function OpengraphImage() {
   }
 
   const crateDataUri = loadCrateDataUri();
+  const wordmarkDataUri = loadWordmarkDataUri();
 
   const indexAbs = Math.abs(data.index);
   const indexColor =
@@ -142,18 +157,29 @@ export default async function OpengraphImage() {
               alt=""
             />
           )}
-          <span
-            style={{
-              fontSize: 56,
-              fontWeight: 900,
-              letterSpacing: "-0.03em",
-              lineHeight: 1,
-              display: "flex",
-            }}
-          >
-            <span style={{ color: "#C8202F" }}>soap</span>
-            <span style={{ color: "#114A8A" }}>box</span>
-          </span>
+          {wordmarkDataUri ? (
+            /* eslint-disable-next-line @next/next/no-img-element */
+            <img
+              src={wordmarkDataUri}
+              height={56}
+              width={214}
+              style={{ objectFit: "contain" }}
+              alt="soapbox"
+            />
+          ) : (
+            <span
+              style={{
+                fontSize: 56,
+                fontWeight: 900,
+                letterSpacing: "-0.03em",
+                lineHeight: 1,
+                display: "flex",
+              }}
+            >
+              <span style={{ color: "#C8202F" }}>soap</span>
+              <span style={{ color: "#114A8A" }}>box</span>
+            </span>
+          )}
         </div>
 
         {/* Hero: gauge + index number */}

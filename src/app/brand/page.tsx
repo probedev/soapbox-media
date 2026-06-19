@@ -4,6 +4,8 @@ import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { SoapboxNeedle } from "@/components/SoapboxNeedle";
+import { Wordmark } from "@/components/Wordmark";
 import { Swatch } from "./Swatch";
 import logoCrate from "@/assets/logo-crate.png";
 import { TAGLINE } from "@/lib/brand";
@@ -107,11 +109,10 @@ export default function BrandPage() {
         <SectionHeading>Logo</SectionHeading>
         <p className="text-ink-body mt-3 leading-relaxed">
           The mark is a wooden crate: the literal soapbox you stand on to be
-          heard. It pairs with the lowercase wordmark, with{" "}
-          <span className="font-black" style={{ color: "#C8202F" }}>soap</span>
-          <span className="font-black" style={{ color: "#114A8A" }}>box</span>{" "}
-          set in two colors. Use the mark alone where space is tight (avatars,
-          favicons) and the full lockup everywhere else.
+          heard. It pairs with the lowercase wordmark{" "}
+          <Wordmark className="text-base align-baseline" />, set in Protest Strike
+          with the two-color split. Use the mark alone where space is tight
+          (avatars, favicons) and the full lockup everywhere else.
         </p>
 
         {/* Primary lockup specimen, on light and dark */}
@@ -120,10 +121,7 @@ export default function BrandPage() {
             <CardContent className="flex flex-col items-center justify-center gap-3 p-8">
               <div className="flex items-center gap-3">
                 <Image src={logoCrate} alt="Soapbox logo" width={48} height={48} className="h-12 w-12 object-contain" />
-                <span className="font-black text-4xl tracking-tight leading-none">
-                  <span style={{ color: "#C8202F" }}>soap</span>
-                  <span style={{ color: "#114A8A" }}>box</span>
-                </span>
+                <Wordmark className="text-4xl" />
               </div>
               <span className="text-xs text-ink-faint">Full lockup on light</span>
             </CardContent>
@@ -135,9 +133,7 @@ export default function BrandPage() {
             >
               <div className="flex items-center gap-3">
                 <Image src={logoCrate} alt="Soapbox logo on dark" width={48} height={48} className="h-12 w-12 object-contain" />
-                <span className="font-black text-4xl tracking-tight leading-none" style={{ color: "#FFFFFF" }}>
-                  soapbox
-                </span>
+                <Wordmark className="text-4xl" mono="#FFFFFF" />
               </div>
               <span className="text-xs" style={{ color: "#9CA3AF" }}>
                 On dark, use the mark alone or set the wordmark in white
@@ -146,10 +142,26 @@ export default function BrandPage() {
           </Card>
         </div>
 
+        <div className="mt-4 flex flex-wrap items-center gap-3">
+          <span className="text-sm text-ink-muted">Download the wordmark:</span>
+          <Button asChild variant="outline" size="sm">
+            <a href="/brand/soapbox-wordmark.svg" download>SVG (vector)</a>
+          </Button>
+          <Button asChild variant="outline" size="sm">
+            <a href="/brand/soapbox-wordmark.png" download>PNG (transparent)</a>
+          </Button>
+        </div>
+        <p className="mt-2 text-xs text-ink-faint leading-relaxed">
+          The wordmark is a real asset: the SVG is outlined (no font needed), and
+          the PNG is transparent. Use these rather than retyping &quot;soapbox&quot;
+          in Geist yourself.
+        </p>
+
         <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-4">
           <div>
             <h3 className="text-sm font-semibold text-ink-strong">Do</h3>
             <ul className="mt-2 space-y-1.5 text-sm text-ink-body leading-relaxed list-disc pl-5">
+              <li>Use the downloadable wordmark (SVG or PNG), do not retype it.</li>
               <li>Keep clear space around the mark of at least the crate&apos;s own height.</li>
               <li>Use the transparent PNG so it sits on any background.</li>
               <li>Scale the mark and wordmark together, proportionally.</li>
@@ -166,6 +178,31 @@ export default function BrandPage() {
             </ul>
           </div>
         </div>
+
+        {/* The needle */}
+        <SectionHeading>The needle</SectionHeading>
+        <p className="text-ink-body mt-3 leading-relaxed">
+          The Index needle is the signature visual of the product: a half-circle
+          gauge from L 10 to R 10, the arc graded blue on the left through
+          neutral to red on the right, with the needle resting at the current
+          Soapbox Index. It carries the whole idea in one glance: one scale, one
+          number. Keep blue on the left and red on the right, always.
+        </p>
+        <Card className="mt-5">
+          <CardContent className="flex flex-col items-center gap-4 p-8">
+            <div className="w-full max-w-[420px] [&>svg]:h-auto [&>svg]:w-full">
+              <SoapboxNeedle value={2} />
+            </div>
+            <span className="text-xs text-ink-faint">
+              Shown at R+2. The needle spans L 10 to R 10; rotate it to any value.
+            </span>
+            <Button asChild variant="outline" size="sm">
+              <a href="/brand/soapbox-needle.svg" download>
+                Download needle SVG
+              </a>
+            </Button>
+          </CardContent>
+        </Card>
 
         {/* Color */}
         <SectionHeading>Color</SectionHeading>
@@ -202,7 +239,17 @@ export default function BrandPage() {
         {/* Typography */}
         <SectionHeading>Typography</SectionHeading>
         <p className="text-ink-body mt-3 leading-relaxed">
-          The typeface is{" "}
+          Two typefaces, each with one job. The wordmark is set in{" "}
+          <a
+            href="https://fonts.google.com/specimen/Protest+Strike"
+            className="underline hover:text-foreground"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Protest Strike
+          </a>{" "}
+          (a heavy display face) and is used only for the logotype. Everything
+          else, headings, body, and data, is{" "}
           <a
             href="https://vercel.com/font"
             className="underline hover:text-foreground"
@@ -211,17 +258,18 @@ export default function BrandPage() {
           >
             Geist Sans
           </a>{" "}
-          (also available on Google Fonts as &quot;Geist&quot;). One family
-          carries the whole brand. Numbers in any data context use tabular
-          figures so columns line up.
+          (also on Google Fonts as &quot;Geist&quot;). Numbers in any data context
+          use tabular figures so columns line up.
         </p>
         <Card className="mt-5">
-          <CardContent className="p-8 space-y-4">
-            <div className="font-black text-5xl tracking-tight leading-none">Aa</div>
-            <div className="space-y-2">
-              <div className="text-2xl font-black tracking-tight">Black 900 - wordmark and display</div>
-              <div className="text-xl font-semibold">Semibold 600 - headings</div>
-              <div className="text-base text-ink-body">Regular 400 - body copy and captions</div>
+          <CardContent className="p-8 space-y-5">
+            <div>
+              <Wordmark className="text-5xl" />
+              <div className="mt-2 text-xs text-ink-faint">Protest Strike, the wordmark only</div>
+            </div>
+            <div className="space-y-2 border-t border-border pt-5">
+              <div className="text-2xl font-semibold tracking-tight">Geist Semibold, headings</div>
+              <div className="text-base text-ink-body">Geist Regular, body copy and captions</div>
               <div className="font-mono text-sm text-ink-muted tabular-nums">
                 Tabular figures: 0123456789 - L+3.2 / R+1.8
               </div>
