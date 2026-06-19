@@ -912,6 +912,10 @@ export interface HomeSnapshot {
    *  queries + a full duration scan) on every request. Optional so older
    *  snapshots still deserialize; <SystemStats> falls back to a live read. */
   systemStats?: SystemStats;
+  /** Per-mover "who's driving it" breakdowns, keyed by issue slug, so each home
+   *  mover row expands to its drivers without a live query. Optional so older
+   *  snapshots still deserialize; the home page falls back to a live compute. */
+  moverBreakdowns?: Record<string, IssueMovementBreakdown>;
 }
 
 /** Stable per-window key for the home snapshot row (e.g. `home:7`). */
@@ -942,6 +946,14 @@ export async function writeHomeSnapshot(windowDays = 7): Promise<HomeSnapshot> {
   // matches /log exactly; `classifications` is whole-pipeline but verified to
   // be within 0.03% of the public-cohort count, so it reads as the panel total.
   const system = await getSystemStats();
+  // Per-mover breakdowns for the expandable home rows. One scoped query per
+  // mover (the 7-day slice of one issue, tens-to-hundreds of rows), so the rows
+  // expand with no live query on the request path.
+  const moverBreakdowns: Record<string, IssueMovementBreakdown> = {};
+  for (const m of dashboard.movers) {
+    const b = await getIssueMovementBreakdown(m.slug, windowDays);
+    if (b && b.shows.length > 0) moverBreakdowns[m.slug] = b;
+  }
   const snapshot: HomeSnapshot = {
     dashboard,
     breakdown,
@@ -954,6 +966,7 @@ export async function writeHomeSnapshot(windowDays = 7): Promise<HomeSnapshot> {
       totalMentions: system.classifications,
     },
     systemStats: system,
+    moverBreakdowns,
   };
 
   const db = createServiceClient();

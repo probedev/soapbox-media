@@ -7,6 +7,19 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
+## v0.30.1 · 2026-06-19
+
+### Changed
+
+- **Every "Biggest movers" row is now expandable to its "who's driving it"
+  breakdown.** v0.30.0 only showed the breakdown for the single top mover, so the
+  motivating example (public-health) vanished from the home page once it fell to
+  #3. Each mover row is now a shadcn `Collapsible` that expands in place to the
+  per-show contribution chart, with a link out to the full issue page. All movers'
+  breakdowns are precomputed into the home snapshot (`HomeSnapshot.moverBreakdowns`)
+  so rows expand with no live query; the page falls back to a live compute when the
+  snapshot predates the field.
+
 ## v0.30.0 · 2026-06-19
 
 ### Changed

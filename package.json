@@ -1,6 +1,6 @@
 {
   "name": "soapbox",
-  "version": "0.30.0",
+  "version": "0.30.1",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -15,7 +15,7 @@
     "transcribe": "tsx scripts/transcribe.ts",
     "classify": "tsx scripts/classify.ts",
     "score": "tsx scripts/score.ts",
-  "score:emerging": "tsx scripts/score-emerging.ts",
+    "score:emerging": "tsx scripts/score-emerging.ts",
     "refresh:snapshot": "tsx scripts/refresh-snapshot.ts",
     "refresh:trending": "tsx scripts/refresh-trending.ts",
     "drain": "tsx scripts/drain.ts",
@@ -34,6 +34,7 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.27.3",
     "@modelcontextprotocol/sdk": "^1.26.0",
+    "@radix-ui/react-collapsible": "^1.1.14",
     "@radix-ui/react-dropdown-menu": "^2.1.16",
     "@radix-ui/react-label": "^2.1.9",
     "@radix-ui/react-select": "^2.3.0",

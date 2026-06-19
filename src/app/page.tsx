@@ -3,7 +3,6 @@ import { IssuePreview } from "@/components/IssuePreview";
 import { IndexAreaChart } from "@/components/IndexAreaChart";
 import { IssueContributionsChart } from "@/components/IssueContributionsChart";
 import { BiggestMovers } from "@/components/BiggestMovers";
-import { IssueMovementBreakdown } from "@/components/IssueMovementBreakdown";
 import { TrustStrip } from "@/components/TrustStrip";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
@@ -13,6 +12,7 @@ import {
   getIssueMovementBreakdown,
   readHomeSnapshot,
   getSystemStats,
+  type IssueMovementBreakdown as IssueMovementBreakdownData,
 } from "@/lib/aggregate";
 import { SubNeedle } from "@/components/SubNeedle";
 import { PUBLIC_COHORTS } from "@/lib/cohort";
@@ -52,13 +52,19 @@ export default async function HomePage() {
   // otherwise the component computes it live itself (prop left undefined).
   const breakdown =
     snapshot?.breakdown ?? (await getIndexBreakdown(HOMEPAGE_WINDOW_DAYS));
-  // The top mover's per-show breakdown ("who moved the biggest one"), shown under
-  // the movers table. One live query for the lead issue (not in the snapshot);
-  // null-safe so the home page still renders if it errors.
-  const topMover = data.movers[0] ?? null;
-  const topMoverBreakdown = topMover
-    ? await getIssueMovementBreakdown(topMover.slug, HOMEPAGE_WINDOW_DAYS).catch(() => null)
-    : null;
+  // Per-mover "who's driving it" breakdowns for the expandable movers rows. From
+  // the snapshot when present; otherwise computed live (pre-refresh / fallback),
+  // null-safe so the home page still renders if any one errors.
+  const moverBreakdowns: Record<string, IssueMovementBreakdownData> =
+    snapshot?.moverBreakdowns ?? {};
+  if (!snapshot?.moverBreakdowns) {
+    await Promise.all(
+      data.movers.map(async (m) => {
+        const b = await getIssueMovementBreakdown(m.slug, HOMEPAGE_WINDOW_DAYS).catch(() => null);
+        if (b && b.shows.length > 0) moverBreakdowns[m.slug] = b;
+      }),
+    );
+  }
   // Hero scale counters (hours of audio analyzed, total political mentions
   // scored). From the snapshot when present; otherwise a live read - transient,
   // until the next score cron writes the field. Null-safe so the hero degrades
@@ -217,17 +223,9 @@ export default async function HomePage() {
         <section className="border-t border-border bg-card">
           <div className="max-w-3xl mx-auto px-6 py-12">
             {/* Cap (and ranking) live in getDashboardData so every consumer
-                of `data.movers` agrees on the leaderboard length. */}
-            <BiggestMovers movers={data.movers} />
-
-            {/* The biggest mover, decomposed: who actually drove the swing this
-                week and from which side. Every other mover row links to its own
-                issue page, which carries the same breakdown. */}
-            {topMoverBreakdown && topMoverBreakdown.shows.length > 0 && (
-              <div className="mt-10 pt-8 border-t border-border">
-                <IssueMovementBreakdown data={topMoverBreakdown} />
-              </div>
-            )}
+                of `data.movers` agrees on the leaderboard length. Each row
+                expands to its per-show "who's driving it" breakdown. */}
+            <BiggestMovers movers={data.movers} breakdowns={moverBreakdowns} />
           </div>
         </section>
       )}
