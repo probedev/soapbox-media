@@ -7,6 +7,38 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
+## v0.31.0 · 2026-06-20
+
+### Added
+
+- **Mention timestamps: jump straight to the moment in the video.** Each
+  classified mention now carries a `start_ts` (whole seconds into the episode),
+  and the receipts UI renders a "▶ mm:ss" deep link that opens the YouTube video
+  at that moment (`&t=<seconds>s`) - in both the activity-log episode receipts
+  (`EpisodeMentions`) and the channel-page per-issue receipts
+  (`ChannelIssueBreakdown`). Requested by a beta user: makes it far easier to go
+  watch the source.
+- **Timestamps come from the transcript, not the model.** Supadata native
+  captions are now kept as timestamped segments (`transcripts.segments` jsonb;
+  the YouTube fetch drops `text=true` so the same 1-credit call returns
+  `{ text, offset }` chunks). At classify time we match each mention's
+  `supporting_quote` back to a start time deterministically
+  (`src/lib/transcript-timing.ts`, unit-tested). The model never emits a
+  timestamp, and there is no extra classify cost.
+- **MCP `search_mentions` exposes `start_ts` + `timestamp_url`.** The data
+  product now returns the quote's start second and a ready-made deep link
+  (falls back to the plain episode link for podcasts and unlocated quotes).
+  Documented on the public `/mcp` page and in the tool description.
+
+### Notes
+
+- Forward-only: new YouTube episodes get timestamps as they classify; no
+  backfill of historical mentions. Empirically ~85% of YouTube mentions locate
+  (the model's quote start is reliable; its tail drifts, so we anchor on a short
+  normalized prefix). A miss renders the mention as before, just without a
+  timestamp. **Podcasts deferred**: PodScan word-level timestamps are
+  inconsistently populated and podcasts lack a universal timestamp deep-link.
+
 ## v0.30.2 · 2026-06-19
 
 ### Added

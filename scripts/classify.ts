@@ -15,6 +15,7 @@ import "./_load-env";
 
 import { createServiceClient } from "@/lib/db";
 import { classifyTranscript, type IssueDef } from "@/modules/classify";
+import { quoteStartSeconds, type TranscriptSegment } from "@/lib/transcript-timing";
 import { MODEL_CLASSIFY } from "@/lib/anthropic";
 import { estimateCostUsd } from "@/lib/pricing";
 import { recordScriptRun } from "@/lib/usage";
@@ -123,7 +124,7 @@ async function main() {
     // small (one transcript, not all of them).
     const { data: tRow, error: tErr } = await db
       .from("transcripts")
-      .select("text")
+      .select("text, segments")
       .eq("episode_id", ep.id)
       .maybeSingle();
     if (tErr || !tRow?.text) {
@@ -132,6 +133,7 @@ async function main() {
       continue;
     }
     const text = tRow.text;
+    const segments = (tRow.segments as TranscriptSegment[] | null) ?? null;
     console.log(`    transcript: ${text.length.toLocaleString()} chars`);
 
     try {
@@ -179,6 +181,7 @@ async function main() {
         episode_id: ep.id,
         issue_slug: m.issue_slug,
         supporting_quote: m.supporting_quote,
+        start_ts: quoteStartSeconds(m.supporting_quote, segments),
       }));
       const { error: insErr } = await db.from("classifications").insert(rows);
       if (insErr) {

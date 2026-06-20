@@ -129,7 +129,7 @@ const handler = createMcpHandler(
 
     server.tool(
       "search_mentions",
-      "Search scored issue mentions - each result is a verbatim quote (excerpt) from an episode with its sentiment score (-5 = left-aligned framing, +5 = right-aligned framing), intensity (1-5), issue, channel, and a source link to the full episode. Filter by issue, channel, lean, cohort, platform, date range, sentiment range, or keyword within the quote. Results are ordered by scoring recency, NOT publish date - use published_after/published_before to control the time window. Full transcripts are not available through this API; quotes + source links only.",
+      "Search scored issue mentions - each result is a verbatim quote (excerpt) from an episode with its sentiment score (-5 = left-aligned framing, +5 = right-aligned framing), intensity (1-5), issue, channel, and a source link to the full episode. For most YouTube mentions, start_ts gives the quote's start in the episode (whole seconds) and timestamp_url is a deep link that opens the video at that moment; start_ts is null (and timestamp_url falls back to the plain episode link) for podcasts and quotes that couldn't be located. Filter by issue, channel, lean, cohort, platform, date range, sentiment range, or keyword within the quote. Results are ordered by scoring recency, NOT publish date - use published_after/published_before to control the time window. Full transcripts are not available through this API; quotes + source links only.",
       {
         issue_slug: z.string().optional().describe("Filter to one issue (from list_issues)"),
         channel_id: z.string().uuid().optional().describe("Filter to one channel (from list_channels)"),

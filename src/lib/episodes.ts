@@ -50,11 +50,16 @@ export interface EpisodeMention {
   sentiment: number | null;
   /** 1..5 conviction. Null if unscored. */
   intensity: number | null;
+  /** Start of the quote in the episode (whole seconds), or null if it couldn't
+   *  be located. Drives the "jump to the moment" deep link on YouTube. */
+  startTs: number | null;
 }
 
 /** Per-episode classification detail, lazy-loaded when a log row is expanded. */
 export interface EpisodeMentionsResponse {
   episodeId: string;
+  /** The episode's source URL, so the client can build a timestamped deep link. */
+  sourceUrl: string | null;
   mentions: EpisodeMention[];
   /** Intensity-weighted net lean across scored mentions (-5..+5), or null. */
   netLean: number | null;

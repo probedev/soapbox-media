@@ -12,9 +12,11 @@
  * mis-scores before scaling channels.
  */
 import * as React from "react";
+import { Play } from "lucide-react";
 import { InfoTip } from "@/components/InfoTip";
 import { SentimentChip, IntensityMeter } from "@/components/Lean";
 import type { EpisodeMention, EpisodeMentionsResponse } from "@/lib/episodes";
+import { formatTimestamp, timestampedSourceUrl } from "@/lib/transcript-timing";
 
 export function EpisodeMentions({ episodeId }: { episodeId: string }) {
   const [state, setState] = React.useState<{
@@ -48,7 +50,7 @@ export function EpisodeMentions({ episodeId }: { episodeId: string }) {
     );
   }
 
-  const { mentions, netLean, numIssues } = state.data!;
+  const { mentions, netLean, numIssues, sourceUrl } = state.data!;
   if (mentions.length === 0) {
     return (
       <div className="px-4 py-3 text-xs text-muted-foreground italic">
@@ -94,6 +96,18 @@ export function EpisodeMentions({ episodeId }: { episodeId: string }) {
                 <span className="text-ink-faint">&ldquo;</span>
                 {m.quote}
                 <span className="text-ink-faint">&rdquo;</span>
+                {m.startTs != null && sourceUrl && (
+                  <a
+                    href={timestampedSourceUrl(sourceUrl, m.startTs)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="ml-1.5 inline-flex items-center gap-0.5 align-baseline text-ink-faint hover:text-ink-body whitespace-nowrap"
+                    title="Watch from this moment"
+                  >
+                    <Play className="w-2.5 h-2.5 shrink-0" />
+                    <span className="tabular-nums">{formatTimestamp(m.startTs)}</span>
+                  </a>
+                )}
               </span>
             </div>
           );

@@ -1,0 +1,13 @@
+-- Per-segment timing for transcripts.
+--
+-- YouTube native captions (via Supadata) arrive as timestamped chunks. We now
+-- keep those chunks here so the classify stage can resolve each mention's
+-- supporting_quote back to a start time (classifications.start_ts), which the
+-- UI turns into a "jump to the moment" deep link (&t=<seconds>s on the YouTube
+-- watch URL). Shape: jsonb array of { "t": <start seconds int>, "x": <text> }.
+--
+-- Nullable on purpose: podcasts (no universal timestamp deep-link) and all
+-- pre-existing rows stay null, and a null transcript just yields a null
+-- start_ts (the mention still renders, just without a timestamp). Forward-only;
+-- no backfill. Added v0.31.0.
+alter table transcripts add column if not exists segments jsonb;

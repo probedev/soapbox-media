@@ -22,8 +22,9 @@ export async function GET(
   const { data, error } = await db
     .from("classifications")
     .select(
-      `issue_slug, supporting_quote,
+      `issue_slug, supporting_quote, start_ts,
        issue:issues!classifications_issue_slug_fkey ( name ),
+       episode:episodes!classifications_episode_id_fkey ( source_url ),
        score:sentiment_scores!sentiment_scores_classification_id_fkey ( sentiment, intensity )`,
     )
     .eq("episode_id", params.id)
@@ -32,17 +33,21 @@ export async function GET(
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
+  let sourceUrl: string | null = null;
   const mentions: EpisodeMention[] = (data || []).map((r: any) => {
     // sentiment_scores is one-to-one on classification_id, but PostgREST embeds
     // a reverse relation as an array - normalize either shape.
     const score = Array.isArray(r.score) ? r.score[0] : r.score;
     const issue = Array.isArray(r.issue) ? r.issue[0] : r.issue;
+    const episode = Array.isArray(r.episode) ? r.episode[0] : r.episode;
+    if (episode?.source_url) sourceUrl = episode.source_url;
     return {
       issueSlug: r.issue_slug,
       issueName: issue?.name || r.issue_slug,
       quote: r.supporting_quote || "",
       sentiment: score ? Number(score.sentiment) : null,
       intensity: score ? Number(score.intensity) : null,
+      startTs: r.start_ts != null ? Number(r.start_ts) : null,
     };
   });
 
@@ -66,6 +71,7 @@ export async function GET(
 
   const body: EpisodeMentionsResponse = {
     episodeId: params.id,
+    sourceUrl,
     mentions,
     netLean: weight > 0 ? weightedSum / weight : null,
     numIssues: new Set(mentions.map((m) => m.issueSlug)).size,

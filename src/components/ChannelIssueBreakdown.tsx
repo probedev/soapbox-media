@@ -11,9 +11,10 @@
  * link inside the expanded panel.
  */
 import * as React from "react";
-import { ChevronDown, ChevronRight, ExternalLink } from "lucide-react";
+import { ChevronDown, ChevronRight, ExternalLink, Play } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { formatDateET } from "@/lib/utils";
+import { formatTimestamp, timestampedSourceUrl } from "@/lib/transcript-timing";
 import { formatLean, leanColor } from "@/lib/lean";
 import { SentimentChip, IntensityMeter } from "@/components/Lean";
 import type { IssueOnChannel } from "@/lib/aggregate";
@@ -97,14 +98,22 @@ function IssueMentionsPanel({
                   <span className="text-ink-faint">&rdquo;</span>
                 </span>
                 <a
-                  href={m.episodeUrl}
+                  href={timestampedSourceUrl(m.episodeUrl, m.startTs)}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="mt-1 flex items-center gap-1.5 text-ink-faint hover:text-ink-body"
+                  title={m.startTs != null ? "Watch from this moment" : undefined}
                 >
                   <span className="truncate">{m.episodeTitle}</span>
                   <span className="tabular-nums shrink-0">· {formatDate(m.publishedAt)}</span>
-                  <ExternalLink className="w-3 h-3 shrink-0" />
+                  {m.startTs != null ? (
+                    <span className="inline-flex items-center gap-0.5 tabular-nums shrink-0">
+                      <Play className="w-3 h-3 shrink-0" />
+                      {formatTimestamp(m.startTs)}
+                    </span>
+                  ) : (
+                    <ExternalLink className="w-3 h-3 shrink-0" />
+                  )}
                 </a>
               </div>
             </div>

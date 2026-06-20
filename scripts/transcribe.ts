@@ -77,6 +77,7 @@ async function transcribeYouTube(
       episode_id: episode.id,
       text: result.text,
       provider: "youtube_captions",
+      segments: result.segments ?? null,
     },
     { onConflict: "episode_id", ignoreDuplicates: false },
   );

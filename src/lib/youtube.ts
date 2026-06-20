@@ -20,6 +20,7 @@
  * polled hourly = ~552 units/day. Well under quota.
  */
 import { env } from "./env";
+import type { TranscriptSegment } from "./transcript-timing";
 
 const YT_API = "https://www.googleapis.com/youtube/v3";
 
@@ -288,7 +289,7 @@ export async function getChannelDetailsBatch(
  * unavailable, or 404 video-not-found).
  */
 export type TranscriptFetch =
-  | { ok: true; text: string }
+  | { ok: true; text: string; segments?: TranscriptSegment[] }
   | { ok: false; retriable: boolean; reason: string };
 
 /** HTTP statuses worth retrying: rate-limit, timeout, quota, server errors. */
@@ -298,9 +299,13 @@ function isRetriableStatus(status: number): boolean {
 
 export async function getVideoTranscript(videoId: string): Promise<TranscriptFetch> {
   const videoUrl = `https://www.youtube.com/watch?v=${videoId}`;
+  // No `text=true`: that flattens the response to a plain string and drops the
+  // per-chunk timing. Without it the same 1-credit call returns `content` as an
+  // array of { text, offset(ms), duration(ms) } chunks, which we keep as
+  // segments so classify can place each mention on the video timeline (v0.31.0).
   const apiUrl =
     `https://api.supadata.ai/v1/transcript?` +
-    `url=${encodeURIComponent(videoUrl)}&text=true&mode=native`;
+    `url=${encodeURIComponent(videoUrl)}&mode=native`;
 
   try {
     const res = await fetch(apiUrl, {
@@ -324,15 +329,34 @@ export async function getVideoTranscript(videoId: string): Promise<TranscriptFet
       return { ok: false, retriable, reason: `http-${res.status}` };
     }
 
-    const data = (await res.json()) as { content?: string; lang?: string };
+    const data = (await res.json()) as {
+      content?: string | Array<{ text?: string; offset?: number; duration?: number }>;
+      lang?: string;
+    };
 
-    if (!data.content || data.content.trim().length === 0) {
+    let text: string;
+    let segments: TranscriptSegment[] | undefined;
+    if (Array.isArray(data.content)) {
+      segments = data.content
+        .filter((c) => c && typeof c.text === "string" && c.text.length > 0)
+        .map((c) => ({
+          t: Math.max(0, Math.floor((Number(c.offset) || 0) / 1000)),
+          x: String(c.text),
+        }));
+      text = segments.map((s) => s.x).join("\n");
+    } else {
+      // Defensive: if Supadata ever returns a flat string here, keep working
+      // (just without timestamps for that episode).
+      text = typeof data.content === "string" ? data.content : "";
+    }
+
+    if (!text || text.trim().length === 0) {
       // 200 with no content is a "no captions" answer, not a transient error.
       console.warn(`[YT transcript] supadata empty content for ${videoId}`);
       return { ok: false, retriable: false, reason: "empty" };
     }
 
-    return { ok: true, text: data.content };
+    return { ok: true, text, segments };
   } catch (e: any) {
     // Network-level failure (DNS, connection reset, timeout) - transient.
     const errClass = e?.constructor?.name || "Error";

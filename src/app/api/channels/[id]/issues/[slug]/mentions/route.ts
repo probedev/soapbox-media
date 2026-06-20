@@ -29,6 +29,9 @@ export interface ChannelIssueMention {
   episodeTitle: string;
   episodeUrl: string;
   publishedAt: string;
+  /** Start of the quote in the episode (whole seconds), or null if unlocated.
+   *  Drives the "jump to the moment" deep link on YouTube. */
+  startTs: number | null;
 }
 
 export interface ChannelIssueMentionsResponse {
@@ -57,7 +60,7 @@ export async function GET(
       .select(
         `id, sentiment, intensity,
          classification:classifications!sentiment_scores_classification_id_fkey!inner (
-           issue_slug, supporting_quote,
+           issue_slug, supporting_quote, start_ts,
            episode:episodes!classifications_episode_id_fkey!inner (
              title, source_url, published_at,
              channel:channels!episodes_channel_id_fkey!inner ( id )
@@ -87,6 +90,7 @@ export async function GET(
       episodeTitle: e.title || "(untitled)",
       episodeUrl: e.source_url || "#",
       publishedAt: e.published_at,
+      startTs: c.start_ts != null ? Number(c.start_ts) : null,
     };
   });
 

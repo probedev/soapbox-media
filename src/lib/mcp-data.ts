@@ -6,6 +6,7 @@
  * us).
  */
 import { createServiceClient } from "@/lib/db";
+import { timestampedSourceUrl } from "@/lib/transcript-timing";
 
 const MAX_LIMIT = 50;
 
@@ -33,6 +34,12 @@ export interface MentionRow {
   episode_title: string;
   published_at: string;
   source_url: string;
+  /** Start of the quote in the episode, whole seconds. Null when it couldn't be
+   *  located (most podcasts, and YouTube quotes the model paraphrased). */
+  start_ts: number | null;
+  /** source_url with the timestamp applied where possible (YouTube &t=<s>s).
+   *  Equals source_url for podcasts and for mentions with no start_ts. */
+  timestamp_url: string;
   channel_id: string;
   channel_name: string;
   channel_lean: string;
@@ -56,7 +63,7 @@ export async function searchMentions(f: MentionFilters): Promise<{ mentions: Men
     .select(
       `sentiment, intensity, created_at,
        classification:classifications!sentiment_scores_classification_id_fkey!inner (
-         supporting_quote, issue_slug,
+         supporting_quote, issue_slug, start_ts,
          issue:issues!classifications_issue_slug_fkey!inner ( name ),
          episode:episodes!classifications_episode_id_fkey!inner (
            title, published_at, source_url,
@@ -88,6 +95,7 @@ export async function searchMentions(f: MentionFilters): Promise<{ mentions: Men
     const c = r.classification;
     const e = c.episode;
     const ch = e.channel;
+    const startTs = c.start_ts != null ? Number(c.start_ts) : null;
     return {
       quote: c.supporting_quote,
       sentiment: Number(r.sentiment),
@@ -97,6 +105,8 @@ export async function searchMentions(f: MentionFilters): Promise<{ mentions: Men
       episode_title: e.title,
       published_at: e.published_at,
       source_url: e.source_url,
+      start_ts: startTs,
+      timestamp_url: timestampedSourceUrl(e.source_url, startTs),
       channel_id: ch.id,
       channel_name: ch.name,
       channel_lean: ch.political_lean,

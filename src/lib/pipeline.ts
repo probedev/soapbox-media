@@ -10,6 +10,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/db";
 import { getRecentUploads, getVideoTranscript, getChannelDetailsBatch } from "@/lib/youtube";
+import { quoteStartSeconds, type TranscriptSegment } from "@/lib/transcript-timing";
 import { getPodcastEpisodes } from "@/lib/podscan";
 import { classifyTranscript, type IssueDef } from "@/modules/classify";
 import { scoreClassification, scoreEmergingMention, EMERGING_SCORE_PROMPT_VERSION } from "@/modules/score";
@@ -413,7 +414,12 @@ export async function runTranscribe(): Promise<Record<string, unknown>> {
           return;
         }
         const { error: txErr } = await db.from("transcripts").upsert(
-          { episode_id: row.id, text: result.text, provider: "youtube_captions" },
+          {
+            episode_id: row.id,
+            text: result.text,
+            provider: "youtube_captions",
+            segments: result.segments ?? null,
+          },
           { onConflict: "episode_id", ignoreDuplicates: false },
         );
         if (txErr) {
@@ -507,13 +513,14 @@ export async function runClassify(): Promise<Record<string, unknown>> {
       // payload small (one transcript, not all of them).
       const { data: tRow, error: tErr } = await db
         .from("transcripts")
-        .select("text")
+        .select("text, segments")
         .eq("episode_id", ep.id)
         .maybeSingle();
       if (tErr || !tRow?.text) {
         failed++;
         return;
       }
+      const segments = (tRow.segments as TranscriptSegment[] | null) ?? null;
 
       try {
         const result = await classifyTranscript({
@@ -531,6 +538,7 @@ export async function runClassify(): Promise<Record<string, unknown>> {
             episode_id: ep.id,
             issue_slug: m.issue_slug,
             supporting_quote: m.supporting_quote,
+            start_ts: quoteStartSeconds(m.supporting_quote, segments),
           }));
           const { error: insErr } = await db.from("classifications").insert(rows);
           // Leave classify_status pending on insert failure so it retries;

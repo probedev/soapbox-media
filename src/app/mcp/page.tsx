@@ -49,7 +49,7 @@ const EXAMPLE_QUERIES: { who: string; ask: string }[] = [
 ];
 
 const TOOLS: { name: string; what: string }[] = [
-  { name: "search_mentions", what: "The workhorse. Filtered search over scored issue mentions - verbatim quotes with sentiment (−5 left to +5 right), intensity, channel, episode, and a source link. Ten filters, paginated." },
+  { name: "search_mentions", what: "The workhorse. Filtered search over scored issue mentions - verbatim quotes with sentiment (−5 left to +5 right), intensity, channel, episode, and a source link. For most YouTube quotes, a timestamped deep link jumps straight to the moment in the video. Ten filters, paginated." },
   { name: "get_issue_trend", what: "Weekly time series for one issue: mention volume, average sentiment, average intensity. Trajectory questions." },
   { name: "get_index", what: "The Soapbox Index (−10…+10) over any trailing window, with delta, daily sparkline, and top issues by volume." },
   { name: "get_movers", what: "Issues with the biggest period-over-period lean or volume swings, with thin-sample noise filtered out." },
@@ -144,7 +144,9 @@ export default function McpPage() {
         <p className="text-ink-body mt-3 leading-relaxed">
           Every mention is a verbatim quote extracted at classification time, scored for sentiment
           (−5 strongly left-aligned to +5 strongly right-aligned) and intensity (1–5), and linked
-          to its source episode. Aggregates use the same reach- and intensity-weighted math as the
+          to its source episode - for most YouTube mentions, a <code className="text-sm">start_ts</code>{" "}
+          (and a <code className="text-sm">timestamp_url</code> deep link) opens the video at the moment
+          the quote was said. Aggregates use the same reach- and intensity-weighted math as the
           public site - the full derivation is on the{" "}
           <a href="/methodology" className="underline hover:text-foreground">methodology page</a>,
           and your agent can pull it live via <code className="text-sm">get_methodology</code>.
