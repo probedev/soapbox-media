@@ -73,6 +73,11 @@ export async function GET(
       .order("id", { ascending: true })
       .range(page * pageSize, (page + 1) * pageSize - 1);
     if (error) {
+      // Log so residual failures (after the db-layer retry) are visible in
+      // runtime logs with the real message - the 500 body alone isn't logged.
+      console.error(
+        `[channel-issue-mentions] channel=${params.id} issue=${params.slug}: ${error.message}`,
+      );
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
     if (!data || data.length === 0) break;

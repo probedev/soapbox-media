@@ -7,6 +7,26 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
+## v0.31.1 · 2026-06-20
+
+### Fixed
+
+- **Intermittent "Couldn't load …" errors on the lazy-load receipt panels** (the
+  channel-page per-issue mentions, the episode receipts, the /log episode table)
+  that cleared on a hard refresh. Root cause: a transient server-to-Supabase
+  blip made the read route 500, and since nothing retried, a single blip
+  stranded the panel until the user reloaded. Confirmed not a query bug - the
+  failing query is cheap and fully indexed (EXPLAIN: ~1ms). Fix is at the one
+  choke point every Supabase request flows through (`db.ts` `noStoreFetch`):
+  **idempotent reads (GET/HEAD) now retry** on a network throw or transient
+  status (408/429/500/502/503/504) with a short backoff (150ms, 400ms).
+  **Writes never retry** (POST/PATCH/DELETE) - the `classifications` insert is
+  non-idempotent, so retrying a write whose response was merely lost could
+  double-insert. Gating is unit-tested (`db.test.ts`).
+- Added error logging to the channel-issue and episode mention routes so any
+  residual post-retry failure surfaces in runtime logs with its real message
+  (previously the 500 body was returned but never logged).
+
 ## v0.31.0 · 2026-06-20
 
 ### Added

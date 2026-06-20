@@ -30,6 +30,7 @@ export async function GET(
     .eq("episode_id", params.id)
     .order("issue_slug", { ascending: true });
   if (error) {
+    console.error(`[episode-mentions] episode=${params.id}: ${error.message}`);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
