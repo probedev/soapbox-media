@@ -71,7 +71,7 @@ const handler = createMcpHandler(
   (server) => {
     server.tool(
       "get_index",
-      "The Soapbox Index: a reach- and intensity-weighted left/right needle (-10 = fully left-aligned, +10 = fully right-aligned) summarizing what tracked alt-media political channels are saying, over a trailing window. Returns the index, delta vs the prior same-length window, a daily-rolling sparkline, and top issues by mention volume.",
+      "The Soapbox Index: a reach- and intensity-weighted left/right needle (-10 = fully left-aligned, +10 = fully right-aligned) summarizing what tracked political channels (independent creators and legacy media) are saying, over a trailing window. Returns the index, delta vs the prior same-length window, a daily-rolling sparkline, and top issues by mention volume.",
       { window_days: z.number().int().min(1).max(90).default(7).describe("Trailing window in days (7 = site default)") },
       async ({ window_days }) => {
         const d = await dashboardFor(window_days);
@@ -134,7 +134,7 @@ const handler = createMcpHandler(
         issue_slug: z.string().optional().describe("Filter to one issue (from list_issues)"),
         channel_id: z.string().uuid().optional().describe("Filter to one channel (from list_channels)"),
         lean: z.array(z.enum(["L", "M", "R"])).optional().describe("Filter by channel editorial lean"),
-        cohort: z.enum(["independent", "legacy"]).optional().describe("independent = alt-media panel (drives the public Index); legacy = mainstream comparison set"),
+        cohort: z.enum(["independent", "legacy"]).optional().describe("independent = creator / digital-native (alt-media) cohort; legacy = traditional media. The headline Index blends both; filter to one to scope results."),
         platform: z.enum(["youtube", "podcast"]).optional(),
         published_after: z.string().optional().describe("ISO date - episodes published on/after"),
         published_before: z.string().optional().describe("ISO date - episodes published on/before"),
@@ -168,7 +168,7 @@ const handler = createMcpHandler(
           version: VERSION,
           pipeline: "Episodes from tracked YouTube channels and podcasts are transcribed, classified against a two-level issue taxonomy (locked topics over living issues) by Claude Sonnet with verbatim supporting quotes, then each mention is scored by Claude Haiku.",
           sentiment_scale: "Per-mention sentiment: -5.0 (strongly left-aligned framing) to +5.0 (strongly right-aligned framing), with intensity 1-5 for how forcefully the position is held.",
-          index: "The Soapbox Index (-10..+10) aggregates mention sentiment weighted by sqrt(channel reach) x intensity over a trailing window. The public Index uses the independent (alt-media) cohort only; the legacy cohort is tracked for comparison.",
+          index: "The Soapbox Index (-10..+10) aggregates mention sentiment weighted by sqrt(channel reach) x intensity over a trailing window. The headline Index blends both cohorts (independent creators + legacy media); the home page also shows a per-cohort sub-needle for each on its own.",
           calibration: "Scores are validated against a human-labeled gold set; humans calibrate and validate, the model measures at scale. Sentiment distribution is bimodal by design (positions cluster left/right).",
           reach_caveat: "Podcast audience estimates are editorial (reviewed at panel-add time); YouTube subscriber counts refresh daily.",
           transcript_policy: "Full transcripts are never republished or exposed via this API - verbatim excerpts with episode source links only.",

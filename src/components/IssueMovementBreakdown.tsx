@@ -30,7 +30,16 @@ function ShowRow({ show, maxAbs }: { show: ShowContribution; maxAbs: number }) {
     <div className="grid grid-cols-[minmax(0,1fr)_2.5fr_minmax(0,1fr)] items-center gap-3 py-1.5">
       {/* Who: show name + editorial-lean badge (NOT the bar color). */}
       <div className="flex items-center gap-2 min-w-0 justify-end text-right">
-        <span className="text-sm font-medium text-foreground truncate">{show.show}</span>
+        {show.channelId ? (
+          <a
+            href={`/channels/${show.channelId}`}
+            className="text-sm font-medium text-foreground truncate hover:underline"
+          >
+            {show.show}
+          </a>
+        ) : (
+          <span className="text-sm font-medium text-foreground truncate">{show.show}</span>
+        )}
         <EditorialBadge lean={show.editorialLean} />
       </div>
 
@@ -69,7 +78,13 @@ function WhyQuote({ show }: { show: ShowContribution }) {
   const dirColor = show.contribution >= 0 ? "text-red-700" : "text-blue-700";
   return (
     <div className="text-xs leading-relaxed">
-      <span className={`font-semibold ${dirColor}`}>{show.show}</span>
+      {show.channelId ? (
+        <a href={`/channels/${show.channelId}`} className={`font-semibold hover:underline ${dirColor}`}>
+          {show.show}
+        </a>
+      ) : (
+        <span className={`font-semibold ${dirColor}`}>{show.show}</span>
+      )}
       <span className="text-ink-faint"> &middot; {formatLean(show.lean)}</span>
       <p className="text-ink-body mt-1 italic">&ldquo;{show.topQuote.text}&rdquo;</p>
       <a

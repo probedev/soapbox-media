@@ -7,6 +7,24 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
+## v0.30.2 · 2026-06-19
+
+### Added
+
+- **Channel names in the "who's driving it" breakdown link to the channel page.**
+  Each show's name (bar label and quote receipt) now links to `/channels/[id]`
+  (the lead row for a canonical show). `channelId` is carried through
+  `ShowContribution`; guarded so it no-ops on snapshots written before the field.
+
+### Fixed
+
+- **Corrected stale "independent-only" copy** that conflicted with the live
+  three-needle design (the headline needle blends both cohorts; independent and
+  legacy each get a sub-needle). Updated the MCP tool descriptions
+  (`get_index`, `search_mentions`, methodology field), the `cohort.ts` and
+  `fetchScoreRows` comments, and the `CohortBadge` note. The methodology page and
+  home copy were already correct.
+
 ## v0.30.1 · 2026-06-19
 
 ### Changed

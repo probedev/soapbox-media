@@ -8,8 +8,8 @@
  * badge's tooltip; requires a <TooltipProvider> ancestor (present on /log via
  * EpisodeDataTable and on /channels via the page wrapper).
  *
- * Gate rendering on `PUBLIC_COHORTS.length > 1` at the call site so it's
- * invisible while the site is independent-only.
+ * Gate rendering on `PUBLIC_COHORTS.length > 1` at the call site so it only
+ * shows when more than one cohort is public (currently both).
  */
 import { Mic, Tv } from "lucide-react";
 import { cn } from "@/lib/utils";

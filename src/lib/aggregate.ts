@@ -260,9 +260,9 @@ const fetchScoreRows = cache(
       const e = c?.episode;
       const ch = e?.channel;
       if (!c || !e || !ch || !c.issue) continue;
-      // Cohort scope: the public master is independent-only until the
-      // comparison UX ships, so legacy channels' scored rows are excluded
-      // here even though they're ingesting. See [[lib/cohort]].
+      // Cohort scope: the public master (PUBLIC_COHORTS) blends both cohorts;
+      // callers pass a single-cohort set to compute the per-cohort sub-needles.
+      // Rows outside the requested cohort set are excluded here. See [[lib/cohort]].
       if (!cohorts.includes(ch.cohort)) continue;
       all.push({
         sentiment: Number(r.sentiment),
@@ -1242,6 +1242,8 @@ export async function getIssueDrillDown(slug: string): Promise<IssueDrillDown | 
  */
 export interface ShowContribution {
   show: string;
+  /** channel_id of the show's lead (highest-reach) row, for linking to /channels. */
+  channelId: string;
   editorialLean: "L" | "M" | "R";
   /** This show's stance on the issue, -10..+10. */
   lean: number;
@@ -1273,6 +1275,7 @@ export interface IssueMovementBreakdown {
 interface ExcerptRow {
   sentiment: number;
   intensity: number;
+  channel_id: string;
   channel_name: string;
   channel_lean: "L" | "M" | "R";
   channel_reach: number;
@@ -1300,7 +1303,7 @@ async function fetchIssueExcerptRows(slug: string, windowDays: number): Promise<
         supporting_quote,
         episode:episodes!classifications_episode_id_fkey (
           published_at, title, source_url,
-          channel:channels!episodes_channel_id_fkey ( name, political_lean, reach, cohort )
+          channel:channels!episodes_channel_id_fkey ( id, name, political_lean, reach, cohort )
         ),
         score:sentiment_scores!sentiment_scores_classification_id_fkey ( sentiment, intensity, supporting_quote )
         `,
@@ -1320,6 +1323,7 @@ async function fetchIssueExcerptRows(slug: string, windowDays: number): Promise<
       rows.push({
         sentiment: Number(score.sentiment),
         intensity: Number(score.intensity),
+        channel_id: ch.id,
         channel_name: ch.name,
         channel_lean: ch.political_lean,
         channel_reach: Number(ch.reach),
@@ -1385,6 +1389,7 @@ export async function getIssueMovementBreakdown(
       .reduce<ExcerptRow | null>((a, b) => (a === null || qscore(b) > qscore(a) ? b : a), null);
     shows.push({
       show: lead.channel_name,
+      channelId: lead.channel_id,
       editorialLean: lead.channel_lean,
       lean: toIndexScale(leanRaw),
       contribution: clamp((wSent / totalWeight) * 2, -10, 10),

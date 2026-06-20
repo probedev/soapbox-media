@@ -5,10 +5,10 @@
  *   - "legacy"      - traditional institutions' presence on the platform
  *
  * `PUBLIC_COHORTS` is the single control point for what the public site shows.
- * Until the independent-vs-legacy comparison UX ships, the master is
- * independent-only - so legacy channels can be seeded and ingested invisibly.
- * Launch = extend this to ["independent", "legacy"] (blended master) and add
- * the per-cohort sub-needle reads.
+ * The headline (aggregate) needle blends both cohorts; the home page also shows
+ * an independent and a legacy sub-needle, each on its own (the three-needle
+ * design). This is the master set every public aggregate reads - keep copy in
+ * sync with it (the Index is NOT independent-only).
  */
 export type Cohort = "independent" | "legacy";
 
