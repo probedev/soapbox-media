@@ -14,6 +14,7 @@ import {
   assertCronAuth,
   runStage,
   runIngest,
+  runMetrics,
   runTranscribe,
   runClassify,
   runScore,
@@ -32,6 +33,7 @@ export async function GET(request: NextRequest) {
   const startedAt = new Date().toISOString();
 
   const ingest = await runStage("ingest", runIngest);
+  const metrics = await runStage("metrics", runMetrics);
   const transcribe = await runStage("transcribe", runTranscribe);
   const classify = await runStage("classify", runClassify);
   const score = await runStage("score", runScore);
@@ -40,7 +42,7 @@ export async function GET(request: NextRequest) {
     startedAt,
     finishedAt: new Date().toISOString(),
     totalDurationMs: Date.now() - startTime,
-    stages: { ingest, transcribe, classify, score },
+    stages: { ingest, metrics, transcribe, classify, score },
   };
 
   await recordPipelineRun(summary, "manual").catch((e) => {

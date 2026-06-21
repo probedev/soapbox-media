@@ -37,6 +37,9 @@ interface PipelineSummary {
     /** Emerging-favorability scoring. Its own cron; folded into the cost columns
      *  below so /admin/costs counts its (small) spend against the budget. */
     "score-emerging"?: { detail?: any };
+    /** Phase-0 view-count snapshots (v0.32.0). No LLM cost - logged for run
+     *  history only, contributes nothing to the token/cost columns. */
+    metrics?: { detail?: any };
   };
 }
 

@@ -23,8 +23,9 @@ import { createMcpHandler, withMcpAuth } from "mcp-handler";
 import type { Implementation } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
 
-import { getDashboardData, getIssueDrillDown, getChannelDrillDown, getPanelStats, readHomeSnapshot } from "@/lib/aggregate";
+import { getDashboardData, getIssueDrillDown, getChannelDrillDown, getIssueMovementBreakdown, getPanelStats, readHomeSnapshot } from "@/lib/aggregate";
 import { searchMentions, issueTrend, listIssues, listChannels } from "@/lib/mcp-data";
+import { getChannelViewStats } from "@/lib/view-stats";
 import { verifyMcpToken, isStaticKey, RESOURCE_METADATA_PATH } from "@/lib/mcp-auth";
 import { VERSION } from "@/lib/version";
 
@@ -85,11 +86,24 @@ const handler = createMcpHandler(
 
     server.tool(
       "get_movers",
-      "Issues with the biggest period-over-period change - either lean swing (which direction the conversation moved) or mention-volume swing (what got loud/quiet). Eligibility floors filter out thin-sample noise.",
+      "Issues with the biggest period-over-period change - either lean swing (which direction the conversation moved) or mention-volume swing (what got loud/quiet). Eligibility floors filter out thin-sample noise. To see WHICH shows drove a given mover, with representative quotes, call get_issue_breakdown for that issue_slug.",
       { window_days: z.number().int().min(1).max(90).default(7).describe("Trailing window in days; compared against the same-length window immediately prior") },
       async ({ window_days }) => {
         const d = await dashboardFor(window_days);
         return json({ as_of: d.asOfDate, window_days: d.windowDays, movers: d.movers });
+      },
+    );
+
+    server.tool(
+      "get_issue_breakdown",
+      "Who is moving one issue, with receipts. Returns the issue's reach-weighted lean and a per-show breakdown over the window: each show's signed contribution to the issue lean, its own lean, mention count, reach, editorial lean, and a representative supporting quote (the receipt) with its source link, sentiment, and intensity. Shows are sorted by absolute contribution (biggest movers first) and collapse a show's YouTube + podcast siblings into one row. This is the data behind the home-page 'who is moving this issue' breakdown; pair it with get_movers (which issues moved) to explain a swing. Full transcripts are not available; quotes + source links only.",
+      {
+        issue_slug: z.string().describe("Issue slug from list_issues (or a mover from get_movers)"),
+        window_days: z.number().int().min(1).max(90).default(7).describe("Trailing window in days (7 = site default, matches get_movers)"),
+      },
+      async ({ issue_slug, window_days }) => {
+        const d = await getIssueMovementBreakdown(issue_slug, window_days);
+        return json(d ?? { error: `unknown issue_slug: ${issue_slug}` });
       },
     );
 
@@ -102,7 +116,7 @@ const handler = createMcpHandler(
 
     server.tool(
       "list_channels",
-      "The channel panel: every tracked show (YouTube + podcast) with id, editorial lean (L/M/R), cohort (independent alt-media vs legacy mainstream), and estimated audience reach. Call this to get channel_id values for other tools.",
+      "The channel panel: every tracked show (YouTube + podcast) with id, editorial lean (L/M/R), cohort (independent alt-media vs legacy mainstream), and estimated audience reach (subscriber count for YouTube, editorial estimate for podcasts). For YouTube channels also returns typical_views (median per-video views over mature recent uploads) and views_per_sub (typical_views / reach) - a transparency signal for how a channel's ACTUAL per-video reach compares to its subscriber count (e.g. a large-subscriber legacy channel whose videos get few views has a low ratio). Both are null for podcasts and thin/new channels. Reach (subscribers), NOT views, is what the Index currently weights by. Call this to get channel_id values for other tools.",
       {},
       async () => json(await listChannels()),
     );
@@ -119,11 +133,13 @@ const handler = createMcpHandler(
 
     server.tool(
       "get_channel_detail",
-      "Drill into one channel: its issue mix and stance profile - what this show talks about and how it leans per issue.",
+      "Drill into one channel: its issue mix and stance profile (what this show talks about and how it leans per issue), plus (YouTube only) a view_stats block: typical per-video views, views_per_sub vs subscriber reach, and the channel's runaway videos - top_videos (biggest over-performers) and bottom_videos (biggest under-performers) by views relative to the channel's own norm, each with a performance multiple, title, and source link. Runaways are computed over MATURE videos only (published 14-90 days ago) to avoid flagging fresh uploads as underperformers. view_stats is null for podcasts and channels with too few mature videos. These view metrics are transparency only - the Index still weights by subscriber reach, not views.",
       { channel_id: z.string().uuid().describe("Channel UUID from list_channels") },
       async ({ channel_id }) => {
         const d = await getChannelDrillDown(channel_id);
-        return json(d ?? { error: `unknown channel_id: ${channel_id}` });
+        if (!d) return json({ error: `unknown channel_id: ${channel_id}` });
+        const view_stats = await getChannelViewStats(channel_id).catch(() => null);
+        return json({ ...d, view_stats });
       },
     );
 
@@ -171,6 +187,7 @@ const handler = createMcpHandler(
           index: "The Soapbox Index (-10..+10) aggregates mention sentiment weighted by sqrt(channel reach) x intensity over a trailing window. The headline Index blends both cohorts (independent creators + legacy media); the home page also shows a per-cohort sub-needle for each on its own.",
           calibration: "Scores are validated against a human-labeled gold set; humans calibrate and validate, the model measures at scale. Sentiment distribution is bimodal by design (positions cluster left/right).",
           reach_caveat: "Podcast audience estimates are editorial (reviewed at panel-add time); YouTube subscriber counts refresh daily.",
+          view_metrics: "list_channels and get_channel_detail expose YouTube per-video view counts (typical_views = median over videos aged 14-90 days; views_per_sub vs subscriber reach; per-channel runaway over/under-performers). These are TRANSPARENCY ONLY and are NOT used in the Index weighting, which still weights by subscriber reach - whether to fold realized views into reach weighting is under evaluation. YouTube only; podcasts have no per-episode metric.",
           transcript_policy: "Full transcripts are never republished or exposed via this API - verbatim excerpts with episode source links only.",
           panel: stats,
         });

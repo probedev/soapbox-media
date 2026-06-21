@@ -41,6 +41,27 @@ export interface YouTubeVideoSummary {
   url: string;
   /** Duration in seconds. Available when fetched via getRecentUploads. */
   durationSec?: number;
+  /** Cumulative view count at fetch time. Populated by getRecentUploads
+   *  (it rides along on the same videos.list call), used for the Phase-0
+   *  episode_metrics snapshot. null when YouTube hides the count. */
+  viewCount?: number | null;
+  likeCount?: number | null;
+  commentCount?: number | null;
+}
+
+/** Per-video engagement stats from videos.list?part=statistics. Any field can be
+ *  null: YouTube hides like counts on some videos and disables comments on others. */
+export interface VideoStats {
+  viewCount: number | null;
+  likeCount: number | null;
+  commentCount: number | null;
+}
+
+/** Parse a YouTube statistics string ("12345" | undefined) to a number | null. */
+function parseStat(v: string | undefined): number | null {
+  if (v == null) return null;
+  const n = parseInt(v, 10);
+  return Number.isFinite(n) ? n : null;
 }
 
 /**
@@ -128,24 +149,71 @@ export async function getRecentUploads(
 
   if (videos.length === 0) return videos;
 
-  // Step 2: batch-fetch durations via videos.list
+  // Step 2: batch-fetch durations AND statistics via videos.list. Adding
+  // `statistics` to the part costs nothing extra (same call we already make for
+  // duration) and gives us per-video view counts for the episode_metrics
+  // snapshot (v0.32.0). One call covers up to 50 ids; INGEST_PER_CHANNEL*2 is
+  // well under that.
   const ids = videos.map((v) => v.videoId).join(",");
   const detailsData = await ytFetch<{
     items?: Array<{
       id: string;
       contentDetails: { duration: string };
+      statistics?: { viewCount?: string; likeCount?: string; commentCount?: string };
     }>;
-  }>(`/videos?id=${ids}&part=contentDetails`);
+  }>(`/videos?id=${ids}&part=contentDetails,statistics`);
 
-  const durationMap = new Map<string, number>();
+  const detailMap = new Map<string, { durationSec: number; stats: VideoStats }>();
   for (const item of detailsData.items || []) {
-    durationMap.set(item.id, parseIsoDuration(item.contentDetails.duration));
+    detailMap.set(item.id, {
+      durationSec: parseIsoDuration(item.contentDetails.duration),
+      stats: {
+        viewCount: parseStat(item.statistics?.viewCount),
+        likeCount: parseStat(item.statistics?.likeCount),
+        commentCount: parseStat(item.statistics?.commentCount),
+      },
+    });
   }
   for (const v of videos) {
-    v.durationSec = durationMap.get(v.videoId);
+    const d = detailMap.get(v.videoId);
+    v.durationSec = d?.durationSec;
+    v.viewCount = d?.stats.viewCount ?? null;
+    v.likeCount = d?.stats.likeCount ?? null;
+    v.commentCount = d?.stats.commentCount ?? null;
   }
 
   return videos;
+}
+
+/**
+ * Fetch per-video engagement stats for many videos in one go (batches of 50,
+ * 1 quota unit per batch). Returns a map keyed by video id. Used by the
+ * `metrics` stage and the one-time backfill to snapshot view counts; videos
+ * that are private/deleted simply don't appear in the response (and so are
+ * absent from the map - the caller skips them).
+ */
+export async function getVideoStatsBatch(
+  ids: string[],
+): Promise<Map<string, VideoStats>> {
+  const out = new Map<string, VideoStats>();
+  for (let i = 0; i < ids.length; i += 50) {
+    const chunk = ids.slice(i, i + 50).filter(Boolean).join(",");
+    if (!chunk) continue;
+    const data = await ytFetch<{
+      items?: Array<{
+        id: string;
+        statistics?: { viewCount?: string; likeCount?: string; commentCount?: string };
+      }>;
+    }>(`/videos?id=${chunk}&part=statistics`);
+    for (const it of data.items || []) {
+      out.set(it.id, {
+        viewCount: parseStat(it.statistics?.viewCount),
+        likeCount: parseStat(it.statistics?.likeCount),
+        commentCount: parseStat(it.statistics?.commentCount),
+      });
+    }
+  }
+  return out;
 }
 
 /**

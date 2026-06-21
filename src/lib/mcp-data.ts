@@ -7,6 +7,7 @@
  */
 import { createServiceClient } from "@/lib/db";
 import { timestampedSourceUrl } from "@/lib/transcript-timing";
+import { listChannelViewStats } from "@/lib/view-stats";
 
 const MAX_LIMIT = 50;
 
@@ -214,5 +215,17 @@ export async function listChannels() {
     .eq("active", true)
     .order("reach", { ascending: false });
   if (error) throw new Error(`listChannels: ${error.message}`);
-  return data;
+
+  // Enrich with view stats: typical (mature-window median) per-video views and
+  // views_per_sub - the divergence between actual reach and subscriber count.
+  // YouTube only; null for podcasts and thin/new channels (no mature sample).
+  const viewStats = await listChannelViewStats(db);
+  return (data || []).map((c) => {
+    const v = viewStats.get(c.id);
+    return {
+      ...c,
+      typical_views: v?.typical_views ?? null,
+      views_per_sub: v?.views_per_sub ?? null,
+    };
+  });
 }

@@ -7,6 +7,47 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
+## v0.32.0 · 2026-06-20
+
+### Added
+
+- **Per-video view-count collection (Phase 0).** New `episode_metrics` table
+  banks each active YouTube episode's view count as a daily snapshot for its
+  first 45 days, capturing the view-growth curve. This is the dataset we need to
+  later decide whether (and how) to fold realized per-video views into reach
+  weighting, instead of relying solely on the blunt channel-level subscriber
+  proxy (a dormant large channel is over-weighted, a viral small one
+  under-weighted). Three collectors:
+  - `getRecentUploads` now rides `statistics` along on the videos.list call it
+    already makes, so the **ingest** stage snapshots each new YT episode's view
+    count for free (no extra API calls).
+  - A new **`metrics`** cron stage (10:20 UTC daily, own 300s budget) snapshots
+    every active YT episode inside the 45-day horizon, once per UTC day. Quota is
+    trivial (~horizon/50 batched videos.list calls).
+  - `npm run backfill:views` records a one-time current-cumulative baseline for
+    all existing YT episodes (~121 batched calls for ~6k episodes).
+- **Decoupled and Index-safe by design.** Nothing in `src/lib/aggregate.ts`
+  reads `episode_metrics`; the reach algorithm and the published Soapbox Index
+  are untouched. The table is a pure write-only producer (RLS-on/no-policies,
+  service-role only). YouTube-only - podcasts expose no reliable per-episode
+  metric. Forward-only: `age_hours` is stored on every snapshot so
+  heterogeneous-age backfill readings stay alignable on a curve.
+- **View-count transparency in the MCP.** Two read-only DB views
+  (`episode_view_latest`, `channel_view_stats`) back new MCP fields/tools:
+  `list_channels` and `get_channel_detail` now expose, for YouTube channels,
+  `typical_views` (median per-video views over mature uploads aged 14-90 days)
+  and `views_per_sub` (the divergence between actual per-video reach and
+  subscriber count), and `get_channel_detail` adds each channel's runaway
+  over/under-performing videos (performance relative to the channel's own norm,
+  mature videos only to avoid penalizing fresh uploads). All null for podcasts
+  and thin channels. `get_methodology` discloses these are transparency-only and
+  NOT used in the Index weighting (which still weights by subscriber reach).
+- **`get_issue_breakdown` MCP tool.** Exposes the home-page "who is moving this
+  issue" breakdown: per-show signed contribution to an issue's lean over the
+  window, each with a representative supporting quote (receipt) and source link,
+  siblings collapsed. Pairs with `get_movers` (which issues moved) to explain a
+  swing with receipts.
+
 ## v0.31.1 · 2026-06-20
 
 ### Fixed

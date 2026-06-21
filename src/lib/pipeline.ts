@@ -9,7 +9,17 @@
  */
 import { type NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/db";
-import { getRecentUploads, getVideoTranscript, getChannelDetailsBatch } from "@/lib/youtube";
+import {
+  getRecentUploads,
+  getVideoTranscript,
+  getChannelDetailsBatch,
+  getVideoStatsBatch,
+} from "@/lib/youtube";
+import {
+  snapshotEpisodeViews,
+  videoIdFromUrl,
+  type MetricSnapshot,
+} from "@/lib/metrics";
 import { quoteStartSeconds, type TranscriptSegment } from "@/lib/transcript-timing";
 import { getPodcastEpisodes } from "@/lib/podscan";
 import { classifyTranscript, type IssueDef } from "@/modules/classify";
@@ -80,6 +90,15 @@ export const EMERGING_SCORE_CONCURRENCY = 15;
 // cleanly and processes as many items as fit. (2026-05-27 incident: 15
 // episodes × 23 issues ran the full 300s serially and was killed mid-batch.)
 export const STAGE_TIME_BUDGET_MS = 240_000;
+
+// Phase-0 view-count collection (v0.32.0). YouTube-only - podcasts have no
+// reliable per-episode metric. We snapshot each YT episode's view count once per
+// UTC day for its first METRICS_HORIZON_DAYS so we capture the view-growth curve
+// (the dataset needed to later decide whether to fold realized views into reach
+// weighting). PURE PRODUCER: nothing in aggregate.ts reads episode_metrics, so
+// the Index is untouched. Quota is trivial (~horizon/50 batched calls/day).
+export const METRICS_HORIZON_DAYS = 45;
+export const METRICS_BATCH = 50; // videos.list caps at 50 ids/call
 
 export interface StageResult {
   ok: boolean;
@@ -152,6 +171,11 @@ export async function runIngest(): Promise<Record<string, unknown>> {
   let totalSkippedShort = 0;
   let totalSkippedDup = 0;
   let totalFailures = 0;
+  // Phase-0 view snapshot: viewCount rides along free on the videos.list call
+  // getRecentUploads already makes, so capture an early reading for every YT
+  // episode we touch. The daily `metrics` stage sweeps the wider horizon; this
+  // just guarantees a same-day reading regardless of cron ordering.
+  const metricRows: MetricSnapshot[] = [];
 
   for (const ch of channels || []) {
     // YouTube only - podcast reach is editorial (see top-of-function note).
@@ -212,7 +236,20 @@ export async function runIngest(): Promise<Record<string, unknown>> {
             )
             .select();
           if (e) totalFailures++;
-          else if (data && data.length > 0) totalNew++;
+          else if (data && data.length > 0) {
+            totalNew++;
+            if (v.viewCount != null) {
+              metricRows.push({
+                episodeId: data[0].id,
+                publishedAt: v.publishedAt,
+                stats: {
+                  viewCount: v.viewCount ?? null,
+                  likeCount: v.likeCount ?? null,
+                  commentCount: v.commentCount ?? null,
+                },
+              });
+            }
+          }
         }
       } catch {
         totalFailures++;
@@ -298,6 +335,14 @@ export async function runIngest(): Promise<Record<string, unknown>> {
     }
   }
 
+  // Best-effort view snapshot for the new YT episodes - must never fail ingest.
+  let metricsSnapshotted = 0;
+  try {
+    metricsSnapshotted = await snapshotEpisodeViews(db, metricRows);
+  } catch (err) {
+    console.error(`[ingest] view snapshot failed: ${(err as Error)?.message}`);
+  }
+
   return {
     channelsProcessed: channels?.length || 0,
     fetched: totalFetched,
@@ -308,6 +353,114 @@ export async function runIngest(): Promise<Record<string, unknown>> {
     failures: totalFailures,
     reachRefreshed,
     reachStale,
+    metricsSnapshotted,
+  };
+}
+
+// ─── Metrics (view-count snapshots) ───────────────────────────────────────
+//
+// Phase-0 data collection: snapshot each active YouTube episode's view count
+// once per UTC day for its first METRICS_HORIZON_DAYS, banking the view-growth
+// curve into episode_metrics. Pure producer - nothing reads this in aggregation,
+// so the reach algorithm and the Index are untouched (v0.32.0). Idempotent: a
+// (episode_id, captured_on) snapshot already taken today is skipped, so extra
+// runs in a day are cheap no-ops.
+
+export async function runMetrics(): Promise<Record<string, unknown>> {
+  const db = createServiceClient();
+  const stageStart = Date.now();
+  const cutoff = new Date(stageStart - METRICS_HORIZON_DAYS * 86_400_000).toISOString();
+
+  // Active YouTube channels only - podcasts have no per-episode metric.
+  const { data: chans, error: chErr } = await db
+    .from("channels")
+    .select("id")
+    .eq("active", true)
+    .eq("platform", "youtube");
+  if (chErr) throw new Error(`runMetrics: load channels: ${chErr.message}`);
+  const ytIds = (chans || []).map((c) => c.id);
+  if (ytIds.length === 0) {
+    return { horizonEpisodes: 0, due: 0, snapshotted: 0, apiCalls: 0, failures: 0 };
+  }
+
+  // Episodes inside the snapshot horizon (paginated, stable order, empty-page-
+  // only termination - the deep-query short-page gotcha, [[pagination-needs-stable-order]]).
+  const eps: { id: string; source_url: string; published_at: string }[] = [];
+  const pageSize = 1000;
+  for (let from = 0; ; from += pageSize) {
+    const { data, error } = await db
+      .from("episodes")
+      .select("id, source_url, published_at")
+      .in("channel_id", ytIds)
+      .gte("published_at", cutoff)
+      .order("published_at", { ascending: false })
+      .order("id", { ascending: false })
+      .range(from, from + pageSize - 1);
+    if (error) throw new Error(`runMetrics: load episodes: ${error.message}`);
+    if (!data || data.length === 0) break;
+    eps.push(...(data as any));
+  }
+
+  // Episodes already snapshotted today - skip them so repeat runs don't re-spend
+  // API calls / wall-clock re-reading the same stats (the day's first reading
+  // wins anyway via the ON CONFLICT DO NOTHING upsert).
+  const today = new Date(stageStart).toISOString().slice(0, 10);
+  const doneToday = new Set<string>();
+  for (let from = 0; ; from += pageSize) {
+    const { data, error } = await db
+      .from("episode_metrics")
+      .select("episode_id")
+      .eq("captured_on", today)
+      .order("episode_id", { ascending: true })
+      .range(from, from + pageSize - 1);
+    if (error) throw new Error(`runMetrics: load today's snapshots: ${error.message}`);
+    if (!data || data.length === 0) break;
+    for (const r of data as any[]) doneToday.add(r.episode_id);
+  }
+
+  // Resolve video ids for the due episodes (skip unparseable URLs defensively).
+  const byVideoId = new Map<string, { id: string; published_at: string }>();
+  for (const e of eps) {
+    if (doneToday.has(e.id)) continue;
+    const vid = videoIdFromUrl(e.source_url);
+    if (vid) byVideoId.set(vid, { id: e.id, published_at: e.published_at });
+  }
+  const videoIds = [...byVideoId.keys()];
+
+  let snapshotted = 0;
+  let apiCalls = 0;
+  let failures = 0;
+  let stoppedAtTimeBudget = false;
+  for (let i = 0; i < videoIds.length; i += METRICS_BATCH) {
+    if (Date.now() > stageStart + STAGE_TIME_BUDGET_MS) {
+      stoppedAtTimeBudget = true;
+      break;
+    }
+    const chunk = videoIds.slice(i, i + METRICS_BATCH);
+    try {
+      const stats = await getVideoStatsBatch(chunk);
+      apiCalls++;
+      const rows: MetricSnapshot[] = [];
+      for (const vid of chunk) {
+        const ep = byVideoId.get(vid);
+        const s = stats.get(vid);
+        if (ep && s) rows.push({ episodeId: ep.id, publishedAt: ep.published_at, stats: s });
+      }
+      snapshotted += await snapshotEpisodeViews(db, rows);
+    } catch (err) {
+      failures++;
+      console.error(`[metrics] batch failed: ${(err as Error)?.message}`);
+    }
+  }
+
+  return {
+    horizonEpisodes: eps.length,
+    alreadySnapshotToday: doneToday.size,
+    due: videoIds.length,
+    snapshotted,
+    apiCalls,
+    failures,
+    stoppedAtTimeBudget,
   };
 }
 
