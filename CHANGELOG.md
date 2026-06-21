@@ -7,6 +7,23 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
+## v0.32.4 · 2026-06-21
+
+### Fixed
+
+- **Close a double-count hole opened by v0.32.3's directional dedup.** Because a
+  YouTube ingest now defers to no one, a shared episode on an equal-reach
+  dual-platform show could double-count if the podcast row happened to be
+  processed before the YouTube row within a run (the podcast ingested the
+  episode, then YouTube re-ingested it with nothing to dedup against). The
+  channel ingest order was only `reach desc`, which is undefined for equal-reach
+  sibling rows (the podcast row often inherits the YouTube subscriber count).
+  Both ingest paths now process higher-priority platforms first (YouTube before
+  podcast, via a stable sort on `PLATFORM_PRIORITY`), so the YouTube copy always
+  lands first and the podcast defers. Only the rare cross-run case (a podcast
+  copy ingested a full day before YouTube's appears) remains, which a future
+  retroactive-supersede pass would close.
+
 ## v0.32.3 · 2026-06-21
 
 ### Changed

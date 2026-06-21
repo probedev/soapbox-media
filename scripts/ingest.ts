@@ -18,7 +18,7 @@ import "./_load-env";
 import { createServiceClient } from "@/lib/db";
 import { getRecentUploads, getChannelDetailsBatch } from "@/lib/youtube";
 import { getPodcastEpisodes, episodeSourceUrl } from "@/lib/podscan";
-import { dedupKey, loadSiblingEpisodeKeys } from "@/lib/dedup";
+import { dedupKey, loadSiblingEpisodeKeys, PLATFORM_PRIORITY } from "@/lib/dedup";
 
 interface ChannelRow {
   id: string;
@@ -263,6 +263,15 @@ async function main() {
     console.log("No active channels in DB — run `npm run seed:channels` first.");
     return;
   }
+
+  // Process YouTube before podcast within the run so a dual-platform show's
+  // YouTube copy of a shared episode lands first and the podcast defers to it
+  // (dedup is directional; a podcast-first order would double-count). Reorders
+  // the already-selected set only; reach-desc selection above is unchanged.
+  // Stable sort preserves reach-desc within each platform. (v0.32.4)
+  (channels as ChannelRow[]).sort(
+    (a, b) => (PLATFORM_PRIORITY[b.platform] ?? 0) - (PLATFORM_PRIORITY[a.platform] ?? 0),
+  );
 
   // Batch-fetch live YT stats up front (one API call for up to 50 channels)
   // so each per-channel iteration can write back a fresh reach number. See

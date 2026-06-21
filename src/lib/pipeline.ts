@@ -26,7 +26,7 @@ import { classifyTranscript, type IssueDef } from "@/modules/classify";
 import { scoreClassification, scoreEmergingMention, EMERGING_SCORE_PROMPT_VERSION } from "@/modules/score";
 import { MODEL_CLASSIFY, MODEL_SCORE } from "@/lib/anthropic";
 import { estimateCostUsd } from "@/lib/pricing";
-import { dedupKey, loadSiblingEpisodeKeys } from "@/lib/dedup";
+import { dedupKey, loadSiblingEpisodeKeys, PLATFORM_PRIORITY } from "@/lib/dedup";
 import { mapPool } from "@/lib/concurrency";
 import { getEmergingBoard } from "@/lib/discovery";
 
@@ -132,6 +132,20 @@ export async function runIngest(): Promise<Record<string, unknown>> {
     .eq("active", true)
     .order("reach", { ascending: false });
   if (error) throw new Error(`load channels: ${error.message}`);
+
+  // Process higher-priority platforms first (YouTube before podcast) so that for
+  // a dual-platform show the YouTube copy of a shared episode lands first within
+  // a run and the podcast sibling defers to it (see loadSiblingEpisodeKeys).
+  // Dedup is directional (YouTube never defers), so a podcast-first order would
+  // double-count the shared episode. Equal-reach sibling rows are common (the
+  // podcast row often inherits the YT subscriber count), so the reach-desc order
+  // alone leaves the sibling order undefined. Stable sort preserves reach-desc
+  // within each platform. (v0.32.4)
+  if (channels) {
+    channels.sort(
+      (a, b) => (PLATFORM_PRIORITY[b.platform] ?? 0) - (PLATFORM_PRIORITY[a.platform] ?? 0),
+    );
+  }
 
   // Reach refresh: piggyback on the ingest's per-channel iteration. YT is
   // batched via getChannelDetailsBatch (up to 50 channels per API call) -
