@@ -7,6 +7,24 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
+## v0.32.2 · 2026-06-21
+
+### Fixed
+
+- **Podcast ingest collapsed network-distributed shows onto a single episode
+  row.** Both ingest paths (`scripts/ingest.ts`, `src/lib/pipeline.ts`) built an
+  episode's `source_url` from `episode_url`/`episode_permalink` first. For shows
+  distributed via a network (SiriusXM, Ark Media, MSW Media, etc.) PodScan
+  returns a generic homepage there (e.g. `https://www.siriusxm.com/`), identical
+  for every episode, so the `(channel_id, source_url)` upsert overwrote one row
+  on each run instead of appending. Affected shows showed exactly one episode,
+  perpetually replaced with the latest. Now both paths use the existing
+  `episodeSourceUrl()` helper, which prefers the unique per-episode audio URL
+  (then guid). Three shows were affected (The Megyn Kelly Show, Call Me Back with
+  Dan Senor, The Daily Beans); their stuck rows were deleted and the shows
+  re-ingested via the new `npm run reingest:podcast` recovery script. Pre-fix
+  history beyond what PodScan still returns is unrecoverable.
+
 ## v0.32.1 · 2026-06-20
 
 ### Docs

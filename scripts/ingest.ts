@@ -17,7 +17,7 @@ import "./_load-env";
 
 import { createServiceClient } from "@/lib/db";
 import { getRecentUploads, getChannelDetailsBatch } from "@/lib/youtube";
-import { getPodcastEpisodes } from "@/lib/podscan";
+import { getPodcastEpisodes, episodeSourceUrl } from "@/lib/podscan";
 import { dedupKey, loadSiblingEpisodeKeys } from "@/lib/dedup";
 
 interface ChannelRow {
@@ -150,14 +150,11 @@ async function ingestPodcastChannel(
     const siblingKeys = await loadSiblingEpisodeKeys(db, channel.id, channel.name);
 
     for (const ep of slice) {
-      // Normalize PodScan's episode_-prefixed fields against legacy/alt variants
-      const url =
-        ep.episode_url ||
-        ep.episode_permalink ||
-        ep.url ||
-        ep.link ||
-        ep.episode_audio_url ||
-        ep.audio_url;
+      // Unique per-episode source_url. MUST prefer the audio URL (or guid):
+      // network-distributed shows (SiriusXM, etc.) return a generic homepage
+      // for episode_url/episode_permalink, so keying on those collapses every
+      // episode onto one row via the (channel_id, source_url) unique key.
+      const url = episodeSourceUrl(ep);
       const title = ep.episode_title || ep.title || ep.name || "(untitled)";
       const published =
         ep.posted_at ||

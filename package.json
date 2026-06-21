@@ -1,6 +1,6 @@
 {
   "name": "soapbox",
-  "version": "0.32.1",
+  "version": "0.32.2",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -12,6 +12,7 @@
     "test:watch": "vitest",
     "seed:channels": "tsx scripts/seed-channels.ts",
     "ingest": "tsx scripts/ingest.ts",
+    "reingest:podcast": "tsx scripts/reingest-podcast.ts",
     "metrics": "tsx scripts/metrics.ts",
     "backfill:views": "tsx scripts/backfill-views.ts",
     "transcribe": "tsx scripts/transcribe.ts",

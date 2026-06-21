@@ -21,7 +21,7 @@ import {
   type MetricSnapshot,
 } from "@/lib/metrics";
 import { quoteStartSeconds, type TranscriptSegment } from "@/lib/transcript-timing";
-import { getPodcastEpisodes } from "@/lib/podscan";
+import { getPodcastEpisodes, episodeSourceUrl } from "@/lib/podscan";
 import { classifyTranscript, type IssueDef } from "@/modules/classify";
 import { scoreClassification, scoreEmergingMention, EMERGING_SCORE_PROMPT_VERSION } from "@/modules/score";
 import { MODEL_CLASSIFY, MODEL_SCORE } from "@/lib/anthropic";
@@ -266,13 +266,12 @@ export async function runIngest(): Promise<Record<string, unknown>> {
         totalSkippedShort += eps.length - longEnough.length;
         const slice = longEnough.slice(0, INGEST_PER_CHANNEL);
         for (const ep of slice) {
-          const url =
-            ep.episode_url ||
-            ep.episode_permalink ||
-            (ep as any).url ||
-            (ep as any).link ||
-            ep.episode_audio_url ||
-            (ep as any).audio_url;
+          // Unique per-episode source_url. MUST prefer the audio URL (or guid):
+          // network-distributed shows (SiriusXM, etc.) return a generic
+          // homepage for episode_url/episode_permalink, so keying on those
+          // collapses every episode onto one row via the (channel_id,
+          // source_url) unique key.
+          const url = episodeSourceUrl(ep);
           const title = ep.episode_title || (ep as any).title || (ep as any).name || "(untitled)";
           const published =
             ep.posted_at ||
