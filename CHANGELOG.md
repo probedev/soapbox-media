@@ -7,6 +7,22 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
+## v0.32.3 · 2026-06-21
+
+### Changed
+
+- **Cross-platform dedup now deterministically prefers YouTube.** When a show
+  runs on both YouTube and a podcast feed, a shared episode (same title + date)
+  used to be kept on whichever platform was ingested into the DB first
+  (timing/order dependent, nondeterministic for equal-reach rows). Dedup is now
+  directional: a podcast episode defers to its YouTube sibling, but a YouTube
+  episode is never skipped because of a podcast sibling
+  (`loadSiblingEpisodeKeys` in `src/lib/dedup.ts`, gated by a `PLATFORM_PRIORITY`
+  map). This only affects overlapping episodes; YouTube-only clips and
+  podcast-only full episodes are untouched, so coverage for podcast-heavy shows
+  (e.g. Piers Morgan, The Lincoln Project) is unchanged. The kept YouTube copy
+  carries the real subscriber reach and supports deep-link mention timestamps.
+
 ## v0.32.2 · 2026-06-21
 
 ### Fixed

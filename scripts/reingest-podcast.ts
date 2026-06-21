@@ -61,7 +61,7 @@ async function main() {
       const dur = ep.episode_duration || ep.duration || ep.duration_seconds || 0;
       return Number(dur) >= MIN_DURATION_SEC;
     });
-    const siblingKeys = await loadSiblingEpisodeKeys(db, ch.id, ch.name);
+    const siblingKeys = await loadSiblingEpisodeKeys(db, ch.id, ch.name, ch.platform);
 
     let newRows = 0;
     let transcripts = 0;

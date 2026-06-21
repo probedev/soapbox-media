@@ -203,10 +203,11 @@ export async function runIngest(): Promise<Record<string, unknown>> {
       }
     }
 
-    // Cross-platform dedup: skip episodes already ingested on a sibling channel
-    // of the same show (same name, other platform). Loaded per channel so the
-    // higher-reach copy (ingested first, reach-desc) wins and the re-post skips.
-    const siblingKeys = await loadSiblingEpisodeKeys(db, ch.id, ch.name);
+    // Cross-platform dedup: skip episodes already ingested on a higher-priority
+    // sibling channel of the same show (same name). Directional - a podcast
+    // episode defers to its YouTube sibling; YouTube never defers (see
+    // loadSiblingEpisodeKeys). For YouTube this is an empty set.
+    const siblingKeys = await loadSiblingEpisodeKeys(db, ch.id, ch.name, ch.platform);
     if (ch.platform === "youtube") {
       const uploadsId = "UU" + ch.platform_id.slice(2);
       try {

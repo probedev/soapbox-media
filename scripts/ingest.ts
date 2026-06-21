@@ -73,7 +73,7 @@ async function ingestYouTubeChannel(
 
     // Skip episodes already ingested on a sibling channel (same show, other
     // platform) — cross-platform re-post dedup.
-    const siblingKeys = await loadSiblingEpisodeKeys(db, channel.id, channel.name);
+    const siblingKeys = await loadSiblingEpisodeKeys(db, channel.id, channel.name, channel.platform);
 
     for (const v of slice) {
       if (siblingKeys.has(dedupKey(v.title, v.publishedAt))) {
@@ -147,7 +147,7 @@ async function ingestPodcastChannel(
 
     // Skip episodes already ingested on a sibling channel (same show, other
     // platform) — cross-platform re-post dedup.
-    const siblingKeys = await loadSiblingEpisodeKeys(db, channel.id, channel.name);
+    const siblingKeys = await loadSiblingEpisodeKeys(db, channel.id, channel.name, channel.platform);
 
     for (const ep of slice) {
       // Unique per-episode source_url. MUST prefer the audio URL (or guid):
