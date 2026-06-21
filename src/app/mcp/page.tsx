@@ -53,10 +53,11 @@ const TOOLS: { name: string; what: string }[] = [
   { name: "get_issue_trend", what: "Weekly time series for one issue: mention volume, average sentiment, average intensity. Trajectory questions." },
   { name: "get_index", what: "The Soapbox Index (−10…+10) over any trailing window, with delta, daily sparkline, and top issues by volume." },
   { name: "get_movers", what: "Issues with the biggest period-over-period lean or volume swings, with thin-sample noise filtered out." },
+  { name: "get_issue_breakdown", what: "Who is moving one issue, with receipts: each show's signed contribution to the issue's lean, plus a representative supporting quote and source link. Pairs with get_movers to explain a swing." },
   { name: "get_issue_detail", what: "One issue, drilled in: which channels drive it this week and from which side." },
-  { name: "get_channel_detail", what: "One show, drilled in: its issue mix and per-issue stance profile." },
+  { name: "get_channel_detail", what: "One show, drilled in: its issue mix and per-issue stance profile, plus (YouTube) typical per-video views vs subscriber reach and the show's runaway over/under-performing videos." },
   { name: "list_issues", what: "The full issue taxonomy with definitions and the canonical left/right positions used in scoring." },
-  { name: "list_channels", what: "The tracked panel: every show with lean, cohort (independent vs legacy), platform, and audience reach." },
+  { name: "list_channels", what: "The tracked panel: every show with lean, cohort (independent vs legacy), platform, and audience reach - plus, for YouTube, typical per-video views and the views-per-subscriber ratio." },
   { name: "get_methodology", what: "How every number is computed, plus live panel statistics - so your agent can cite its sources." },
 ];
 
@@ -123,7 +124,7 @@ export default function McpPage() {
           ))}
         </div>
 
-        <h2 className="text-xl font-semibold mt-12">What&apos;s underneath: nine tools</h2>
+        <h2 className="text-xl font-semibold mt-12">What&apos;s underneath: ten tools</h2>
         <p className="text-ink-body mt-3 leading-relaxed">
           Your agent discovers these automatically on connect. Every tool is read-only.
         </p>

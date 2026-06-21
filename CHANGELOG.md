@@ -7,6 +7,16 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
+## v0.32.1 · 2026-06-20
+
+### Docs
+
+- Synced the public MCP guide (`/mcp`) with v0.32.0: added the new
+  `get_issue_breakdown` tool, noted the YouTube view-count fields on
+  `list_channels` and `get_channel_detail` (typical per-video views,
+  views-per-subscriber, runaway over/under-performers), and corrected the tool
+  count (nine → ten).
+
 ## v0.32.0 · 2026-06-20
 
 ### Added
