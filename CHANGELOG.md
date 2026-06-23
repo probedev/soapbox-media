@@ -7,6 +7,34 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
+## v0.33.0 · 2026-06-22
+
+### Added
+
+- **Public Figures: a favorability board for individual people, a new top-level
+  section.** Tracks how favorably vs critically the panel talks about a curated
+  roster of ~15 figures (politicians, officials, media + tech), on a −5 (hostile)
+  to +5 (effusive) axis that is DELIBERATELY SEPARATE from the left/right Soapbox
+  Index - favorability toward a person crosses party lines, so it never feeds the
+  needle (new `figures` / `figure_mentions` / `figure_scores` tables; the Index
+  computation does not reference them).
+  - Detection is transcript-level (`src/lib/figures.ts`, `npm run detect:figures`):
+    whole-word alias matching over transcripts, nearby-mention dedup, an ad-read
+    pre-filter, a per-episode-per-figure cap, and free deep-link timestamps from
+    YouTube caption markers.
+  - Scoring is a separate Haiku pass (`scoreFigureMention`, prompt version v1)
+    with an explicit attribution rule (a host quoting a critic is scored on the
+    HOST's stance, not the quoted view) and an intensity gate that excludes
+    passing name-drops / benchmark references from the favorability aggregate.
+  - New `/figures` and `/figures/[slug]` pages (slate→emerald `FavorabilityGauge`,
+    never the red/blue needle) showing net favorability, the most-effusive vs
+    most-critical shows (volume-floored), and the sharpest quotes both ways with
+    source deep-links.
+  - New MCP tools `list_figures` and `get_figure_detail` (public guide updated).
+  - Trump is held for a later release (he saturates ~20% of the corpus). v1
+    ships on a manual spot-check; a favorability gold set gates any published
+    absolute number, and `supporting_quote`-recall caveats are documented.
+
 ## v0.32.6 · 2026-06-22
 
 ### Added

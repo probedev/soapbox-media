@@ -3,7 +3,7 @@ import logoCrate from "@/assets/logo-crate.png";
 import { FreshnessBadge } from "@/components/FreshnessBadge";
 import { Wordmark } from "@/components/Wordmark";
 
-type ActivePage = "issues" | "channels" | "emerging" | "activity" | "methodology" | null;
+type ActivePage = "issues" | "figures" | "channels" | "emerging" | "activity" | "methodology" | null;
 
 interface HeaderProps {
   /** When set, that nav link gets the bolded/active treatment */
@@ -41,6 +41,7 @@ export function Header({ activePage = null }: HeaderProps) {
         </div>
         <nav className="text-sm text-ink-muted flex flex-wrap gap-4 sm:gap-6">
           <a href="/issues" className={linkClass("issues")}>Issues</a>
+          <a href="/figures" className={linkClass("figures")}>Figures</a>
           <a href="/channels" className={linkClass("channels")}>Channels</a>
           <a href="/emerging" className={linkClass("emerging")}>Emerging</a>
           <a href="/log" className={linkClass("activity")}>Activity</a>

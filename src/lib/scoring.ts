@@ -49,6 +49,26 @@ export function toIndexScale(lean: number): number {
   return clamp(lean * 2, -10, 10);
 }
 
+/** Minimal row shape for figure favorability; aggregate's rows satisfy it structurally. */
+export interface FavorRow {
+  favorability: number;
+  intensity: number;
+  channel_reach: number;
+}
+
+/**
+ * Reach × intensity weighted mean favorability over scored figure mentions.
+ * Same machinery as weightedLean, on the favorability axis. Stays on the
+ * -5..+5 favorability scale (NOT doubled onto the ±10 needle) - favorability
+ * toward a public figure is its OWN axis and never feeds the Soapbox Index.
+ */
+export function weightedFavorability(rows: FavorRow[]): { favorability: number; weight: number } {
+  const { lean, weight } = weightedLean(
+    rows.map((r) => ({ sentiment: r.favorability, intensity: r.intensity, channel_reach: r.channel_reach })),
+  );
+  return { favorability: lean, weight };
+}
+
 // ── Biggest Movers: eligibility + ranking ────────────────────────────────────
 export const MOVER_MIN_MENTIONS = 25;
 export const MOVER_LEAN_DELTA_FLOOR = 0.5;

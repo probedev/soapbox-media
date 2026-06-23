@@ -3,6 +3,7 @@ import {
   clamp,
   reachFactor,
   weightedLean,
+  weightedFavorability,
   toIndexScale,
   moverHasEnoughMentions,
   moverIsInteresting,
@@ -21,6 +22,20 @@ describe("reachFactor", () => {
     expect(reachFactor(100_000)).toBeCloseTo(0.7);
     expect(reachFactor(1)).toBeCloseTo(reachFactor(10)); // floored at 10, not -> 0
     expect(reachFactor(0)).toBeCloseTo(reachFactor(10));
+  });
+});
+
+describe("weightedFavorability", () => {
+  it("is 0 for no rows", () => {
+    expect(weightedFavorability([])).toEqual({ favorability: 0, weight: 0 });
+  });
+  it("reach×intensity weights favorability and stays on the -5..+5 axis (no ±10 doubling)", () => {
+    const fav = weightedFavorability([
+      { favorability: 4, intensity: 5, channel_reach: 10_000_000 }, // big, intense, positive
+      { favorability: -2, intensity: 1, channel_reach: 100_000 },   // tiny, passing, negative
+    ]);
+    expect(fav.favorability).toBeGreaterThan(3.5); // dominated by the big intense positive
+    expect(fav.favorability).toBeLessThanOrEqual(5);
   });
 });
 

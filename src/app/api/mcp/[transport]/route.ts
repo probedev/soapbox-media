@@ -23,7 +23,7 @@ import { createMcpHandler, withMcpAuth } from "mcp-handler";
 import type { Implementation } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
 
-import { getDashboardData, getIssueDrillDown, getChannelDrillDown, getIssueMovementBreakdown, getPanelStats, readHomeSnapshot } from "@/lib/aggregate";
+import { getDashboardData, getIssueDrillDown, getChannelDrillDown, getIssueMovementBreakdown, getPanelStats, readHomeSnapshot, getFiguresOverview, getFigureDetail } from "@/lib/aggregate";
 import { searchMentions, issueTrend, listIssues, listChannels } from "@/lib/mcp-data";
 import { getChannelViewStats } from "@/lib/view-stats";
 import { verifyMcpToken, isStaticKey, RESOURCE_METADATA_PATH } from "@/lib/mcp-auth";
@@ -172,6 +172,26 @@ const handler = createMcpHandler(
         cohort: z.enum(["independent", "legacy"]).optional().describe("Omit for both cohorts"),
       },
       async ({ issue_slug, window_days, cohort }) => json(await issueTrend(issue_slug, window_days, cohort)),
+    );
+
+    server.tool(
+      "list_figures",
+      "Public Figures favorability board: for each tracked person (politicians, officials, media + tech figures), how FAVORABLY vs critically the panel talks about them - a reach- and intensity-weighted favorability score from -5 (hostile) to +5 (effusive), plus mention volume, over a trailing window. This is a SEPARATE axis from the Soapbox Index (which is left/right): favorability toward a person crosses party lines. Scores cover stance-bearing mentions only (passing name-drops and benchmark references are excluded). Call get_figure_detail for a figure's effusive/critical channels and verbatim receipts. Note: Trump is deferred from v1 (he saturates the corpus).",
+      { window_days: z.number().int().min(7).max(90).default(30).describe("Trailing window in days (30 = default; favorability is steadier than 7d)") },
+      async ({ window_days }) => json(await getFiguresOverview(window_days)),
+    );
+
+    server.tool(
+      "get_figure_detail",
+      "Drill into one public figure: the reach×intensity weighted favorability toward them, the channels that talk about them most favorably vs most critically (volume-floored), and verbatim receipts - the most favorable and most critical quotes, each with channel, editorial lean, favorability/intensity, source link, and a YouTube deep-link timestamp where available. Favorability is -5 (hostile) .. +5 (effusive), a separate axis from the L/R Index. Full transcripts are not exposed; excerpts + source links only.",
+      {
+        figure_slug: z.string().describe("Figure slug from list_figures (e.g. musk, biden, vance, newsom)"),
+        window_days: z.number().int().min(7).max(90).default(30).describe("Trailing window in days (30 = default)"),
+      },
+      async ({ figure_slug, window_days }) => {
+        const d = await getFigureDetail(figure_slug, window_days);
+        return json(d ?? { error: `unknown figure_slug: ${figure_slug}` });
+      },
     );
 
     server.tool(

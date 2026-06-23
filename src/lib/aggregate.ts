@@ -32,6 +32,7 @@ import {
   clamp,
   reachFactor,
   weightedLean,
+  weightedFavorability,
   toIndexScale,
   MOVER_MAX_ROWS,
   moverHasEnoughMentions,
@@ -1587,5 +1588,272 @@ export async function getChannelDrillDown(channelId: string): Promise<ChannelDri
     numEpisodes: new Set(channelRows.map((r) => r.episode_id)).size,
     numClassifications: channelRows.length,
     trend,
+  };
+}
+
+// ─── Public Figures: favorability aggregation ─────────────────────────────────
+//
+// A SEPARATE axis from the Soapbox Index. These read figure_scores (favorability
+// toward a person, -5..+5) joined to the channel for reach/cohort, and NEVER feed
+// getDashboardData / the needle. Mirrors the issue aggregation patterns (cohort
+// filter, sqrt-reach weighting, 1000-row pagination).
+
+/** Default trailing window for figures (favorability is steadier over 30d than 7d). */
+export const FIGURE_WINDOW_DAYS = 30;
+/** Mentions below this intensity are passing name-drops/benchmarks - excluded from
+ *  favorability so the metric reflects actual stances, not who is name-dropped. */
+const FIGURE_INTENSITY_FLOOR = 2;
+/** A channel needs at least this many qualifying mentions to appear on the
+ *  effusive/critical leaderboard (one gushing line is not "a stance"). */
+const FIGURE_CHANNEL_MIN_MENTIONS = 3;
+
+interface FigureScoreRow {
+  figure_slug: string;
+  favorability: number;
+  intensity: number;
+  channel_name: string;
+  channel_lean: "L" | "M" | "R";
+  channel_reach: number;
+  published_at: string;
+  quote?: string;
+  start_ts?: number | null;
+  source_url?: string;
+}
+
+function figureTimestampUrl(sourceUrl: string, startTs: number | null | undefined): string {
+  if (startTs == null || !/youtube\.com\/watch|youtu\.be\//.test(sourceUrl)) return sourceUrl;
+  return `${sourceUrl}${sourceUrl.includes("?") ? "&" : "?"}t=${startTs}`;
+}
+
+/** Normalize a nested figure_scores row (active-channel only). */
+function normalizeFigureRow(r: any, withQuote: boolean): FigureScoreRow | null {
+  const m = r.mention;
+  const e = m?.episodes;
+  const ch = e?.channels;
+  if (!m || !e || !ch || !ch.active) return null;
+  return {
+    figure_slug: m.figure_slug,
+    favorability: Number(r.favorability),
+    intensity: Number(r.intensity),
+    channel_name: ch.name,
+    channel_lean: ch.political_lean,
+    channel_reach: Number(ch.reach),
+    published_at: e.published_at,
+    ...(withQuote ? { quote: m.quote, start_ts: m.start_ts, source_url: e.source_url } : {}),
+  };
+}
+
+const fetchFigureOverviewRows = cache(
+  async (cohorts: readonly Cohort[] = PUBLIC_COHORTS): Promise<FigureScoreRow[]> => {
+    const db = createServiceClient();
+    const all: FigureScoreRow[] = [];
+    const pageSize = 1000;
+    const maxPages = 60;
+    for (let page = 0; page < maxPages; page++) {
+      const from = page * pageSize;
+      const { data, error } = await db
+        .from("figure_scores")
+        .select(
+          `favorability, intensity,
+           mention:figure_mentions ( figure_slug,
+             episodes ( published_at, channels ( name, political_lean, reach, cohort, active ) ) )`,
+        )
+        .order("id", { ascending: true })
+        .range(from, from + pageSize - 1);
+      if (error) throw new Error(`fetchFigureOverviewRows: ${error.message}`);
+      if (!data || data.length === 0) break;
+      for (const r of data as any[]) {
+        const row = normalizeFigureRow(r, false);
+        if (row && cohorts.includes((r.mention?.episodes?.channels?.cohort) as Cohort)) all.push(row);
+      }
+    }
+    return all;
+  },
+);
+
+export interface FigureOverviewRow {
+  slug: string;
+  name: string;
+  affiliation: string | null;
+  /** Scored mentions in window (volume proxy). */
+  mentions: number;
+  /** Mentions clearing the intensity floor (the favorability basis). */
+  scored: number;
+  /** Reach×intensity weighted favorability, -5..+5, or null if no qualifying mentions. */
+  favorability: number | null;
+}
+
+export async function getFiguresOverview(
+  windowDays = FIGURE_WINDOW_DAYS,
+  cohorts: readonly Cohort[] = PUBLIC_COHORTS,
+): Promise<FigureOverviewRow[]> {
+  const db = createServiceClient();
+  const { data: figs } = await db
+    .from("figures")
+    .select("slug, name, affiliation")
+    .eq("active", true);
+  const meta = new Map<string, { name: string; affiliation: string | null }>(
+    (figs || []).map((f: any) => [f.slug, { name: f.name, affiliation: f.affiliation ?? null }]),
+  );
+
+  const cutoff = new Date();
+  cutoff.setUTCDate(cutoff.getUTCDate() - windowDays);
+  const rows = (await fetchFigureOverviewRows(cohorts)).filter(
+    (r) => new Date(r.published_at) >= cutoff && meta.has(r.figure_slug),
+  );
+
+  const byFigure = new Map<string, FigureScoreRow[]>();
+  for (const r of rows) {
+    const arr = byFigure.get(r.figure_slug) || [];
+    arr.push(r);
+    byFigure.set(r.figure_slug, arr);
+  }
+
+  const out: FigureOverviewRow[] = [];
+  for (const [slug, m] of meta) {
+    const rs = byFigure.get(slug) || [];
+    const scoredRows = rs.filter((r) => r.intensity >= FIGURE_INTENSITY_FLOOR);
+    const { favorability, weight } = weightedFavorability(scoredRows);
+    out.push({
+      slug,
+      name: m.name,
+      affiliation: m.affiliation,
+      mentions: rs.length,
+      scored: scoredRows.length,
+      favorability: weight > 0 ? favorability : null,
+    });
+  }
+  return out.sort((a, b) => b.mentions - a.mentions);
+}
+
+export interface FigureChannelStance {
+  channelName: string;
+  lean: "L" | "M" | "R";
+  mentions: number;
+  favorability: number;
+}
+
+export interface FigureReceipt {
+  channelName: string;
+  lean: "L" | "M" | "R";
+  favorability: number;
+  intensity: number;
+  quote: string;
+  sourceUrl: string;
+  startTs: number | null;
+  timestampUrl: string;
+  publishedAt: string;
+}
+
+export interface FigureDetail {
+  slug: string;
+  name: string;
+  affiliation: string | null;
+  blurb: string | null;
+  mentions: number;
+  scored: number;
+  favorability: number | null;
+  mostEffusive: FigureChannelStance[];
+  mostCritical: FigureChannelStance[];
+  topPositive: FigureReceipt[];
+  topNegative: FigureReceipt[];
+}
+
+export async function getFigureDetail(
+  slug: string,
+  windowDays = FIGURE_WINDOW_DAYS,
+  cohorts: readonly Cohort[] = PUBLIC_COHORTS,
+): Promise<FigureDetail | null> {
+  const db = createServiceClient();
+  const { data: fig } = await db
+    .from("figures")
+    .select("slug, name, affiliation, blurb")
+    .eq("slug", slug)
+    .eq("active", true)
+    .maybeSingle();
+  if (!fig) return null;
+
+  const cutoff = new Date();
+  cutoff.setUTCDate(cutoff.getUTCDate() - windowDays);
+
+  const rows: FigureScoreRow[] = [];
+  const pageSize = 1000;
+  for (let page = 0; page < 30; page++) {
+    const from = page * pageSize;
+    const { data, error } = await db
+      .from("figure_scores")
+      .select(
+        `favorability, intensity,
+         mention:figure_mentions!inner ( figure_slug, quote, start_ts,
+           episodes ( published_at, source_url, channels ( name, political_lean, reach, cohort, active ) ) )`,
+      )
+      .eq("mention.figure_slug", slug)
+      .order("id", { ascending: true })
+      .range(from, from + pageSize - 1);
+    if (error) throw new Error(`getFigureDetail: ${error.message}`);
+    if (!data || data.length === 0) break;
+    for (const r of data as any[]) {
+      const row = normalizeFigureRow(r, true);
+      if (
+        row &&
+        new Date(row.published_at) >= cutoff &&
+        cohorts.includes((r.mention?.episodes?.channels?.cohort) as Cohort)
+      ) {
+        rows.push(row);
+      }
+    }
+    if (data.length < pageSize) break;
+  }
+
+  const scoredRows = rows.filter((r) => r.intensity >= FIGURE_INTENSITY_FLOOR);
+  const { favorability, weight } = weightedFavorability(scoredRows);
+
+  // Per-channel mean favorability (volume-floored) -> effusive / critical boards.
+  const byChannel = new Map<string, { lean: "L" | "M" | "R"; favs: number[] }>();
+  for (const r of scoredRows) {
+    const c = byChannel.get(r.channel_name) || { lean: r.channel_lean, favs: [] };
+    c.favs.push(r.favorability);
+    byChannel.set(r.channel_name, c);
+  }
+  const channelStances: FigureChannelStance[] = [];
+  for (const [channelName, c] of byChannel) {
+    if (c.favs.length < FIGURE_CHANNEL_MIN_MENTIONS) continue;
+    channelStances.push({
+      channelName,
+      lean: c.lean,
+      mentions: c.favs.length,
+      favorability: c.favs.reduce((s, v) => s + v, 0) / c.favs.length,
+    });
+  }
+  const mostEffusive = [...channelStances].sort((a, b) => b.favorability - a.favorability).slice(0, 6);
+  const mostCritical = [...channelStances].sort((a, b) => a.favorability - b.favorability).slice(0, 6);
+
+  const toReceipt = (r: FigureScoreRow): FigureReceipt => ({
+    channelName: r.channel_name,
+    lean: r.channel_lean,
+    favorability: r.favorability,
+    intensity: r.intensity,
+    quote: r.quote || "",
+    sourceUrl: r.source_url || "",
+    startTs: r.start_ts ?? null,
+    timestampUrl: figureTimestampUrl(r.source_url || "", r.start_ts),
+    publishedAt: r.published_at,
+  });
+  const ranked = [...scoredRows].sort((a, b) => b.favorability - a.favorability);
+  const topPositive = ranked.filter((r) => r.favorability > 0).slice(0, 5).map(toReceipt);
+  const topNegative = ranked.filter((r) => r.favorability < 0).slice(-5).reverse().map(toReceipt);
+
+  return {
+    slug: fig.slug,
+    name: fig.name,
+    affiliation: fig.affiliation ?? null,
+    blurb: fig.blurb ?? null,
+    mentions: rows.length,
+    scored: scoredRows.length,
+    favorability: weight > 0 ? favorability : null,
+    mostEffusive,
+    mostCritical,
+    topPositive,
+    topNegative,
   };
 }

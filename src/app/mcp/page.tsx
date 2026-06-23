@@ -46,6 +46,10 @@ const EXAMPLE_QUERIES: { who: string; ask: string }[] = [
     who: "Journalist",
     ask: "What is the right talking about this week that the left isn't touching at all - and vice versa? Quotes and sources for both lists.",
   },
+  {
+    who: "Reputation desk",
+    ask: "How is alt-media talking about Elon Musk this month - net favorability, which shows are most effusive vs most hostile, and the sharpest quote on each side with links.",
+  },
 ];
 
 const TOOLS: { name: string; what: string }[] = [
@@ -58,6 +62,8 @@ const TOOLS: { name: string; what: string }[] = [
   { name: "get_channel_detail", what: "One show, drilled in: its issue mix and per-issue stance profile, plus (YouTube) typical per-video views vs subscriber reach and the show's runaway over/under-performing videos." },
   { name: "list_issues", what: "The full issue taxonomy with definitions and the canonical left/right positions used in scoring." },
   { name: "list_channels", what: "The tracked panel: every show with lean, cohort (independent vs legacy), platform, and audience reach - plus, for YouTube, typical per-video views and the views-per-subscriber ratio." },
+  { name: "list_figures", what: "Public-figure favorability board: how favorably vs critically the panel talks about each tracked person (-5 hostile to +5 effusive), reach- and intensity-weighted, with mention volume. A separate axis from the L/R Index." },
+  { name: "get_figure_detail", what: "One public figure, drilled in: weighted favorability, the channels most effusive vs most critical toward them, and the most favorable / most critical verbatim quotes with source links and deep-link timestamps." },
   { name: "get_methodology", what: "How every number is computed, plus live panel statistics - so your agent can cite its sources." },
 ];
 
