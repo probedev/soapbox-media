@@ -1611,6 +1611,7 @@ interface FigureScoreRow {
   figure_slug: string;
   favorability: number;
   intensity: number;
+  channel_id: string;
   channel_name: string;
   channel_lean: "L" | "M" | "R";
   channel_reach: number;
@@ -1635,6 +1636,7 @@ function normalizeFigureRow(r: any, withQuote: boolean): FigureScoreRow | null {
     figure_slug: m.figure_slug,
     favorability: Number(r.favorability),
     intensity: Number(r.intensity),
+    channel_id: ch.id,
     channel_name: ch.name,
     channel_lean: ch.political_lean,
     channel_reach: Number(ch.reach),
@@ -1656,7 +1658,7 @@ const fetchFigureOverviewRows = cache(
         .select(
           `favorability, intensity,
            mention:figure_mentions ( figure_slug,
-             episodes ( published_at, channels ( name, political_lean, reach, cohort, active ) ) )`,
+             episodes ( published_at, channels ( id, name, political_lean, reach, cohort, active ) ) )`,
         )
         .order("id", { ascending: true })
         .range(from, from + pageSize - 1);
@@ -1727,6 +1729,7 @@ export async function getFiguresOverview(
 }
 
 export interface FigureChannelStance {
+  channelId: string;
   channelName: string;
   lean: "L" | "M" | "R";
   mentions: number;
@@ -1734,6 +1737,7 @@ export interface FigureChannelStance {
 }
 
 export interface FigureReceipt {
+  channelId: string;
   channelName: string;
   lean: "L" | "M" | "R";
   favorability: number;
@@ -1785,7 +1789,7 @@ export async function getFigureDetail(
       .select(
         `favorability, intensity,
          mention:figure_mentions!inner ( figure_slug, quote, start_ts,
-           episodes ( published_at, source_url, channels ( name, political_lean, reach, cohort, active ) ) )`,
+           episodes ( published_at, source_url, channels ( id, name, political_lean, reach, cohort, active ) ) )`,
       )
       .eq("mention.figure_slug", slug)
       .order("id", { ascending: true })
@@ -1809,17 +1813,19 @@ export async function getFigureDetail(
   const { favorability, weight } = weightedFavorability(scoredRows);
 
   // Per-channel mean favorability (volume-floored) -> effusive / critical boards.
-  const byChannel = new Map<string, { lean: "L" | "M" | "R"; favs: number[] }>();
+  // Keyed by channel id so each row links to its channel detail page.
+  const byChannel = new Map<string, { channelName: string; lean: "L" | "M" | "R"; favs: number[] }>();
   for (const r of scoredRows) {
-    const c = byChannel.get(r.channel_name) || { lean: r.channel_lean, favs: [] };
+    const c = byChannel.get(r.channel_id) || { channelName: r.channel_name, lean: r.channel_lean, favs: [] };
     c.favs.push(r.favorability);
-    byChannel.set(r.channel_name, c);
+    byChannel.set(r.channel_id, c);
   }
   const channelStances: FigureChannelStance[] = [];
-  for (const [channelName, c] of byChannel) {
+  for (const [channelId, c] of byChannel) {
     if (c.favs.length < FIGURE_CHANNEL_MIN_MENTIONS) continue;
     channelStances.push({
-      channelName,
+      channelId,
+      channelName: c.channelName,
       lean: c.lean,
       mentions: c.favs.length,
       favorability: c.favs.reduce((s, v) => s + v, 0) / c.favs.length,
@@ -1829,6 +1835,7 @@ export async function getFigureDetail(
   const mostCritical = [...channelStances].sort((a, b) => a.favorability - b.favorability).slice(0, 6);
 
   const toReceipt = (r: FigureScoreRow): FigureReceipt => ({
+    channelId: r.channel_id,
     channelName: r.channel_name,
     lean: r.channel_lean,
     favorability: r.favorability,

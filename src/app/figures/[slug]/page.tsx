@@ -33,7 +33,7 @@ function ChannelList({ title, rows }: { title: string; rows: FigureChannelStance
               <div key={c.channelName} className="flex items-center justify-between gap-3 px-3 py-2 text-sm">
                 <div className="flex items-center gap-2 min-w-0">
                   <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${leanChipStyle(c.lean).cls}`}>{c.lean}</span>
-                  <span className="truncate">{c.channelName}</span>
+                  <a href={`/channels/${c.channelId}`} className="truncate hover:text-foreground hover:underline">{c.channelName}</a>
                 </div>
                 <div className="flex items-center gap-3 whitespace-nowrap">
                   <span className="text-xs text-ink-faint tabular-nums">{c.mentions}×</span>
@@ -61,7 +61,7 @@ function Receipts({ title, rows }: { title: string; rows: FigureReceipt[] }) {
               <p className="text-sm leading-relaxed text-ink-body">&ldquo;{r.quote.trim()}&rdquo;</p>
               <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-ink-faint">
                 <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${leanChipStyle(r.lean).cls}`}>{r.lean}</span>
-                <span className="font-medium text-ink-muted">{r.channelName}</span>
+                <a href={`/channels/${r.channelId}`} className="font-medium text-ink-muted hover:text-foreground hover:underline">{r.channelName}</a>
                 <span className="tabular-nums">{new Date(r.publishedAt).toLocaleDateString()}</span>
                 <span className={`font-medium tabular-nums ${f.cls}`}>favorability {f.text}</span>
                 {r.sourceUrl && (

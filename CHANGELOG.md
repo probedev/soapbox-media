@@ -7,6 +7,15 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
+## v0.33.1 · 2026-06-22
+
+### Fixed
+
+- **Figure detail pages now link each show to its channel page.** On
+  `/figures/[slug]`, the most-effusive / most-critical show rows and the quote
+  receipts link the channel name to `/channels/[id]`. `getFigureDetail` now
+  carries `channelId` through the per-channel stances and receipts.
+
 ## v0.33.0 · 2026-06-22
 
 ### Added
