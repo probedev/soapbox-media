@@ -7,6 +7,23 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
+## v0.32.6 · 2026-06-22
+
+### Added
+
+- **Admin add-channel warns when a YouTube channel is a likely cross-platform
+  mirror of a show already tracked on another feed.** "Resolve & draft" now
+  checks the candidate's recent uploads against existing active channels by
+  publish date + normalized-title containment (either direction) and flags the
+  best match in the preview. This catches the gap that let a duplicate get added:
+  the ingest dedup (`dedup.ts`) only links feeds with the *same channel name* and
+  *exact normalized title*, so a differently-named mirror (Dan Bongino vs The Dan
+  Bongino Show) or a title-format difference (YT "Host | Title | Show 1408"
+  wrapper, or a podcast "Ep. N -" prefix) silently double-counts in the Index.
+  Detection is best-effort and never blocks adding. An audit found 6 such pairs
+  already double-counting (Piers Morgan, Ben Shapiro, Lincoln Project, NYT/The
+  Daily, Bongino, Benny Johnson) - reconciliation tracked separately.
+
 ## v0.32.5 · 2026-06-22
 
 ### Fixed

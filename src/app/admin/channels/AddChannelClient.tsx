@@ -32,6 +32,7 @@ interface PreviewNote {
   subs: number;
   alreadyInPanel: boolean;
   belowFloor: boolean;
+  mirror?: { channelName: string; platform: string; matched: number; sampleSize: number };
 }
 
 export function AddChannelClient() {
@@ -63,6 +64,7 @@ export function AddChannelClient() {
         subs: r.preview.subscriberCount,
         alreadyInPanel: r.preview.alreadyInPanel,
         belowFloor: r.preview.belowFloor,
+        mirror: r.preview.possibleMirror,
       });
     });
   }
@@ -162,6 +164,16 @@ export function AddChannelClient() {
           )}
           {preview.belowFloor && (
             <span className="text-amber-700"> ⚠ Below the 200K subscriber floor.</span>
+          )}
+          {preview.mirror && (
+            <div className="mt-2 text-amber-800 bg-amber-50 border border-amber-200 rounded px-2 py-1.5 leading-relaxed">
+              ⚠ <strong>Likely a cross-platform mirror</strong> of{" "}
+              <strong>{preview.mirror.channelName}</strong> ({preview.mirror.platform}):{" "}
+              {preview.mirror.matched}/{preview.mirror.sampleSize} recent episodes match by
+              date + title. The auto-dedup only links feeds with the same name and titles, so
+              adding this will <strong>double-count this show</strong> in the Index. Deactivate
+              one side instead, or proceed only if they are genuinely different shows.
+            </div>
           )}
         </div>
       )}

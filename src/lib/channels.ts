@@ -26,6 +26,7 @@ import { getAnthropicClient, MODEL_RATIONALE } from "./anthropic";
 import type { Cohort } from "./cohort";
 import { SUB_FLOOR } from "./channel-vet";
 import { matchChannel, nameMatches } from "./channel-dedup";
+import { normalizeTitle } from "./dedup";
 
 // Admits curated short-form (e.g. NowThis Impact). Lowered from 180s; the YT
 // sub floor (SUB_FLOOR) is the single source of truth, imported from channel-vet.
@@ -96,6 +97,86 @@ export interface ChannelPreview {
   draftRationale: string;
   alreadyInPanel: boolean;
   belowFloor: boolean;
+  /** Set when the channel being added looks like the same show as an existing
+   *  channel on another feed (e.g. its podcast). The cross-platform dedup only
+   *  links feeds with the SAME channel name and matching normalized titles, so a
+   *  differently-named or differently-titled mirror (the common case: a YT
+   *  "Host | Title | Show 1408" wrapper vs a bare podcast title, or an "Ep. N -"
+   *  prefix) would silently DOUBLE-COUNT in the Index. The operator must decide.
+   *  See [[cross-platform-dedup]]. */
+  possibleMirror?: MirrorMatch;
+}
+
+export interface MirrorMatch {
+  channelName: string;
+  platform: string;
+  /** How many of the candidate's recent uploads matched an episode on this
+   *  channel by same publish date + title containment. */
+  matched: number;
+  sampleSize: number;
+}
+
+/**
+ * Best-effort: does this YouTube channel look like a re-post of a show already
+ * tracked on another feed? Matches the candidate's recent uploads against
+ * existing active channels' episodes by same publish date + normalized-title
+ * containment (either direction, to catch wrapper/prefix differences the strict
+ * dedup misses). Returns the strongest matching channel, or null. Never throws.
+ */
+async function detectCrossPlatformMirror(
+  db: ReturnType<typeof createServiceClient>,
+  uploads: { title: string; publishedAt: string }[],
+  excludePlatformId: string,
+): Promise<MirrorMatch | null> {
+  const recent = uploads.filter((u) => u.title && u.publishedAt).slice(0, 8);
+  if (recent.length < 2) return null;
+  const cand = recent.map((u) => ({ d: u.publishedAt.slice(0, 10), n: normalizeTitle(u.title) }));
+
+  // Query per candidate publish date (a small slice of the panel) rather than the
+  // whole date range: the range can exceed the 1000-row page cap and truncate the
+  // very rows we want. Same-day cross-posts are matched by normalized-title
+  // containment in either direction, to catch the YT "Host | Title | Show N"
+  // wrapper or "Ep. N -" prefix that the strict ingest dedup misses.
+  const perDay = await Promise.all(
+    cand.map(async (c) => {
+      const next = new Date(c.d + "T00:00:00Z");
+      next.setUTCDate(next.getUTCDate() + 1);
+      const { data } = await db
+        .from("episodes")
+        .select("title, channels(name, platform, platform_id, active)")
+        .gte("published_at", c.d)
+        .lt("published_at", next.toISOString())
+        .limit(500);
+      return { c, rows: (data ?? []) as any[] };
+    }),
+  );
+
+  // Count, per existing channel, how many distinct candidate episodes it mirrors.
+  const tally = new Map<string, { platform: string; matched: number }>();
+  for (const { c, rows } of perDay) {
+    const matchedHere = new Set<string>();
+    for (const row of rows) {
+      const ch = Array.isArray(row.channels) ? row.channels[0] : row.channels;
+      if (!ch || !ch.active || ch.platform_id === excludePlatformId) continue;
+      if (matchedHere.has(ch.name)) continue;
+      const rn = normalizeTitle(row.title || "");
+      if (rn.length < 6) continue;
+      if (c.n === rn || c.n.includes(rn) || rn.includes(c.n)) {
+        matchedHere.add(ch.name);
+        const cur = tally.get(ch.name) ?? { platform: ch.platform, matched: 0 };
+        cur.matched += 1;
+        tally.set(ch.name, cur);
+      }
+    }
+  }
+
+  let best: MirrorMatch | null = null;
+  for (const [channelName, v] of tally) {
+    if (v.matched >= 2 && (!best || v.matched > best.matched)) {
+      best = { channelName, platform: v.platform, matched: v.matched, sampleSize: recent.length };
+    }
+  }
+  return best;
 }
 
 /**
@@ -122,11 +203,14 @@ export async function previewYouTubeChannel(
     .eq("platform_id", yt.id)
     .maybeSingle();
 
-  // Pull a few recent titles for richer grounding (best-effort).
+  // Pull a few recent uploads: used both for richer rationale grounding and for
+  // the cross-platform mirror check (best-effort - never blocks the preview).
   let recentTitles: string[] = [];
+  let possibleMirror: MirrorMatch | undefined;
   try {
     const vids = await getRecentUploads(yt.uploadsPlaylistId, 8);
     recentTitles = vids.map((v) => v.title).filter(Boolean);
+    possibleMirror = (await detectCrossPlatformMirror(db, vids, yt.id)) ?? undefined;
   } catch {
     /* non-fatal */
   }
@@ -145,6 +229,7 @@ export async function previewYouTubeChannel(
     draftRationale,
     alreadyInPanel: !!existing,
     belowFloor: yt.subscriberCount < SUB_FLOOR,
+    possibleMirror,
   };
 }
 
