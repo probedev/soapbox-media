@@ -7,6 +7,23 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
+## v0.32.5 · 2026-06-22
+
+### Fixed
+
+- **Admin "Add a YouTube channel" (and cron ingest) no longer crash on
+  duration-less videos.** `parseIsoDuration` in `src/lib/youtube.ts` called
+  `.match()` on `contentDetails.duration`, but YouTube omits that field for live
+  streams, premieres, and upcoming/scheduled videos (the type annotation wrongly
+  declared it non-optional, so tsc never caught it). Deep-ingesting a channel
+  whose recent uploads included one such video threw "Cannot read properties of
+  undefined (reading 'match')" after the channel row was already inserted,
+  leaving a channel with 0 episodes. `parseIsoDuration` now accepts a missing
+  value and returns 0 (those videos fall below `MIN_DURATION_SEC` anyway), and
+  both `videos.list` call sites use optional chaining with honest types. The Add
+  path was exposed because, unlike Resolve, its `getRecentUploads` call is not
+  wrapped in a try/catch; the same parser also guards the daily cron ingest.
+
 ## v0.32.4 · 2026-06-21
 
 ### Fixed

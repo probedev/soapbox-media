@@ -68,7 +68,11 @@ function parseStat(v: string | undefined): number | null {
  * Parse an ISO 8601 duration like "PT1H23M45S" to seconds.
  * YouTube returns durations in this format on the videos.list endpoint.
  */
-function parseIsoDuration(iso: string): number {
+function parseIsoDuration(iso: string | undefined | null): number {
+  // YouTube omits contentDetails.duration for live streams, premieres, and
+  // upcoming/scheduled videos. Treat a missing duration as 0 (those get
+  // filtered out by MIN_DURATION_SEC anyway) instead of crashing on .match().
+  if (!iso) return 0;
   const match = iso.match(/^PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?$/);
   if (!match) return 0;
   const [, h, m, s] = match;
@@ -158,7 +162,7 @@ export async function getRecentUploads(
   const detailsData = await ytFetch<{
     items?: Array<{
       id: string;
-      contentDetails: { duration: string };
+      contentDetails?: { duration?: string };
       statistics?: { viewCount?: string; likeCount?: string; commentCount?: string };
     }>;
   }>(`/videos?id=${ids}&part=contentDetails,statistics`);
@@ -166,7 +170,7 @@ export async function getRecentUploads(
   const detailMap = new Map<string, { durationSec: number; stats: VideoStats }>();
   for (const item of detailsData.items || []) {
     detailMap.set(item.id, {
-      durationSec: parseIsoDuration(item.contentDetails.duration),
+      durationSec: parseIsoDuration(item.contentDetails?.duration),
       stats: {
         viewCount: parseStat(item.statistics?.viewCount),
         likeCount: parseStat(item.statistics?.likeCount),
@@ -272,11 +276,11 @@ export async function getUploadsSince(
   for (let i = 0; i < collected.length; i += 50) {
     const chunk = collected.slice(i, i + 50);
     const details = await ytFetch<{
-      items?: Array<{ id: string; contentDetails: { duration: string } }>;
+      items?: Array<{ id: string; contentDetails?: { duration?: string } }>;
     }>(`/videos?id=${chunk.map((v) => v.videoId).join(",")}&part=contentDetails`);
     const dmap = new Map<string, number>();
     for (const it of details.items || [])
-      dmap.set(it.id, parseIsoDuration(it.contentDetails.duration));
+      dmap.set(it.id, parseIsoDuration(it.contentDetails?.duration));
     for (const v of chunk) v.durationSec = dmap.get(v.videoId);
   }
 
