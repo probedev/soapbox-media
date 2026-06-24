@@ -7,6 +7,19 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
+## v0.34.0 · 2026-06-24
+
+### Added
+
+- **Soapbox Report: "Did CBS News tilt toward Trump under Bari Weiss?"** A
+  one-time, transcript-based fact-check at `/reports/cbs-bari-weiss`. Measures
+  CBS's on-air framing of the Trump administration against ABC, NBC, and PBS on
+  the same stories, and finds no broad pro-administration tilt: CBS was, if
+  anything, more critical than its peers on most major topics, and the one
+  apparent exception (the Venezuela operation) dissolves on close inspection of
+  the receipts. Story-matched quotes with source links, plus honest disclosure
+  of the before/after window-sensitivity and the per-quote scoring limits.
+
 ## v0.33.1 · 2026-06-22
 
 ### Fixed
