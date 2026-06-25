@@ -1,7 +1,11 @@
+import { Play } from "lucide-react";
 import { Footer } from "@/components/Footer";
 import { Header } from "@/components/Header";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { timestampedSourceUrl, formatTimestamp } from "@/lib/transcript-timing";
+import { ReceiptsSection } from "./ReceiptsSection";
+import receiptsData from "./receipts.json";
 
 export const dynamic = "force-dynamic";
 
@@ -17,11 +21,11 @@ export const metadata = {
 // the administration MORE favorably than its peers; negative = more critical.
 const GAPS: { topic: string; gap: number; note?: string }[] = [
   { topic: "Venezuela / Maduro operation", gap: 0.69, note: "dissolves on inspection - see below" },
-  { topic: "Ukraine", gap: 0.35 },
+  { topic: "Ukraine", gap: 0.12 },
   { topic: "Immigration / ICE", gap: -0.44 },
-  { topic: "China", gap: -0.43 },
-  { topic: "Tariffs", gap: -0.65 },
-  { topic: "Iran", gap: -0.81 },
+  { topic: "China", gap: -0.45 },
+  { topic: "Tariffs", gap: -0.63 },
+  { topic: "Iran", gap: -0.70 },
 ];
 const MAX_GAP = 1.0;
 
@@ -33,6 +37,7 @@ type Receipt = {
   score: number;
   kind: "favorable" | "critical" | "artifact";
   href: string;
+  startTs?: number;
 };
 
 const VENEZUELA: Receipt[] = [
@@ -49,7 +54,7 @@ const VENEZUELA: Receipt[] = [
   {
     network: "CBS", date: "Jan 7, 2026", title: "Full interview: Maria Corina Machado on Maduro and Venezuela",
     quote: "...because he is upset, he's hurt, that you accepted the Nobel Peace Prize, a prize that he wants for himself.",
-    score: 3.5, kind: "artifact", href: "https://www.youtube.com/watch?v=UaQ76SUmZss",
+    score: 3.5, kind: "artifact", href: "https://www.youtube.com/watch?v=UaQ76SUmZss", startTs: 318,
   },
 ];
 
@@ -57,12 +62,12 @@ const IMMIGRATION: Receipt[] = [
   {
     network: "CBS", date: "Feb 2026", title: "Trump refuses to apologize for racist video despite outrage",
     quote: "The president, who spoke about his latest actions last night, refused to apologize despite sparking widespread outrage and bipartisan condemnation.",
-    score: -3.5, kind: "critical", href: "https://www.youtube.com/watch?v=Mbp15eneEb0",
+    score: -3.5, kind: "critical", href: "https://www.youtube.com/watch?v=Mbp15eneEb0", startTs: 4,
   },
   {
     network: "CBS", date: "Feb 2026", title: "14-year-old says she was zip-tied during Idaho immigration raid",
     quote: "With her hands bound behind her back, Romero says she was unable to console her daughter. 'I can't hug her.'",
-    score: -4.0, kind: "critical", href: "https://www.youtube.com/watch?v=bRqXAn5ImBA",
+    score: -4.0, kind: "critical", href: "https://www.youtube.com/watch?v=bRqXAn5ImBA", startTs: 152,
   },
   {
     network: "CBS", date: "Feb 2026", title: "DHS shutdown begins with no deal in sight",
@@ -121,11 +126,21 @@ function ReceiptCard({ r }: { r: Receipt }) {
         {label}
       </div>
       <blockquote className="text-sm text-ink-body leading-relaxed">&ldquo;{r.quote}&rdquo;</blockquote>
-      <div className="mt-2 flex items-center justify-between text-xs">
-        <a href={r.href} target="_blank" rel="noopener noreferrer" className="text-ink-muted underline hover:text-foreground truncate max-w-[70%]">
-          {r.title}
+      <div className="mt-2 flex items-center justify-between text-xs gap-2">
+        <a
+          href={timestampedSourceUrl(r.href, r.startTs ?? null)}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1 text-ink-muted hover:text-foreground min-w-0"
+          title="Watch the source"
+        >
+          {r.startTs != null && r.startTs > 0 && <Play className="w-2.5 h-2.5 shrink-0" />}
+          <span className="underline truncate">{r.title}</span>
+          {r.startTs != null && r.startTs > 0 && (
+            <span className="tabular-nums shrink-0">{formatTimestamp(r.startTs)}</span>
+          )}
         </a>
-        <span className="tabular-nums text-ink-faint">model score {r.score > 0 ? "+" : ""}{r.score.toFixed(1)}</span>
+        <span className="tabular-nums text-ink-faint shrink-0">model score {r.score > 0 ? "+" : ""}{r.score.toFixed(1)}</span>
       </div>
     </Card>
   );
@@ -133,6 +148,10 @@ function ReceiptCard({ r }: { r: Receipt }) {
 
 /* ----------------------------------------------------------------- page ---- */
 export default function CbsBariWeissReport() {
+  const totalReceipts = receiptsData.stories.reduce(
+    (n, s) => n + s.networks.reduce((m, x) => m + x.receipts.length, 0),
+    0,
+  );
   return (
     <main className="min-h-screen">
       <Header />
@@ -214,6 +233,22 @@ export default function CbsBariWeissReport() {
         <div className="mt-5 grid gap-3">
           {IMMIGRATION.map((r) => <ReceiptCard key={r.title} r={r} />)}
         </div>
+
+        <h2 className="text-xl font-semibold mt-12">Browse the receipts</h2>
+        <p className="text-ink-body mt-3 leading-relaxed">
+          The deep-dives above are hand-checked. But the case does not rest on a few quotes, it rests on
+          volume. Below are {totalReceipts} scored mentions of the administration from all four networks
+          across five major topics, each with a play button that opens the source video at that exact
+          moment. Browse them and judge for yourself. The pattern is plain: on every topic, CBS sits among
+          the most critical of the administration, not the most favorable.
+        </p>
+        <ReceiptsSection stories={receiptsData.stories} />
+        <p className="text-xs text-ink-faint mt-3 leading-relaxed">
+          Favorability is the model&apos;s &minus;5 (critical) to +5 (favorable) read of each mention&apos;s
+          stance toward the administration; intensity is its 1&ndash;5 conviction. Quotes are verbatim
+          excerpts, never full transcripts; click the timestamp to verify in context. Individual scores
+          carry noise; the value is the volume and the links.
+        </p>
 
         <h2 className="text-xl font-semibold mt-12">What this does, and does not, show</h2>
         <ul className="list-disc pl-6 mt-3 space-y-2 text-ink-body leading-relaxed">

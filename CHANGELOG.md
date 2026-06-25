@@ -7,6 +7,20 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
+## v0.35.0 · 2026-06-24
+
+### Added
+
+- **Receipts at volume on the CBS / Bari Weiss report.** The report now carries a
+  "Browse the receipts" section: 136 scored mentions of the administration from CBS,
+  ABC, NBC, and PBS across five topics, grouped by story (collapsible), each with the
+  model favorability score, an intensity meter, and a ▶ deep-link that opens the
+  source video at the exact moment (deterministic timestamp via `quoteStartSeconds`).
+  The Venezuela and immigration deep-dive quotes also link to their timestamps. This
+  makes verifiability, not a few hand-picked quotes, the report's backbone, the
+  hallmark we want across reports and the site. Built by `scripts/bw-build-receipts.ts`
+  from the cached scores; receipts live in `src/app/reports/cbs-bari-weiss/receipts.json`.
+
 ## v0.34.0 · 2026-06-24
 
 ### Added
