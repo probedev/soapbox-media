@@ -109,19 +109,32 @@ export function EngagementPopup() {
           <>
             <DialogHeader>
               <p className="text-xs font-semibold uppercase tracking-wide text-ink-muted">The Soapbox Report</p>
-              <DialogTitle className="text-xl tracking-tight">Get the monthly data report, free.</DialogTitle>
+              <DialogTitle className="text-xl tracking-tight">Get the monthly report, free.</DialogTitle>
               <DialogDescription className="text-ink-body leading-relaxed">
-                Each month we take a claim everyone is arguing about and settle it with the tape, like our
-                breakdown of whether CBS News tilted toward Trump under Bari Weiss. Scores, receipts, and
-                direct links. Be first to read the next one.
+                One claim everyone is arguing about, settled with the tape. Every month.
               </DialogDescription>
             </DialogHeader>
-            <form onSubmit={submit} className="mt-2 flex flex-col gap-2">
+
+            {/* This month's issue as a standalone item, with the L/R spectrum accent. */}
+            <div className="mt-3 rounded-md border border-border bg-subtle overflow-hidden">
+              <div className="h-1 bg-gradient-to-r from-blue-600 to-red-600" aria-hidden />
+              <div className="p-3.5">
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-ink-muted">This month&apos;s issue</p>
+                <p className="text-sm font-semibold text-ink-strong mt-1 leading-snug">
+                  Did CBS News tilt toward Trump under Bari Weiss?
+                </p>
+                <p className="text-xs text-ink-muted mt-1">Scored line by line. 136 sourced receipts, plus the verdict.</p>
+              </div>
+            </div>
+            <form onSubmit={submit} className="mt-3 flex flex-col gap-2">
               <Input
                 type="email" required placeholder="you@example.com" value={email}
                 onChange={(e) => setEmail(e.target.value)} disabled={status === "loading"} aria-label="Email address"
               />
-              <Button type="submit" disabled={status === "loading"}>
+              <Button
+                type="submit" disabled={status === "loading"}
+                className="bg-gradient-to-r from-blue-600 to-red-600 text-white border-0 hover:opacity-90"
+              >
                 {status === "loading" ? "Joining..." : "Send me the report"}
               </Button>
               {status === "error" && <p className="text-xs text-red-600">{msg}</p>}

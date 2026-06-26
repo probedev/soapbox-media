@@ -7,6 +7,17 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
+## v0.36.1 · 2026-06-26
+
+### Changed
+
+- **Signup CTA redesign.** The popup now leads with the L/R spectrum (a blue-to-red
+  gradient accent + gradient "Send me the report" button, the brand signature) and
+  pulls the current report out of the body copy into a standalone "this month's
+  issue" card (title + receipt count). The report email-gate button matches the same
+  gradient. Introduces the palette and makes the report feel like a discrete item
+  you receive, not a clause in a paragraph.
+
 ## v0.36.0 · 2026-06-26
 
 ### Added

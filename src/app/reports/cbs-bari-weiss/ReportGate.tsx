@@ -51,7 +51,10 @@ export function ReportGate({ reportSlug }: { reportSlug: string }) {
             type="email" required placeholder="you@example.com" value={email}
             onChange={(e) => setEmail(e.target.value)} disabled={status === "loading"} aria-label="Email address"
           />
-          <Button type="submit" disabled={status === "loading"} className="shrink-0">
+          <Button
+            type="submit" disabled={status === "loading"}
+            className="shrink-0 bg-gradient-to-r from-blue-600 to-red-600 text-white border-0 hover:opacity-90"
+          >
             {status === "loading" ? "Unlocking..." : "Read the full report"}
           </Button>
         </form>
