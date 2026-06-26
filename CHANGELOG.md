@@ -7,6 +7,21 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
+## v0.36.0 · 2026-06-26
+
+### Added
+
+- **Monthly-report signup + report gate (lead capture).** A site-wide popup
+  (`EngagementPopup`) invites *engaged* visitors (3+ distinct pages and 30s+ on
+  the site this session; excludes admin/auth/report routes; shown once, respects
+  dismissal/subscription) to join the free monthly Soapbox Report list. The CBS /
+  Bari Weiss report is now email-gated: a public preview (headline, finding, the
+  cross-network gap chart) stays open and crawlable, and the full depth (deep-dives,
+  136 receipts, timeline, methodology) unlocks after signup. Both flows post to
+  `/api/report-signup`, which de-dupes by email into the new `report_leads` table
+  (RLS-on, service-role) and sets an `sb_unlocked` cookie. Signup + popup-shown
+  events also fire to PostHog. Adds shadcn `dialog`.
+
 ## v0.35.0 · 2026-06-24
 
 ### Added

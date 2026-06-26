@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { GeistSans } from "geist/font/sans";
 import { PostHogProvider } from "@/components/PostHogProvider";
+import { EngagementPopup } from "@/components/EngagementPopup";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { SITE_TITLE, META_DESCRIPTION } from "@/lib/brand";
 import "./globals.css";
@@ -36,6 +37,7 @@ export default function RootLayout({
           {/* One app-wide tooltip context so every InfoTip / shadcn Tooltip works
               without a local provider; replaces native browser `title=` hints. */}
           <TooltipProvider delayDuration={150}>{children}</TooltipProvider>
+          <EngagementPopup />
         </PostHogProvider>
       </body>
     </html>

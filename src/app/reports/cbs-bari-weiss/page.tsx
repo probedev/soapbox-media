@@ -4,7 +4,9 @@ import { Header } from "@/components/Header";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { timestampedSourceUrl, formatTimestamp } from "@/lib/transcript-timing";
+import { cookies } from "next/headers";
 import { ReceiptsSection } from "./ReceiptsSection";
+import { ReportGate } from "./ReportGate";
 import receiptsData from "./receipts.json";
 
 export const dynamic = "force-dynamic";
@@ -152,6 +154,7 @@ export default function CbsBariWeissReport() {
     (n, s) => n + s.networks.reduce((m, x) => m + x.receipts.length, 0),
     0,
   );
+  const unlocked = cookies().get("sb_unlocked")?.value === "1";
   return (
     <main className="min-h-screen">
       <Header />
@@ -203,6 +206,8 @@ export default function CbsBariWeissReport() {
           </p>
         </Card>
 
+        {unlocked ? (
+        <>
         <h2 className="text-xl font-semibold mt-12">The one story that looked like a smoking gun</h2>
         <p className="text-ink-body mt-3 leading-relaxed">
           On the U.S. operation that captured Venezuela&apos;s Nicolas Maduro in January 2026, the story
@@ -299,6 +304,10 @@ export default function CbsBariWeissReport() {
           analysis, not a live index. Questions or corrections:{" "}
           <a href="/" className="underline hover:text-foreground">soapbox.media</a>.
         </p>
+        </>
+        ) : (
+          <ReportGate reportSlug="cbs-bari-weiss" />
+        )}
       </section>
       <Footer />
     </main>
