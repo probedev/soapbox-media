@@ -7,6 +7,65 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
+## v0.36.2 · 2026-08-25
+
+### Fixed
+
+- **Two-month home-page data freeze (2026-06-30 → 2026-08-25).** The homepage
+  served the June 30 `dashboard_snapshot` row for two months. Root causes, all
+  in `fetchScoreRows`: it OFFSET-paginated the ALL-TIME sentiment_scores deep
+  join, which (a) crossed Supabase's statement timeout once the table passed
+  ~99K rows, failing every snapshot refresh into a swallowed `console.error`,
+  and (b) carried a silent `maxPages = 50` cap that - because the PK is a
+  random uuid - had already been computing the public Index from a ~27%
+  pseudo-random sample of scores. Every consumer windows to at most
+  `windowDays + 30` days, so the fetch now pushes that date bound into the
+  query (`!inner` embeds) and keyset-paginates on the PK (`.gt(lastId)`, flat
+  cost per page). Hitting the runaway-guard page cap now THROWS instead of
+  silently truncating.
+- **Same all-time-scan pattern fixed across every drill-down read path**:
+  `fetchScoreRowsFiltered` (issue/topic/channel pages), `fetchIssueExcerptRows`
+  (mover breakdowns), `fetchFigureOverviewRows` + `getFigureDetail` (figures).
+  All were fetching all-time rows and windowing in JS; all now push the window
+  into the query with keyset pagination. Issue-page TTFB ~18s → ~2-6s. The
+  channel drill-down also drops the "fetch up to 50K episode ids, resend as an
+  IN-list on every page" pattern for a `.eq("episode.channel_id", ...)` on the
+  `!inner` embed.
+- **Snapshot refresh moved to its own cron** (`/api/cron/snapshot`, 30 min
+  after each score run). Score saturates its full 240s budget under backlog,
+  so the old tail-call refresh in the score cron ran past the 300s function
+  limit and was killed mid-write. Refresh failures now land in
+  `usage_log.error_message` (via `recordScriptRun`, which gained `errorMessage`
+  + a `cron` source) so /admin/pipeline shows them instead of a console nobody
+  reads.
+- **writeHomeSnapshot now runs ONE scan, not four.** React `cache()` only
+  dedupes inside a Server Component render - it never worked in Route Handlers
+  or CLI scripts, so the blend + independent + legacy `getDashboardData` calls
+  each re-scanned. A short-TTL module memo now shares one unfiltered scan
+  across all cohort variants (cohort filtering is JS-side and PUBLIC_COHORTS
+  covers every cohort). Local refresh: 176s → 81s.
+- **Ingest wall-clock budget + daily rotation.** Ingest was the only stage with
+  no time budget; full-list runs crept to 263-296s against the 300s function
+  limit, so Vercel killed it mid-run on 6 of the last 16 days - silently (no
+  usage_log row) and always cutting the same low-priority tail. It now stops
+  cleanly at 260s (`INGEST_TIME_BUDGET_MS`), logs
+  `channelsSkippedAtBudget`/`stoppedAtTimeBudget`, and rotates the channel
+  start point daily within each platform group (preserving the
+  YouTube-before-podcast dedup ordering) so any cut is spread across the list.
+- **MCP `search_mentions` offset capped at 5000.** The offset was
+  client-controlled and unbounded over the 183K-row deep join - a
+  statement-timeout on demand. Deep history should narrow by
+  `published_after`/`published_before` instead.
+
+### Added
+
+- `scripts/health-check.ts` (pipeline freshness + cron-run history at a
+  glance) and `scripts/probe-drilldowns.ts` (times every drill-down read path
+  against the live DB - the regression harness for this release's fixes).
+- Prepared-but-not-applied migration `20260825120000_episodes_published_at_index.sql`
+  (standalone `episodes(published_at desc)` index backing the new date-bounded
+  queries). Apply manually via the Supabase SQL editor.
+
 ## v0.36.1 · 2026-06-26
 
 ### Changed

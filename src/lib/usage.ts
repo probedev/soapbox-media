@@ -106,7 +106,7 @@ export async function recordPipelineRun(
  */
 export async function recordScriptRun(opts: {
   label: string;
-  source?: "cli" | "manual";
+  source?: "cron" | "cli" | "manual";
   durationMs?: number;
   classify?: { processed?: number; mentions?: number; failed?: number };
   score?: { succeeded?: number; failed?: number };
@@ -114,11 +114,16 @@ export async function recordScriptRun(opts: {
   outputTokens?: number;
   costUsd?: number;
   raw?: Record<string, unknown>;
+  /** Persisted to error_message so failures surface in /admin/pipeline
+   *  instead of dying as a console.error nobody reads (the June-Aug 2026
+   *  snapshot freeze went unnoticed for two months exactly this way). */
+  errorMessage?: string;
 }): Promise<void> {
   const db = createServiceClient();
   const { error } = await db.from("usage_log").insert({
     duration_ms: Math.round(opts.durationMs ?? 0),
     source: opts.source ?? "manual",
+    error_message: opts.errorMessage ?? null,
     ingest_episodes_fetched: 0,
     ingest_episodes_new: 0,
     ingest_failures: 0,

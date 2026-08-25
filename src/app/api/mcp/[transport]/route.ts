@@ -158,7 +158,7 @@ const handler = createMcpHandler(
         sentiment_max: z.number().min(-5).max(5).optional(),
         quote_contains: z.string().optional().describe("Case-insensitive substring match within the quote text"),
         limit: z.number().int().min(1).max(50).default(20),
-        offset: z.number().int().min(0).default(0).describe("Pagination offset"),
+        offset: z.number().int().min(0).max(5000).default(0).describe("Pagination offset (max 5000 - for deeper history, narrow with published_after/published_before instead)"),
       },
       async (args) => json(await searchMentions(args)),
     );

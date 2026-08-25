@@ -10,6 +10,8 @@ import { timestampedSourceUrl } from "@/lib/transcript-timing";
 import { listChannelViewStats } from "@/lib/view-stats";
 
 const MAX_LIMIT = 50;
+/** Deepest page reachable via offset; beyond this, narrow by date instead. */
+const MAX_OFFSET = 5000;
 
 export interface MentionFilters {
   issue_slug?: string;
@@ -57,7 +59,11 @@ export interface MentionRow {
 export async function searchMentions(f: MentionFilters): Promise<{ mentions: MentionRow[]; returned: number; offset: number }> {
   const db = createServiceClient();
   const limit = Math.min(Math.max(f.limit ?? 20, 1), MAX_LIMIT);
-  const offset = Math.max(f.offset ?? 0, 0);
+  // Cap the offset: OFFSET-pagination over the 183K-row deep join re-scans
+  // everything it skips, so an uncapped client-supplied offset is a
+  // statement-timeout on demand. Deep paging should narrow by
+  // published_after/before instead (documented in the tool prompt).
+  const offset = Math.min(Math.max(f.offset ?? 0, 0), MAX_OFFSET);
 
   let q = db
     .from("sentiment_scores")

@@ -90,6 +90,13 @@ export const EMERGING_SCORE_CONCURRENCY = 15;
 // cleanly and processes as many items as fit. (2026-05-27 incident: 15
 // episodes × 23 issues ran the full 300s serially and was killed mid-batch.)
 export const STAGE_TIME_BUDGET_MS = 240_000;
+// Ingest gets its own, larger wall-clock budget: it spends no LLM tokens and
+// its full-list runs crept up to 263-296s as the channel list grew, so
+// Vercel's 300s limit killed the function mid-run on slow days - silently (no
+// usage_log row, 6 of 16 days in Aug 2026) and always cutting the same
+// low-priority tail. 260s leaves room for the view snapshot + usage row after
+// the loop; the daily rotation in runIngest spreads any cut across the list.
+export const INGEST_TIME_BUDGET_MS = 260_000;
 
 // Phase-0 view-count collection (v0.32.0). YouTube-only - podcasts have no
 // reliable per-episode metric. We snapshot each YT episode's view count once per
@@ -125,6 +132,7 @@ export async function runStage(
 // ─── Ingest ─────────────────────────────────────────────────────────────
 
 export async function runIngest(): Promise<Record<string, unknown>> {
+  const stageStart = Date.now();
   const db = createServiceClient();
   const { data: channels, error } = await db
     .from("channels")
@@ -145,6 +153,27 @@ export async function runIngest(): Promise<Record<string, unknown>> {
     channels.sort(
       (a, b) => (PLATFORM_PRIORITY[b.platform] ?? 0) - (PLATFORM_PRIORITY[a.platform] ?? 0),
     );
+  }
+
+  // Daily rotation WITHIN each platform group: the time budget below can stop
+  // a slow run early, and a fixed order would starve the same low-reach tail
+  // on every such run. Rotating the start point by day spreads any cut across
+  // the list over successive days. Rotation never crosses platform groups, so
+  // the YouTube-before-podcast ordering the cross-platform dedup depends on
+  // (see the sort comment above) is preserved.
+  if (channels && channels.length > 0) {
+    const dayIndex = Math.floor(Date.now() / 86_400_000);
+    const grouped = new Map<string, typeof channels>();
+    for (const c of channels) {
+      const g = grouped.get(c.platform) ?? [];
+      g.push(c);
+      grouped.set(c.platform, g);
+    }
+    channels.length = 0;
+    for (const g of grouped.values()) {
+      const off = dayIndex % g.length;
+      channels.push(...g.slice(off), ...g.slice(0, off));
+    }
   }
 
   // Reach refresh: piggyback on the ingest's per-channel iteration. YT is
@@ -191,7 +220,17 @@ export async function runIngest(): Promise<Record<string, unknown>> {
   // just guarantees a same-day reading regardless of cron ordering.
   const metricRows: MetricSnapshot[] = [];
 
+  let channelsProcessed = 0;
+  let stoppedAtTimeBudget = false;
   for (const ch of channels || []) {
+    // Wall-clock guard: stop pulling new channels once the budget is hit so
+    // the run always finishes cleanly (view snapshot + usage_log row) instead
+    // of being killed at Vercel's 300s function limit with no trace.
+    if (Date.now() - stageStart > INGEST_TIME_BUDGET_MS) {
+      stoppedAtTimeBudget = true;
+      break;
+    }
+    channelsProcessed++;
     // YouTube only - podcast reach is editorial (see top-of-function note).
     // Writing a 0/falsy value would zero out a valid reach (a transient
     // lookup miss shouldn't trash the stored stat), so we only update on
@@ -358,7 +397,9 @@ export async function runIngest(): Promise<Record<string, unknown>> {
   }
 
   return {
-    channelsProcessed: channels?.length || 0,
+    channelsProcessed,
+    channelsSkippedAtBudget: (channels?.length || 0) - channelsProcessed,
+    stoppedAtTimeBudget,
     fetched: totalFetched,
     newEpisodes: totalNew,
     transcriptsInline: totalTranscripts,

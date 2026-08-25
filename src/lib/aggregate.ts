@@ -20,9 +20,10 @@
  * the issue's left_position; positive = R-aligned). So `direction` is folded
  * into `sentiment` and we don't compute it separately.
  *
- * This file fetches all scored rows once per render and computes everything
- * in JS. With ~1300 rows that's well under 100ms; we'll add caching / a
- * materialized view in v1 once data volume grows.
+ * This file fetches the scored rows for the consumer's window (bounded,
+ * keyset-paginated - see fetchScoreRows) and computes everything in JS.
+ * All-time scans stopped being viable at ~183K score rows (statement
+ * timeout); every aggregate here windows to at most windowDays + 30 days.
  */
 import { cache as reactCache } from "react";
 import { createServiceClient } from "./db";
@@ -64,6 +65,7 @@ interface ScoreRow {
   channel_name: string;
   channel_lean: "L" | "M" | "R";
   channel_reach: number;
+  channel_cohort: Cohort;
 }
 
 export interface IssueAggregate {
@@ -206,43 +208,97 @@ function rollingVolumeTrend(
 }
 
 /**
- * Wrapped with React `cache()` so multiple server-component callers on the
- * same render share one underlying fetch. The home page is the canonical
- * hot path: `<HomePage>` calls `getDashboardData()` and the sibling
- * `<IssueContributionsChart>` server component calls `getIndexBreakdown()`
- * - both rely on this function. Without `cache()` they each paginated the
- * full 17K-row deep-join independently, adding ~7s to TTFB (v0.6.60
- * measured 15s home TTFB pre-fix). Per-render scope only - does NOT bridge
- * separate requests.
- *
- * Page size bumped 500 → 1000 in v0.6.60. The 500 cap was added in v0.6.3
- * because Vercel's edge→Supabase route returns short pages on big response
- * payloads - but v0.6.51 fixed the terminator to only stop on empty pages,
- * so a short page no longer truncates silently. 1000 halves round-trip
- * count (17 pages instead of 34). The select payload per row is small
- * (~300 bytes - IDs + a few short fields, no text), so a full 1000-row
- * page is ~300KB; comfortably under the response cap.
+ * Deepest lookback any consumer of fetchScoreRows needs beyond its own
+ * windowDays: the 30-point sparkline (and the 8-point issue trend it
+ * subsumes) steps a windowDays-wide window back up to 29 days. Callers pass
+ * `windowDays + SPARKLINE_DAYS` as `sinceDays`; keeping the formula identical
+ * across getDashboardData and getIndexBreakdown means the React-cache()
+ * memoization still shares ONE fetch on the home path.
  */
-const fetchScoreRows = cache(
-  async (cohorts: readonly Cohort[] = PUBLIC_COHORTS): Promise<ScoreRow[]> => {
+const SPARKLINE_DAYS = 30;
+
+/**
+ * The heavy scan behind every home/index aggregate. The home page is the
+ * canonical hot path: `<HomePage>` calls `getDashboardData()` and the sibling
+ * `<IssueContributionsChart>` server component calls `getIndexBreakdown()` -
+ * both funnel here, deduped by the short-TTL memo below (plus React `cache()`
+ * on the thin cohort-filter wrapper for render-scope dedup).
+ *
+ * v0.36.2: date-bounded + keyset-paginated. The previous version OFFSET-
+ * paginated (.range) the ALL-TIME deep join; at ~183K score rows the deep
+ * OFFSET pages crossed Supabase's statement timeout, which silently froze
+ * every snapshot refresh from 2026-06-30 on (writeHomeSnapshot's error was
+ * caught + console.error'd, so the home page served the June 30 row for two
+ * months). It also had a maxPages=50 silent truncation cap - at 183K rows it
+ * would have served only the OLDEST 50K scores. Every consumer windows to at
+ * most `sinceDays` anyway, so we now push that bound into the query
+ * (`!inner` joins so the published_at filter excludes rows server-side) and
+ * keyset-paginate on `id` (`.gt(lastId)`), which stays flat-cost per page
+ * where OFFSET re-scans everything before it.
+ *
+ * Termination stays empty-page-only: Vercel's edge→Supabase route can return
+ * short-but-nonempty pages on big payloads (v0.6.3/v0.6.51 history), and
+ * with keyset pagination a short page just continues from its last id.
+ */
+/**
+ * Short-TTL module memo for the heavy scan. React `cache()` only dedupes
+ * inside a Server Component render - it does nothing in Route Handlers (the
+ * cron paths) or CLI scripts, so writeHomeSnapshot's blend + independent +
+ * legacy getDashboardData calls each re-ran the full scan. Cohort filtering
+ * happens in JS (PUBLIC_COHORTS covers every cohort), so ONE unfiltered scan
+ * per sinceDays serves all cohort variants. The memo stores the in-flight
+ * promise (concurrent callers share one scan) and expires after 60s, which is
+ * far fresher than the pipeline's write cadence.
+ */
+let scoreRowsMemo:
+  | { sinceDays: number; at: number; promise: Promise<ScoreRow[]> }
+  | null = null;
+const SCORE_ROWS_MEMO_TTL_MS = 60_000;
+
+function fetchAllScoreRows(sinceDays: number): Promise<ScoreRow[]> {
+  const now = Date.now();
+  if (
+    scoreRowsMemo &&
+    scoreRowsMemo.sinceDays === sinceDays &&
+    now - scoreRowsMemo.at < SCORE_ROWS_MEMO_TTL_MS
+  ) {
+    return scoreRowsMemo.promise;
+  }
+  const promise = fetchAllScoreRowsUncached(sinceDays).catch((e) => {
+    // Never memoize a failure - let the next caller retry immediately.
+    if (scoreRowsMemo?.promise === promise) scoreRowsMemo = null;
+    throw e;
+  });
+  scoreRowsMemo = { sinceDays, at: now, promise };
+  return promise;
+}
+
+async function fetchAllScoreRowsUncached(sinceDays: number): Promise<ScoreRow[]> {
   const db = createServiceClient();
   const all: ScoreRow[] = [];
   const pageSize = 1000;
-  // Safety bound so a malformed loop can't hang the request. 50 pages ×
-  // 1000 rows = 50K-row ceiling; current panel is 17K, headroom for 3×.
-  const maxPages = 50;
+  const sinceIso = new Date(Date.now() - sinceDays * 86_400_000).toISOString();
+  // Runaway guard only. Hitting it THROWS - a visible failure - instead of
+  // silently returning a truncated (= wrong) Index. 200 pages × 1000 rows is
+  // far above any realistic in-window volume (~2K mentions/day today).
+  const maxPages = 200;
 
-  for (let page = 0; page < maxPages; page++) {
-    const from = page * pageSize;
-    const { data, error } = await db
+  let lastId: string | null = null;
+  for (let page = 0; ; page++) {
+    if (page >= maxPages) {
+      throw new Error(
+        `fetchScoreRows: exceeded ${maxPages} pages (${all.length} rows) for sinceDays=${sinceDays} - raise maxPages or tighten the window`,
+      );
+    }
+    let query = db
       .from("sentiment_scores")
       .select(
         `
         id, sentiment, intensity,
-        classification:classifications!sentiment_scores_classification_id_fkey (
+        classification:classifications!sentiment_scores_classification_id_fkey!inner (
           issue_slug, episode_id,
           issue:issues!classifications_issue_slug_fkey ( name, topic_slug ),
-          episode:episodes!classifications_episode_id_fkey (
+          episode:episodes!classifications_episode_id_fkey!inner (
             id, published_at,
             channel:channels!episodes_channel_id_fkey (
               id, name, political_lean, reach, cohort
@@ -251,20 +307,20 @@ const fetchScoreRows = cache(
         )
       `,
       )
+      .gte("classification.episode.published_at", sinceIso)
       .order("id", { ascending: true })
-      .range(from, from + pageSize - 1);
+      .limit(pageSize);
+    if (lastId !== null) query = query.gt("id", lastId);
+    const { data, error } = await query;
     if (error) throw new Error(`fetchScoreRows: ${error.message}`);
     if (!data || data.length === 0) break;
+    lastId = String((data[data.length - 1] as any).id);
 
     for (const r of data as any[]) {
       const c = r.classification;
       const e = c?.episode;
       const ch = e?.channel;
       if (!c || !e || !ch || !c.issue) continue;
-      // Cohort scope: the public master (PUBLIC_COHORTS) blends both cohorts;
-      // callers pass a single-cohort set to compute the per-cohort sub-needles.
-      // Rows outside the requested cohort set are excluded here. See [[lib/cohort]].
-      if (!cohorts.includes(ch.cohort)) continue;
       all.push({
         sentiment: Number(r.sentiment),
         intensity: Number(r.intensity),
@@ -277,13 +333,27 @@ const fetchScoreRows = cache(
         channel_name: ch.name,
         channel_lean: ch.political_lean,
         channel_reach: Number(ch.reach),
+        channel_cohort: ch.cohort,
       });
     }
     // Empty-page-only termination - see [[pagination-stable-order]] for
     // why a short page (length < pageSize, > 0) is normal on this route.
   }
   return all;
-});
+}
+
+const fetchScoreRows = cache(
+  async (
+    cohorts: readonly Cohort[] = PUBLIC_COHORTS,
+    sinceDays: number = 7 + SPARKLINE_DAYS,
+  ): Promise<ScoreRow[]> => {
+    const all = await fetchAllScoreRows(sinceDays);
+    // Cohort scope: the public master (PUBLIC_COHORTS) blends both cohorts;
+    // callers pass a single-cohort set to compute the per-cohort sub-needles.
+    // Filtered here in JS so all cohort variants share the one scan above.
+    return all.filter((r) => cohorts.includes(r.channel_cohort));
+  },
+);
 
 // Biggest-Movers eligibility / ranking thresholds + helpers now live in
 // scoring.ts (MOVER_MIN_MENTIONS=25, lean floor 0.5, volume 1.5x / 0.67x, cap
@@ -299,7 +369,7 @@ export async function getDashboardData(
   windowDays = 7,
   cohorts: readonly Cohort[] = PUBLIC_COHORTS,
 ): Promise<DashboardData> {
-  const rows = await fetchScoreRows(cohorts);
+  const rows = await fetchScoreRows(cohorts, windowDays + SPARKLINE_DAYS);
   const lastUpdated = new Date().toISOString();
   const now = new Date();
   const asOfDate = now.toISOString().slice(0, 10);
@@ -830,7 +900,7 @@ export async function getIndexBreakdown(
   windowDays = 30,
   cohorts: readonly Cohort[] = PUBLIC_COHORTS,
 ): Promise<IndexBreakdown> {
-  const rows = await fetchScoreRows(cohorts);
+  const rows = await fetchScoreRows(cohorts, windowDays + SPARKLINE_DAYS);
   const cutoff = new Date();
   cutoff.setUTCDate(cutoff.getUTCDate() - windowDays);
   const windowed = rows.filter(
@@ -1062,34 +1132,41 @@ export interface IssueDrillDown {
 type ScoreRowFilter =
   | { kind: "issue"; issueSlug: string }
   | { kind: "issues"; issueSlugs: string[] }
-  | { kind: "episodes"; episodeIds: string[] };
+  | { kind: "channel"; channelId: string };
 
 async function fetchScoreRowsFiltered(
   filter: ScoreRowFilter,
+  // Drill-downs window to 30 days in their JS aggregation; pushing the same
+  // bound into the query (v0.36.2) keeps the scan from growing with the
+  // table's all-time size (statement-timeout cliff, see fetchScoreRows).
+  sinceDays: number,
   // Issue/topic drill-downs scope to the master cohort to match the Index;
   // the channel drill-down passes undefined (it's already one channel, of
   // whatever cohort).
   cohorts?: readonly Cohort[],
 ): Promise<ScoreRow[]> {
-  if (
-    (filter.kind === "issues" && filter.issueSlugs.length === 0) ||
-    (filter.kind === "episodes" && filter.episodeIds.length === 0)
-  ) {
+  if (filter.kind === "issues" && filter.issueSlugs.length === 0) {
     return [];
   }
 
   const db = createServiceClient();
   const all: ScoreRow[] = [];
   const pageSize = 1000;
+  const sinceIso = new Date(Date.now() - sinceDays * 86_400_000).toISOString();
   const maxPages = 50;
 
-  for (let page = 0; page < maxPages; page++) {
-    const from = page * pageSize;
+  let lastId: string | null = null;
+  for (let page = 0; ; page++) {
+    if (page >= maxPages) {
+      throw new Error(
+        `fetchScoreRowsFiltered: exceeded ${maxPages} pages (${all.length} rows, filter=${filter.kind}, sinceDays=${sinceDays})`,
+      );
+    }
     let q = db.from("classifications").select(
       `
       id, issue_slug, episode_id,
       issue:issues!classifications_issue_slug_fkey ( name, topic_slug ),
-      episode:episodes!classifications_episode_id_fkey (
+      episode:episodes!classifications_episode_id_fkey!inner (
         id, published_at,
         channel:channels!episodes_channel_id_fkey ( id, name, political_lean, reach, cohort )
       ),
@@ -1098,15 +1175,20 @@ async function fetchScoreRowsFiltered(
     );
     if (filter.kind === "issue") q = q.eq("issue_slug", filter.issueSlug);
     else if (filter.kind === "issues") q = q.in("issue_slug", filter.issueSlugs);
-    else q = q.in("episode_id", filter.episodeIds);
+    // One channel's rows via the !inner episode embed - replaces the old
+    // two-step "fetch every episode id, resend as a 50K-item IN-list on
+    // every page" pattern (URL-length + planner killer at volume).
+    else q = q.eq("episode.channel_id", filter.channelId);
 
-    // Stable PK order + empty-page-only termination (the canonical pagination
+    // Date bound pushed into the query via the !inner episode embed, keyset
+    // pagination on the PK + empty-page-only termination (the canonical
     // pattern - see [[pagination-stable-order]]).
-    const { data, error } = await q
-      .order("id", { ascending: true })
-      .range(from, from + pageSize - 1);
+    q = q.gte("episode.published_at", sinceIso).order("id", { ascending: true }).limit(pageSize);
+    if (lastId !== null) q = q.gt("id", lastId);
+    const { data, error } = await q;
     if (error) throw new Error(`fetchScoreRowsFiltered: ${error.message}`);
     if (!data || data.length === 0) break;
+    lastId = String((data[data.length - 1] as any).id);
 
     for (const r of data as any[]) {
       const score = Array.isArray(r.score) ? r.score[0] : r.score;
@@ -1129,32 +1211,11 @@ async function fetchScoreRowsFiltered(
         channel_name: ch.name,
         channel_lean: ch.political_lean,
         channel_reach: Number(ch.reach),
+        channel_cohort: ch.cohort,
       });
     }
   }
   return all;
-}
-
-/** Every episode id for a channel (paginated past the 1000-row cap). */
-async function fetchChannelEpisodeIds(
-  db: ReturnType<typeof createServiceClient>,
-  channelId: string,
-): Promise<string[]> {
-  const ids: string[] = [];
-  const pageSize = 1000;
-  for (let page = 0; page < 50; page++) {
-    const from = page * pageSize;
-    const { data, error } = await db
-      .from("episodes")
-      .select("id")
-      .eq("channel_id", channelId)
-      .order("id", { ascending: true })
-      .range(from, from + pageSize - 1);
-    if (error) throw new Error(`fetchChannelEpisodeIds: ${error.message}`);
-    if (!data || data.length === 0) break;
-    ids.push(...data.map((r: { id: string }) => r.id));
-  }
-  return ids;
 }
 
 export async function getIssueDrillDown(slug: string): Promise<IssueDrillDown | null> {
@@ -1171,6 +1232,7 @@ export async function getIssueDrillDown(slug: string): Promise<IssueDrillDown | 
   // are then no-ops on this already-scoped set.
   const rows = await fetchScoreRowsFiltered(
     { kind: "issue", issueSlug: slug },
+    30,
     PUBLIC_COHORTS,
   );
   // Last 30 days for drill-down to give a meaningful sample
@@ -1295,14 +1357,20 @@ async function fetchIssueExcerptRows(slug: string, windowDays: number): Promise<
   cutoff.setUTCDate(cutoff.getUTCDate() - windowDays);
   const rows: ExcerptRow[] = [];
   const pageSize = 1000;
-  for (let page = 0; page < 50; page++) {
-    const from = page * pageSize;
-    const { data, error } = await db
+  const maxPages = 50;
+  let lastId: string | null = null;
+  for (let page = 0; ; page++) {
+    if (page >= maxPages) {
+      throw new Error(
+        `fetchIssueExcerptRows: exceeded ${maxPages} pages (${rows.length} rows, slug=${slug})`,
+      );
+    }
+    let q = db
       .from("classifications")
       .select(
         `
-        supporting_quote,
-        episode:episodes!classifications_episode_id_fkey (
+        id, supporting_quote,
+        episode:episodes!classifications_episode_id_fkey!inner (
           published_at, title, source_url,
           channel:channels!episodes_channel_id_fkey ( id, name, political_lean, reach, cohort )
         ),
@@ -1310,10 +1378,16 @@ async function fetchIssueExcerptRows(slug: string, windowDays: number): Promise<
         `,
       )
       .eq("issue_slug", slug)
+      // The window bound is pushed into the query (v0.36.2) - the old version
+      // scanned this issue's ALL-TIME classifications and cut in JS.
+      .gte("episode.published_at", cutoff.toISOString())
       .order("id", { ascending: true })
-      .range(from, from + pageSize - 1);
+      .limit(pageSize);
+    if (lastId !== null) q = q.gt("id", lastId);
+    const { data, error } = await q;
     if (error) throw new Error(`fetchIssueExcerptRows: ${error.message}`);
     if (!data || data.length === 0) break;
+    lastId = String((data[data.length - 1] as any).id);
     for (const r of data as any[]) {
       const score = Array.isArray(r.score) ? r.score[0] : r.score;
       const e = Array.isArray(r.episode) ? r.episode[0] : r.episode;
@@ -1461,6 +1535,7 @@ export async function getTopicDrillDown(slug: string): Promise<TopicDrillDown | 
   const issueSlugs = (topicIssues || []).map((i: { slug: string }) => i.slug);
   const rows = await fetchScoreRowsFiltered(
     { kind: "issues", issueSlugs },
+    30,
     PUBLIC_COHORTS,
   );
   const cutoff = new Date();
@@ -1539,10 +1614,9 @@ export async function getChannelDrillDown(channelId: string): Promise<ChannelDri
     .single();
   if (error || !channel) return null;
 
-  // Only this channel's score rows: resolve its episode ids (indexed on
-  // channel_id), then DB-filter classifications to those episodes.
-  const episodeIds = await fetchChannelEpisodeIds(db, channelId);
-  const rows = await fetchScoreRowsFiltered({ kind: "episodes", episodeIds });
+  // Only this channel's last-30d score rows, DB-filtered via the !inner
+  // episode embed (episodes(channel_id, published_at) is indexed).
+  const rows = await fetchScoreRowsFiltered({ kind: "channel", channelId }, 30);
   const cutoff = new Date();
   cutoff.setUTCDate(cutoff.getUTCDate() - 30);
   const channelRows = rows.filter(
@@ -1646,24 +1720,39 @@ function normalizeFigureRow(r: any, withQuote: boolean): FigureScoreRow | null {
 }
 
 const fetchFigureOverviewRows = cache(
-  async (cohorts: readonly Cohort[] = PUBLIC_COHORTS): Promise<FigureScoreRow[]> => {
+  async (
+    cohorts: readonly Cohort[] = PUBLIC_COHORTS,
+    sinceDays: number = FIGURE_WINDOW_DAYS,
+  ): Promise<FigureScoreRow[]> => {
     const db = createServiceClient();
     const all: FigureScoreRow[] = [];
     const pageSize = 1000;
     const maxPages = 60;
-    for (let page = 0; page < maxPages; page++) {
-      const from = page * pageSize;
-      const { data, error } = await db
+    const sinceIso = new Date(Date.now() - sinceDays * 86_400_000).toISOString();
+    let lastId: string | null = null;
+    for (let page = 0; ; page++) {
+      if (page >= maxPages) {
+        throw new Error(
+          `fetchFigureOverviewRows: exceeded ${maxPages} pages (${all.length} rows)`,
+        );
+      }
+      let q = db
         .from("figure_scores")
         .select(
-          `favorability, intensity,
-           mention:figure_mentions ( figure_slug,
-             episodes ( published_at, channels ( id, name, political_lean, reach, cohort, active ) ) )`,
+          `id, favorability, intensity,
+           mention:figure_mentions!inner ( figure_slug,
+             episodes!inner ( published_at, channels ( id, name, political_lean, reach, cohort, active ) ) )`,
         )
+        // Window bound pushed into the query (v0.36.2) - was an all-time scan
+        // cut down in JS by getFiguresOverview.
+        .gte("mention.episodes.published_at", sinceIso)
         .order("id", { ascending: true })
-        .range(from, from + pageSize - 1);
+        .limit(pageSize);
+      if (lastId !== null) q = q.gt("id", lastId);
+      const { data, error } = await q;
       if (error) throw new Error(`fetchFigureOverviewRows: ${error.message}`);
       if (!data || data.length === 0) break;
+      lastId = String((data[data.length - 1] as any).id);
       for (const r of data as any[]) {
         const row = normalizeFigureRow(r, false);
         if (row && cohorts.includes((r.mention?.episodes?.channels?.cohort) as Cohort)) all.push(row);
@@ -1700,7 +1789,7 @@ export async function getFiguresOverview(
 
   const cutoff = new Date();
   cutoff.setUTCDate(cutoff.getUTCDate() - windowDays);
-  const rows = (await fetchFigureOverviewRows(cohorts)).filter(
+  const rows = (await fetchFigureOverviewRows(cohorts, windowDays)).filter(
     (r) => new Date(r.published_at) >= cutoff && meta.has(r.figure_slug),
   );
 
@@ -1782,20 +1871,32 @@ export async function getFigureDetail(
 
   const rows: FigureScoreRow[] = [];
   const pageSize = 1000;
-  for (let page = 0; page < 30; page++) {
-    const from = page * pageSize;
-    const { data, error } = await db
+  const maxPages = 30;
+  let lastId: string | null = null;
+  for (let page = 0; ; page++) {
+    if (page >= maxPages) {
+      throw new Error(
+        `getFigureDetail: exceeded ${maxPages} pages (${rows.length} rows, slug=${slug})`,
+      );
+    }
+    let q = db
       .from("figure_scores")
       .select(
-        `favorability, intensity,
+        `id, favorability, intensity,
          mention:figure_mentions!inner ( figure_slug, quote, start_ts,
-           episodes ( published_at, source_url, channels ( id, name, political_lean, reach, cohort, active ) ) )`,
+           episodes!inner ( published_at, source_url, channels ( id, name, political_lean, reach, cohort, active ) ) )`,
       )
       .eq("mention.figure_slug", slug)
+      // Window bound pushed into the query (v0.36.2) - was figure-filtered
+      // but all-time, cut down in JS.
+      .gte("mention.episodes.published_at", cutoff.toISOString())
       .order("id", { ascending: true })
-      .range(from, from + pageSize - 1);
+      .limit(pageSize);
+    if (lastId !== null) q = q.gt("id", lastId);
+    const { data, error } = await q;
     if (error) throw new Error(`getFigureDetail: ${error.message}`);
     if (!data || data.length === 0) break;
+    lastId = String((data[data.length - 1] as any).id);
     for (const r of data as any[]) {
       const row = normalizeFigureRow(r, true);
       if (
@@ -1806,7 +1907,6 @@ export async function getFigureDetail(
         rows.push(row);
       }
     }
-    if (data.length < pageSize) break;
   }
 
   const scoredRows = rows.filter((r) => r.intensity >= FIGURE_INTENSITY_FLOOR);

@@ -6,7 +6,6 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { assertCronAuth, runStage, runScore } from "@/lib/pipeline";
 import { recordPipelineRun } from "@/lib/usage";
-import { writeHomeSnapshot } from "@/lib/aggregate";
 
 export const maxDuration = 300;
 export const dynamic = "force-dynamic";
@@ -21,12 +20,10 @@ export async function GET(request: NextRequest) {
     "cron",
   ).catch((e) => console.error("recordPipelineRun failed:", e));
 
-  // Score is the last data-producing stage, so refresh the precomputed
-  // home-page snapshot now that new sentiment_scores may have landed.
-  // Best-effort: a snapshot failure must not fail the scoring cron.
-  await writeHomeSnapshot().catch((e) =>
-    console.error("writeHomeSnapshot failed:", e),
-  );
+  // The home-snapshot refresh moved to its own cron (/api/cron/snapshot,
+  // v0.36.2): score saturates its 240s budget under backlog, so a tail-call
+  // refresh here got killed at the 300s function limit - silently, because
+  // its failure path was a swallowed console.error. Don't re-add it.
 
   return NextResponse.json(result);
 }
