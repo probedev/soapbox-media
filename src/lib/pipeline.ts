@@ -23,7 +23,14 @@ import {
 import { quoteStartSeconds, type TranscriptSegment } from "@/lib/transcript-timing";
 import { getPodcastEpisodes, episodeSourceUrl } from "@/lib/podscan";
 import { classifyTranscript, type IssueDef } from "@/modules/classify";
-import { scoreClassification, scoreEmergingMention, EMERGING_SCORE_PROMPT_VERSION } from "@/modules/score";
+import {
+  scoreClassification,
+  scoreEmergingMention,
+  EMERGING_SCORE_PROMPT_VERSION,
+  scoreFigureMention,
+  FIGURE_SCORE_PROMPT_VERSION,
+} from "@/modules/score";
+import { buildAliasRegex, extractWindows, type FigureMatcher } from "@/lib/figures";
 import { MODEL_CLASSIFY, MODEL_SCORE } from "@/lib/anthropic";
 import { estimateCostUsd } from "@/lib/pricing";
 import { dedupKey, loadSiblingEpisodeKeys, PLATFORM_PRIORITY } from "@/lib/dedup";
@@ -83,6 +90,15 @@ export const SCORE_CONCURRENCY = 15;
 export const TOP_N_EMERGING = 12;
 export const EMERGING_SCORE_LIMIT = 300;
 export const EMERGING_SCORE_CONCURRENCY = 15;
+// Figures stage (v0.37.0): detect is regex-only (free); the Haiku favorability
+// pass is bounded like score-emerging. Daily cadence: ~450 new episodes/day ×
+// ~2 mentions/ep ≈ 900 mentions/day ≈ $0.5/day at Haiku short-quote prices.
+// The 3-day detect lookback overlaps prior runs on purpose - the upsert is
+// idempotent on (episode_id, figure_slug, char_offset), so re-scans no-op and
+// a missed day self-heals.
+export const FIGURES_DETECT_LOOKBACK_DAYS = 3;
+export const FIGURES_SCORE_LIMIT = 1200;
+export const FIGURES_SCORE_CONCURRENCY = 10;
 // Wall-clock budget per stage. The per-stage cron has a 300s function limit;
 // classify slows as the taxonomy grows (more issues → more mentions/episode),
 // so a fixed LIMIT can overshoot 300s and 504 (no usage_log row). The pool
@@ -1044,6 +1060,199 @@ export async function runScoreEmerging(): Promise<Record<string, unknown>> {
     succeeded: ok,
     failed,
     stoppedAtTimeBudget: completed < batch.length,
+    inputTokens,
+    outputTokens,
+    approxCostUsd: Number(estCost.toFixed(4)),
+  };
+}
+
+// ─── Figures (public-figure favorability) ──────────────────────────────────
+//
+// Revives the v0.33.0 Public Figures feature, which shipped as a one-time
+// backfill and then went stale (figure_scores froze 2026-06-23). Two
+// sub-steps, both idempotent, run by the daily /api/cron/figures:
+//   1. detect - regex-scan recent transcripts into figure_mentions (no LLM)
+//   2. score  - Haiku favorability over unscored mentions into figure_scores
+
+/** Regex-detect figure mentions in transcripts of episodes published in the
+ *  last `sinceDays`. Shared by the cron stage and scripts/detect-figures.ts
+ *  (which passes a large `sinceDays` for backfills). Keyset-paginated on the
+ *  transcripts PK (episode_id) with empty-page-only termination - transcript
+ *  pages are heavy, so short-but-nonempty pages are expected. */
+export async function detectFigureMentions(
+  db: ReturnType<typeof createServiceClient>,
+  sinceDays: number,
+  deadline: number,
+  onPage?: (progress: { scanned: number; windows: number; newMentions: number }) => void,
+): Promise<{ scanned: number; windows: number; newMentions: number; stoppedAtTimeBudget: boolean }> {
+  const { data: figs, error: figErr } = await db
+    .from("figures")
+    .select("slug, aliases")
+    .eq("active", true);
+  if (figErr) throw new Error(`figures load: ${figErr.message}`);
+  const matchers: FigureMatcher[] = (figs || []).map((f: any) => ({
+    slug: f.slug,
+    regex: buildAliasRegex(f.aliases || []),
+  }));
+
+  let scanned = 0;
+  let windows = 0;
+  let newMentions = 0;
+  let stoppedAtTimeBudget = false;
+  if (matchers.length === 0) return { scanned, windows, newMentions, stoppedAtTimeBudget };
+
+  const cutoff = new Date(Date.now() - sinceDays * 86_400_000).toISOString();
+  const PAGE = 150; // transcripts are large; keep pages small
+  let lastEpisodeId: string | null = null;
+  for (;;) {
+    if (Date.now() > deadline) {
+      stoppedAtTimeBudget = true;
+      break;
+    }
+    let q = db
+      .from("transcripts")
+      .select("episode_id, text, episodes!inner(published_at)")
+      .gte("episodes.published_at", cutoff)
+      .order("episode_id", { ascending: true })
+      .limit(PAGE);
+    if (lastEpisodeId !== null) q = q.gt("episode_id", lastEpisodeId);
+    const { data, error } = await q;
+    if (error) throw new Error(`figures detect: ${error.message}`);
+    if (!data || data.length === 0) break;
+    lastEpisodeId = String((data[data.length - 1] as any).episode_id);
+
+    const rows: any[] = [];
+    for (const t of data as any[]) {
+      scanned++;
+      if (!t.text) continue;
+      for (const w of extractWindows(t.text, matchers)) {
+        windows++;
+        rows.push({
+          episode_id: t.episode_id,
+          figure_slug: w.figureSlug,
+          quote: w.quote,
+          char_offset: w.charOffset,
+          start_ts: w.startTs,
+          matched_alias: w.matchedAlias,
+        });
+      }
+    }
+    for (let i = 0; i < rows.length; i += 500) {
+      const { error: upErr, count } = await db
+        .from("figure_mentions")
+        .upsert(rows.slice(i, i + 500), {
+          onConflict: "episode_id,figure_slug,char_offset",
+          ignoreDuplicates: true,
+          count: "exact",
+        });
+      if (upErr) throw new Error(`figures detect upsert: ${upErr.message}`);
+      newMentions += count ?? 0;
+    }
+    onPage?.({ scanned, windows, newMentions });
+  }
+  return { scanned, windows, newMentions, stoppedAtTimeBudget };
+}
+
+export async function runFigures(): Promise<Record<string, unknown>> {
+  const db = createServiceClient();
+  const stageStart = Date.now();
+  const deadline = stageStart + STAGE_TIME_BUDGET_MS;
+
+  // 1) Detect. Fast (regex over ~3 days of transcripts); shares the stage
+  //    deadline so a pathological run still finishes cleanly.
+  const detect = await detectFigureMentions(db, FIGURES_DETECT_LOOKBACK_DAYS, deadline);
+
+  // 2) Score. Unscored mentions via a server-side anti-join (!left embed +
+  //    .is(null)) so we never page the full scored set into memory.
+  interface PendingRow {
+    id: string;
+    quote: string;
+    figure_name: string;
+    channel_name: string;
+    political_lean: "L" | "M" | "R";
+  }
+  const pick = (x: any) => (Array.isArray(x) ? x[0] : x);
+  const pending: PendingRow[] = [];
+  {
+    const { data, error } = await db
+      .from("figure_mentions")
+      .select(
+        `id, quote,
+         figures ( name ),
+         episodes!inner ( channels ( name, political_lean ) ),
+         figure_scores!left ( figure_mention_id )`,
+      )
+      .is("figure_scores", null)
+      .order("id", { ascending: true })
+      .limit(FIGURES_SCORE_LIMIT);
+    if (error) throw new Error(`figures pending: ${error.message}`);
+    for (const r of (data || []) as any[]) {
+      const fig = pick(r.figures);
+      const ch = pick(pick(r.episodes)?.channels);
+      if (!r.quote || !fig?.name || !ch?.name) continue;
+      pending.push({
+        id: r.id,
+        quote: r.quote,
+        figure_name: fig.name,
+        channel_name: ch.name,
+        political_lean: (ch.political_lean || "M") as PendingRow["political_lean"],
+      });
+    }
+  }
+
+  let ok = 0;
+  let failed = 0;
+  let inputTokens = 0;
+  let outputTokens = 0;
+
+  const { completed } = await mapPool(
+    pending,
+    FIGURES_SCORE_CONCURRENCY,
+    async (m) => {
+      try {
+        const result = await scoreFigureMention({
+          figureName: m.figure_name,
+          quote: m.quote,
+          channelName: m.channel_name,
+          politicalLean: m.political_lean,
+        });
+        inputTokens += result.inputTokens || 0;
+        outputTokens += result.outputTokens || 0;
+        const { error: insErr } = await db.from("figure_scores").upsert(
+          {
+            figure_mention_id: m.id,
+            favorability: result.favorability,
+            intensity: result.intensity,
+            model: MODEL_SCORE,
+            model_version: FIGURE_SCORE_PROMPT_VERSION,
+          },
+          // Idempotent under UNIQUE(figure_mention_id): overlapping runs no-op.
+          { onConflict: "figure_mention_id", ignoreDuplicates: true },
+        );
+        if (insErr) {
+          console.error(`[figures] score insert failed for ${m.id}: ${insErr.message}`);
+          failed++;
+        } else {
+          ok++;
+        }
+      } catch (e: any) {
+        console.error(`[figures] ${e?.constructor?.name || "Error"} for mention ${m.id}: ${e?.message || e}`);
+        failed++;
+      }
+    },
+    deadline,
+  );
+
+  const estCost = estimateCostUsd(MODEL_SCORE, { inputTokens, outputTokens });
+  return {
+    detectScanned: detect.scanned,
+    detectWindows: detect.windows,
+    newMentions: detect.newMentions,
+    pendingFound: pending.length,
+    processed: ok + failed,
+    succeeded: ok,
+    failed,
+    stoppedAtTimeBudget: detect.stoppedAtTimeBudget || completed < pending.length,
     inputTokens,
     outputTokens,
     approxCostUsd: Number(estCost.toFixed(4)),

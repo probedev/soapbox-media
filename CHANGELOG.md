@@ -7,6 +7,34 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
+## v0.37.0 · 2026-08-25
+
+### Added
+
+- **Public Figures pipeline revived (daily cron).** The v0.33.0 feature shipped
+  as a one-time backfill and froze on 2026-06-23, leaving /figures with empty
+  30-day windows. New daily `/api/cron/figures` (11:40 UTC) runs the regex
+  detect pass over the last 3 days of transcripts (free, idempotent on
+  `(episode_id, figure_slug, char_offset)`) and then Haiku favorability over
+  unscored mentions, found via a server-side anti-join
+  (`figure_scores!left` + `.is(null)`) instead of paging every scored id into
+  memory. Bounded by `FIGURES_SCORE_LIMIT` (1200) + the 240s stage budget;
+  ~$0.5/day at current volume, logged to usage_log (cost folded into
+  /admin/costs like score-emerging). `scripts/detect-figures.ts` is now a thin
+  CLI over the shared stage logic (`detectFigureMentions`), keyset-paginated.
+  The June-Aug gap was backfilled the same day (detect + attended score run).
+
+### Removed
+
+- **Trending Names (dead since v0.14.1).** The home-page tease was removed in
+  v0.14.1 and `readTrending` has had zero callers since; the writer kept
+  running until it silently died in June. Deleted `src/lib/trending.ts`, the
+  unscheduled `/api/cron/trending` route, `scripts/refresh-trending.ts`, the
+  `refresh:trending` npm script, the Trending-Names accuracy probe
+  (`scripts/probe-entity-context.ts`), and the orphaned `trending_v1` row in
+  `dashboard_snapshot`. (The entity/event burst probes stay - they are the
+  basis of the living /emerging discovery funnel.)
+
 ## v0.36.2 · 2026-08-25
 
 ### Fixed
