@@ -386,12 +386,14 @@ export async function getDashboardData(
       .eq("active", true)
       .in("cohort", [...PUBLIC_COHORTS])
       .limit(2000),
-    // Count via the cohort-aware view so legacy episodes don't inflate the
-    // public "episodes ingested" number before launch.
+    // Cohort-aware count via the base table + channel join so legacy episodes
+    // don't inflate the public "episodes ingested" number before launch.
+    // (Was episode_pipeline_summary; counting that view forces its full
+    // 183K-row GROUP BY - statement-timeout territory, v0.37.1.)
     db
-      .from("episode_pipeline_summary")
-      .select("*", { count: "exact", head: true })
-      .in("cohort", [...PUBLIC_COHORTS]),
+      .from("episodes")
+      .select("id, channel:channels!inner(cohort)", { count: "exact", head: true })
+      .in("channel.cohort", [...PUBLIC_COHORTS]),
   ]);
   const totalShows = new Set(
     (channelNamesRes.data || []).map((c: { name: string }) => c.name),
@@ -760,11 +762,13 @@ export async function getSystemStats(): Promise<SystemStats> {
     audienceReachByLean.L + audienceReachByLean.M + audienceReachByLean.R;
 
   const [episodes, transcripts, classifications, scores, issues] = await Promise.all([
-    // Episode count via the cohort-aware view so legacy is excluded pre-launch.
+    // Cohort-aware episode count via the base table + channel join (was the
+    // episode_pipeline_summary view, whose count forces the full GROUP BY -
+    // statement-timeout territory, v0.37.1).
     db
-      .from("episode_pipeline_summary")
-      .select("*", { count: "exact", head: true })
-      .in("cohort", [...PUBLIC_COHORTS]),
+      .from("episodes")
+      .select("id, channel:channels!inner(cohort)", { count: "exact", head: true })
+      .in("channel.cohort", [...PUBLIC_COHORTS]),
     // NOTE: transcripts/classifications/scores totals are still whole-pipeline
     // (cohort-scoping them needs a channel join). They only move once legacy is
     // processed, and read as "total analysis done"; tighten at launch if we
@@ -775,20 +779,26 @@ export async function getSystemStats(): Promise<SystemStats> {
     db.from("issues").select("*", { count: "exact", head: true }).eq("active", true),
   ]);
 
-  // Sum episode durations, paginated. Terminate only on an empty page and
-  // advance by the actual rows returned - robust regardless of the project's
-  // Max Rows cap (a fixed `data.length < pageSize` break can stop early).
+  // Sum episode durations, keyset-paginated on the base table with the cohort
+  // scope via the channel join. (Was the episode_pipeline_summary view, where
+  // every OFFSET page re-ran the full 183K-row GROUP BY - this scan alone was
+  // most of the snapshot cron's runtime. v0.37.1.) Empty-page-only
+  // termination, robust regardless of the project's Max Rows cap.
   let totalSeconds = 0;
   const pageSize = 1000;
-  for (let from = 0, pages = 0; pages < 500; pages++, from += pageSize) {
-    const { data, error } = await db
-      .from("episode_pipeline_summary")
-      .select("duration_sec")
+  let lastId: string | null = null;
+  for (let pages = 0; pages < 500; pages++) {
+    let q = db
+      .from("episodes")
+      .select("id, duration_sec, channel:channels!inner(cohort)")
       .not("duration_sec", "is", null)
-      .in("cohort", [...PUBLIC_COHORTS])
+      .in("channel.cohort", [...PUBLIC_COHORTS])
       .order("id", { ascending: true })
-      .range(from, from + pageSize - 1);
+      .limit(pageSize);
+    if (lastId !== null) q = q.gt("id", lastId);
+    const { data, error } = await q;
     if (error || !data || data.length === 0) break;
+    lastId = String((data[data.length - 1] as any).id);
     for (const e of data) totalSeconds += Number(e.duration_sec) || 0;
   }
   const hoursOfAudio = totalSeconds / 3600;

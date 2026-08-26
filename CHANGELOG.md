@@ -7,6 +7,32 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
+## v0.37.1 · 2026-08-25
+
+### Fixed
+
+- **/log "Couldn't load episodes" (statement timeout).** The episode table
+  paged `episode_pipeline_summary` with `count: "exact"`; that view GROUP-BYs
+  every classification + sentiment score (183K rows each) before it can sort,
+  page, or count, and the count query crossed the statement timeout as the
+  tables grew (the page query itself was at ~6s and climbing).
+  `getEpisodeTablePage` now pages the base `episodes` table (index-backed,
+  flat cost - ~0.8-1.3s for every sort/search/page shape), then fetches
+  classify/score counts for just the ~50 visible rows via classifications with
+  a one-to-one score embed. (Query-shape note: starting that count from
+  `sentiment_scores` with a nested episode filter let the planner walk the
+  whole table and time out; starting from `classifications` rides the
+  episode_id index.) Search now resolves matching channel ids first and folds
+  them into a single-table or(); channel-column sorts order by the embedded
+  to-one column; the scored_count sort maps to classify_status (the view
+  aggregate doesn't exist on the base table).
+- **Same view retired from the aggregate paths.** getDashboardData's episode
+  total and getSystemStats' episode count + duration sum now read
+  episodes+channels directly - the duration sum was OFFSET-paging the view,
+  re-running the full GROUP BY on every page, and was most of the snapshot
+  cron's runtime. The view remains only for the per-channel episode list,
+  where the channel_id filter pushes down before aggregation.
+
 ## v0.37.0 · 2026-08-25
 
 ### Added

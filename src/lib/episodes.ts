@@ -203,11 +203,29 @@ export interface EpisodeTablePage {
   total: number;
 }
 
+/** Sort keys that live on the channels table, mapped to their column. Parent
+ *  rows are ordered by the embedded to-one column (`channel(name)` syntax). */
+const CHANNEL_SORT_COLUMNS: Partial<Record<EpisodeSortKey, string>> = {
+  channel_name: "name",
+  political_lean: "political_lean",
+  platform: "platform",
+};
+
 /**
  * One page of the episode table, sorted/searched/paginated in Postgres. Backs
  * the server-driven /log table (and channel drill-downs) so the page fetches
  * only the ~50 rows it renders instead of the whole archive - TTFB stays flat
  * as the episode count grows. Returns the page plus the exact total count.
+ *
+ * v0.37.1: reads the base `episodes` table instead of episode_pipeline_summary.
+ * The view GROUP-BYs every classification + score (183K+ rows each) before it
+ * can sort, page, or count, which crossed the statement timeout as the tables
+ * grew ("Couldn't load episodes" on /log, 2026-08-25). Base-table paging rides
+ * indexes at flat cost; the per-episode classify/score counts are fetched for
+ * just the ~50 visible rows afterwards (classifications by episode_id with a
+ * one-to-one score embed - starting from classifications keeps the plan on the
+ * episode_id index; starting from sentiment_scores let the planner walk the
+ * whole 183K-row table and time out).
  */
 export async function getEpisodeTablePage(opts: {
   channelId?: string;
@@ -229,33 +247,96 @@ export async function getEpisodeTablePage(opts: {
   const ascending = dir === "asc";
 
   const db = createServiceClient();
+
+  // Search: a cross-table OR (episode title OR channel name) isn't
+  // expressible in one PostgREST or(), so resolve matching channel ids first
+  // (channels is ~250 rows) and fold them into a single-table or() on
+  // episodes. Sanitized before interpolating into the filter DSL - commas,
+  // parens, and wildcards would otherwise change the filter's meaning.
+  let searchOr: string | null = null;
+  const term = (q ?? "").trim().replace(/[,()%*\\]/g, " ").trim();
+  if (term) {
+    const { data: chMatches } = await db
+      .from("channels")
+      .select("id")
+      .ilike("name", `%${term}%`)
+      .limit(500);
+    const chIds = (chMatches || []).map((c: { id: string }) => c.id);
+    searchOr = chIds.length
+      ? `title.ilike.%${term}%,channel_id.in.(${chIds.join(",")})`
+      : `title.ilike.%${term}%`;
+  }
+
+  // scored_count is a view aggregate the base table doesn't have; sort by
+  // classify_status instead (the closest pipeline-progress proxy).
+  const effectiveSort: string = sortKey === "scored_count" ? "classify_status" : sortKey;
+
   let query = db
-    .from("episode_pipeline_summary")
-    .select(EPISODE_SELECT, { count: "exact" });
+    .from("episodes")
+    .select(
+      `id, title, published_at, source_url, duration_sec, transcript_status, classify_status,
+       channel:channels!inner(id, name, political_lean, platform, cohort)`,
+      { count: "exact" },
+    );
 
   // Scope to one channel (drill-down, any cohort) OR to the public cohort
   // (the /log feed) so legacy channels' episodes stay hidden until launch.
   if (channelId) query = query.eq("channel_id", channelId);
-  else query = query.in("cohort", [...PUBLIC_COHORTS]);
+  else query = query.in("channel.cohort", [...PUBLIC_COHORTS]);
+  if (searchOr) query = query.or(searchOr);
 
-  if (q && q.trim()) {
-    // Sanitize before interpolating into the PostgREST or() filter DSL -
-    // commas, parens, and wildcards would otherwise change the filter's
-    // meaning. Strip them to spaces; ilike still matches on the rest.
-    const term = q.trim().replace(/[,()%*\\]/g, " ").trim();
-    if (term) {
-      query = query.or(`title.ilike.%${term}%,channel_name.ilike.%${term}%`);
-    }
-  }
-
+  const channelColumn = CHANNEL_SORT_COLUMNS[effectiveSort as EpisodeSortKey];
+  query = channelColumn
+    ? query.order(`channel(${channelColumn})`, { ascending })
+    : query.order(effectiveSort, { ascending });
   const from = page * pageSize;
   const { data, error, count } = await query
-    .order(sortKey, { ascending })
     // Stable tiebreaker so rows don't re-cross page boundaries when the sort
     // key has ties (e.g. same-second published_at).
     .order("id", { ascending: false })
     .range(from, from + pageSize - 1);
   if (error) throw new Error(`getEpisodeTablePage: ${error.message}`);
 
-  return { rows: (data || []).map(mapEpisodeRow), total: count ?? 0 };
+  // Classify/score counts for just this page's episodes. Keyset-paginated on
+  // the classifications PK - a typical page is a few hundred rows, but a page
+  // of mention-heavy episodes can clear the 1000-row Max Rows cap.
+  const ids = (data || []).map((r: any) => r.id);
+  const classificationCount = new Map<string, number>();
+  const scoredCount = new Map<string, number>();
+  if (ids.length > 0) {
+    let lastId: string | null = null;
+    for (let pages = 0; pages < 20; pages++) {
+      let cq = db
+        .from("classifications")
+        .select("id, episode_id, score:sentiment_scores(classification_id)")
+        .in("episode_id", ids)
+        .order("id", { ascending: true })
+        .limit(1000);
+      if (lastId !== null) cq = cq.gt("id", lastId);
+      const { data: cls, error: clsErr } = await cq;
+      if (clsErr) throw new Error(`getEpisodeTablePage counts: ${clsErr.message}`);
+      if (!cls || cls.length === 0) break;
+      lastId = String((cls[cls.length - 1] as any).id);
+      for (const c of cls as any[]) {
+        classificationCount.set(c.episode_id, (classificationCount.get(c.episode_id) ?? 0) + 1);
+        const scored = Array.isArray(c.score) ? c.score.length > 0 : !!c.score;
+        if (scored) scoredCount.set(c.episode_id, (scoredCount.get(c.episode_id) ?? 0) + 1);
+      }
+    }
+  }
+
+  const rows = (data || []).map((r: any) => {
+    const ch = Array.isArray(r.channel) ? r.channel[0] : r.channel;
+    return mapEpisodeRow({
+      ...r,
+      channel_id: ch?.id,
+      channel_name: ch?.name,
+      political_lean: ch?.political_lean,
+      platform: ch?.platform,
+      cohort: ch?.cohort,
+      classification_count: classificationCount.get(r.id) ?? 0,
+      scored_count: scoredCount.get(r.id) ?? 0,
+    });
+  });
+  return { rows, total: count ?? 0 };
 }

@@ -5,8 +5,9 @@
  * visible (a crash mid-run keeps everything already upserted). Bounded per run
  * (cost guardrail - one high-limit invocation, attended; do not loop loosely).
  *
- * Run:  npm run score:figures            (default 500)
- *       npm run score:figures -- 30000    (full backfill - run in background)
+ * Run:  npm run score:figures            (default 500, concurrency 10)
+ *       npm run score:figures -- 30000 25 (full backfill at concurrency 25 -
+ *                                          run in background; dial down on 429s)
  */
 import "./_load-env";
 
@@ -15,7 +16,7 @@ import { scoreFigureMention, FIGURE_SCORE_PROMPT_VERSION } from "@/modules/score
 import { MODEL_SCORE } from "@/lib/anthropic";
 import { estimateCostUsd } from "@/lib/pricing";
 
-const CONCURRENCY = 10;
+const CONCURRENCY = Math.max(1, Math.min(parseInt(process.argv[3] || "10", 10) || 10, 40));
 const BATCH = 300; // score + upsert this many at a time (durable progress)
 const pick = (x: any) => (Array.isArray(x) ? x[0] : x);
 
