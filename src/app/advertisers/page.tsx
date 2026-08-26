@@ -1,0 +1,75 @@
+import Link from "next/link";
+import { Header } from "@/components/Header";
+import { Footer } from "@/components/Footer";
+import { Card } from "@/components/ui/card";
+import { LeanSplitBar } from "@/components/LeanSplitBar";
+import { getAdvertisersOverview, AD_WINDOW_DAYS } from "@/lib/aggregate";
+
+export const dynamic = "force-dynamic";
+
+function airtime(seconds: number): string {
+  if (seconds < 90) return `${seconds}s`;
+  return `${Math.round(seconds / 60)}m`;
+}
+
+export default async function AdvertisersPage() {
+  const advertisers = await getAdvertisersOverview(AD_WINDOW_DAYS);
+
+  return (
+    <main className="min-h-screen">
+      <Header activePage="advertisers" />
+      <section className="px-6 pt-8 pb-16 max-w-5xl mx-auto">
+        <h1 className="text-2xl md:text-3xl font-semibold tracking-tight">Advertisers</h1>
+        <p className="text-ink-muted mt-2 text-sm leading-relaxed max-w-3xl">
+          Who underwrites online political media - and which side of it. Each row counts{" "}
+          <strong>detected host-read sponsor messages</strong> across the tracked panel over
+          the last {AD_WINDOW_DAYS} days, with the placement bar showing the reach-weighted
+          share landing on <span className="text-blue-600 font-medium">left-leaning</span>,
+          middle, and <span className="text-red-600 font-medium">right-leaning</span> shows.
+          Detections come from transcript pattern-matching confirmed by a language model
+          against short excerpts; they are estimates of on-air sponsor reads, not verified
+          commercial contracts, and produced ad spots inserted by platforms are out of scope.
+          Every claim links to its receipt on the advertiser page.
+        </p>
+
+        <div className="mt-6 mb-2 hidden sm:flex items-center justify-end gap-6 pr-4 text-[11px] uppercase tracking-wider text-ink-faint">
+          <span className="w-16 text-right">Reads</span>
+          <span className="w-14 text-right">Shows</span>
+          <span className="w-14 text-right">Airtime</span>
+          <span className="w-24 text-right">Placement</span>
+        </div>
+        <Card className="divide-y divide-border">
+          {advertisers.length === 0 ? (
+            <p className="px-4 py-6 text-sm text-ink-faint">
+              No confirmed sponsor reads in the current window yet.
+            </p>
+          ) : (
+            advertisers.map((a) => (
+              <Link
+                key={a.slug}
+                href={`/advertisers/${a.slug}`}
+                className="flex items-center justify-between gap-4 px-4 py-3 hover:bg-subtle transition-colors"
+              >
+                <div className="min-w-0">
+                  <div className="font-medium truncate">{a.name}</div>
+                  {a.domain ? (
+                    <div className="text-xs text-ink-faint truncate">{a.domain}</div>
+                  ) : null}
+                </div>
+                <div className="flex items-center gap-6 whitespace-nowrap text-sm">
+                  <span className="w-16 text-right tabular-nums">{a.adReads}</span>
+                  <span className="w-14 text-right tabular-nums text-ink-muted">{a.shows}</span>
+                  <span className="w-14 text-right tabular-nums text-ink-muted">
+                    {airtime(a.estSeconds)}
+                  </span>
+                  <LeanSplitBar share={a.leanShare} />
+                </div>
+              </Link>
+            ))
+          )}
+        </Card>
+      </section>
+      <Footer />
+    </main>
+  );
+}

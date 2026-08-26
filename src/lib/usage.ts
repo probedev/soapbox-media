@@ -40,6 +40,9 @@ interface PipelineSummary {
     /** Public-figure favorability (detect + score, v0.37.0). Its own daily
      *  cron; folded into the cost columns like score-emerging. */
     figures?: { detail?: any };
+    /** Host-read sponsor detection (detect + confirm, v0.38.0). Its own daily
+     *  cron; folded into the cost columns like figures. */
+    ads?: { detail?: any };
     /** Phase-0 view-count snapshots (v0.32.0). No LLM cost - logged for run
      *  history only, contributes nothing to the token/cost columns. */
     metrics?: { detail?: any };
@@ -62,22 +65,26 @@ export async function recordPipelineRun(
   const score = summary.stages?.score?.detail || {};
   const scoreEmerging = summary.stages?.["score-emerging"]?.detail || {};
   const figures = summary.stages?.figures?.detail || {};
+  const adsStage = summary.stages?.ads?.detail || {};
 
   const inputTokens =
     (Number(classify.inputTokens) || 0) +
     (Number(score.inputTokens) || 0) +
     (Number(scoreEmerging.inputTokens) || 0) +
-    (Number(figures.inputTokens) || 0);
+    (Number(figures.inputTokens) || 0) +
+    (Number(adsStage.inputTokens) || 0);
   const outputTokens =
     (Number(classify.outputTokens) || 0) +
     (Number(score.outputTokens) || 0) +
     (Number(scoreEmerging.outputTokens) || 0) +
-    (Number(figures.outputTokens) || 0);
+    (Number(figures.outputTokens) || 0) +
+    (Number(adsStage.outputTokens) || 0);
   const cost =
     (Number(classify.approxCostUsd) || 0) +
     (Number(score.approxCostUsd) || 0) +
     (Number(scoreEmerging.approxCostUsd) || 0) +
-    (Number(figures.approxCostUsd) || 0);
+    (Number(figures.approxCostUsd) || 0) +
+    (Number(adsStage.approxCostUsd) || 0);
 
   const { error } = await db.from("usage_log").insert({
     duration_ms: summary.totalDurationMs || 0,

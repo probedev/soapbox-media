@@ -31,6 +31,8 @@ import {
   FIGURE_SCORE_PROMPT_VERSION,
 } from "@/modules/score";
 import { buildAliasRegex, extractWindows, type FigureMatcher } from "@/lib/figures";
+import { detectAdCandidates, canonicalAdvertiser } from "@/lib/ads";
+import { confirmAdSegment, AD_CONFIRM_PROMPT_VERSION } from "@/modules/ads";
 import { MODEL_CLASSIFY, MODEL_SCORE } from "@/lib/anthropic";
 import { estimateCostUsd } from "@/lib/pricing";
 import { dedupKey, loadSiblingEpisodeKeys, PLATFORM_PRIORITY } from "@/lib/dedup";
@@ -99,6 +101,16 @@ export const EMERGING_SCORE_CONCURRENCY = 15;
 export const FIGURES_DETECT_LOOKBACK_DAYS = 3;
 export const FIGURES_SCORE_LIMIT = 1200;
 export const FIGURES_SCORE_CONCURRENCY = 10;
+// Ads stage (v0.38.0): detect is regex-only (free); the Haiku confirm pass is
+// bounded like figures. Daily cadence: ~180 new episodes/day x ~0.8 candidate
+// segments/ep is ~150 confirms/day, well under $0.5/day at Haiku short-excerpt
+// prices. The 3-day lookback overlaps prior runs on purpose - the upsert is
+// idempotent on (episode_id, char_start) and settled rows keep their verdict
+// (ignoreDuplicates), so re-scans no-op and a missed day self-heals.
+export const ADS_DETECT_LOOKBACK_DAYS = 3;
+export const ADS_CONFIRM_LIMIT = 800;
+export const ADS_CONFIRM_CONCURRENCY = 10;
+export const MAX_AD_CONFIRM_ATTEMPTS = 5;
 // Wall-clock budget per stage. The per-stage cron has a 300s function limit;
 // classify slows as the taxonomy grows (more issues → more mentions/episode),
 // so a fixed LIMIT can overshoot 300s and 504 (no usage_log row). The pool
@@ -1255,6 +1267,241 @@ export async function runFigures(): Promise<Record<string, unknown>> {
     stoppedAtTimeBudget: detect.stoppedAtTimeBudget || completed < pending.length,
     inputTokens,
     outputTokens,
+    approxCostUsd: Number(estCost.toFixed(4)),
+  };
+}
+
+// ─── Ads (v0.38.0) ──────────────────────────────────────────────────────
+// Host-read sponsor detection behind /advertisers. Two-phase like figures:
+// a free regex pass (src/lib/ads.ts) inserts candidate segments as
+// verdict='pending'; the Haiku confirm pass settles each to
+// 'ad' / 'self_promo' / 'not_ad' and resolves the brand. Settled rows are
+// never re-judged (the tombstone pattern), so detect re-runs cost nothing.
+
+export async function detectAds(
+  db: ReturnType<typeof createServiceClient>,
+  sinceDays: number,
+  deadline: number,
+  onPage?: (progress: { scanned: number; candidates: number; newSegments: number }) => void,
+): Promise<{ scanned: number; candidates: number; newSegments: number; stoppedAtTimeBudget: boolean }> {
+  let scanned = 0;
+  let candidates = 0;
+  let newSegments = 0;
+  let stoppedAtTimeBudget = false;
+
+  const cutoff = new Date(Date.now() - sinceDays * 86_400_000).toISOString();
+  const PAGE = 150; // transcripts are large; keep pages small
+  let lastEpisodeId: string | null = null;
+  for (;;) {
+    if (Date.now() > deadline) {
+      stoppedAtTimeBudget = true;
+      break;
+    }
+    let q = db
+      .from("transcripts")
+      .select("episode_id, text, episodes!inner(published_at)")
+      .gte("episodes.published_at", cutoff)
+      .order("episode_id", { ascending: true })
+      .limit(PAGE);
+    if (lastEpisodeId !== null) q = q.gt("episode_id", lastEpisodeId);
+    const { data, error } = await q;
+    if (error) throw new Error(`ads detect: ${error.message}`);
+    if (!data || data.length === 0) break;
+    lastEpisodeId = String((data[data.length - 1] as any).episode_id);
+
+    const rows: any[] = [];
+    for (const t of data as any[]) {
+      scanned++;
+      if (!t.text) continue;
+      for (const c of detectAdCandidates(t.text)) {
+        candidates++;
+        rows.push({
+          episode_id: t.episode_id,
+          char_start: c.charStart,
+          char_end: c.charEnd,
+          excerpt: c.excerpt,
+          start_ts: c.startTs,
+          est_seconds: c.estSeconds,
+          strong_hits: c.strongHits,
+          weak_hits: c.weakHits,
+        });
+      }
+    }
+    for (let i = 0; i < rows.length; i += 500) {
+      // ignoreDuplicates keeps already-settled rows' verdicts intact.
+      const { error: upErr, count } = await db
+        .from("ad_segments")
+        .upsert(rows.slice(i, i + 500), {
+          onConflict: "episode_id,char_start",
+          ignoreDuplicates: true,
+          count: "exact",
+        });
+      if (upErr) throw new Error(`ads detect upsert: ${upErr.message}`);
+      newSegments += count ?? 0;
+    }
+    onPage?.({ scanned, candidates, newSegments });
+  }
+  return { scanned, candidates, newSegments, stoppedAtTimeBudget };
+}
+
+export interface ConfirmAdsResult {
+  pendingFound: number;
+  processed: number;
+  ads: number;
+  selfPromo: number;
+  notAd: number;
+  failed: number;
+  inputTokens: number;
+  outputTokens: number;
+  stoppedAtTimeBudget: boolean;
+}
+
+export async function confirmPendingAds(
+  db: ReturnType<typeof createServiceClient>,
+  limit: number,
+  concurrency: number,
+  deadline: number,
+): Promise<ConfirmAdsResult> {
+  const pick = (x: any) => (Array.isArray(x) ? x[0] : x);
+  interface PendingSeg {
+    id: string;
+    excerpt: string;
+    channel_name: string;
+    attempts: number;
+  }
+  const pending: PendingSeg[] = [];
+  {
+    // confirm_attempts < MAX keeps a poison segment (a response the parser
+    // can never settle) from occupying confirm slots forever - it just stays
+    // pending and invisible (only verdict='ad' is public). Same lesson as
+    // episodes.transcript_attempts (v0.6.78).
+    const { data, error } = await db
+      .from("ad_segments")
+      .select("id, excerpt, confirm_attempts, episodes!inner ( channels ( name ) )")
+      .eq("verdict", "pending")
+      .lt("confirm_attempts", MAX_AD_CONFIRM_ATTEMPTS)
+      .order("id", { ascending: true })
+      .limit(limit);
+    if (error) throw new Error(`ads pending: ${error.message}`);
+    for (const r of (data || []) as any[]) {
+      const ch = pick(pick(r.episodes)?.channels);
+      if (!r.excerpt || !ch?.name) continue;
+      pending.push({
+        id: r.id,
+        excerpt: r.excerpt,
+        channel_name: ch.name,
+        attempts: Number(r.confirm_attempts) || 0,
+      });
+    }
+  }
+
+  let ads = 0;
+  let selfPromo = 0;
+  let notAd = 0;
+  let failed = 0;
+  let inputTokens = 0;
+  let outputTokens = 0;
+
+  const { completed } = await mapPool(
+    pending,
+    concurrency,
+    async (seg) => {
+      try {
+        const result = await confirmAdSegment({
+          excerpt: seg.excerpt,
+          channelName: seg.channel_name,
+        });
+        inputTokens += result.inputTokens || 0;
+        outputTokens += result.outputTokens || 0;
+
+        let advertiserSlug: string | null = null;
+        if (result.kind === "ad") {
+          const resolved = canonicalAdvertiser(result.advertiser, result.domain);
+          if (resolved) {
+            // First sighting wins the display name; known brands are stable
+            // via the seed map in canonicalAdvertiser.
+            const { error: advErr } = await db.from("advertisers").upsert(
+              { slug: resolved.slug, name: resolved.name, domain: resolved.domain },
+              { onConflict: "slug", ignoreDuplicates: true },
+            );
+            if (advErr) throw new Error(`advertiser upsert: ${advErr.message}`);
+            advertiserSlug = resolved.slug;
+          }
+        }
+
+        const { error: updErr } = await db
+          .from("ad_segments")
+          .update({
+            verdict: result.kind,
+            advertiser_slug: advertiserSlug,
+            advertiser_raw: result.advertiser ?? result.domain ?? null,
+            model: MODEL_SCORE,
+            model_version: AD_CONFIRM_PROMPT_VERSION,
+            confirmed_at: new Date().toISOString(),
+          })
+          .eq("id", seg.id);
+        if (updErr) throw new Error(`segment update: ${updErr.message}`);
+
+        if (result.kind === "ad") ads++;
+        else if (result.kind === "self_promo") selfPromo++;
+        else notAd++;
+      } catch (e: any) {
+        // Leave the row pending (transient blips self-heal on the next run)
+        // but count the attempt so a persistent failure retires after
+        // MAX_AD_CONFIRM_ATTEMPTS instead of retrying daily forever.
+        console.error(`[ads] ${e?.constructor?.name || "Error"} for segment ${seg.id}: ${e?.message || e}`);
+        failed++;
+        await db
+          .from("ad_segments")
+          .update({ confirm_attempts: seg.attempts + 1 })
+          .eq("id", seg.id)
+          .then(({ error: attErr }) => {
+            if (attErr) console.error(`[ads] attempts bump failed for ${seg.id}: ${attErr.message}`);
+          });
+      }
+    },
+    deadline,
+  );
+
+  return {
+    pendingFound: pending.length,
+    processed: ads + selfPromo + notAd + failed,
+    ads,
+    selfPromo,
+    notAd,
+    failed,
+    inputTokens,
+    outputTokens,
+    stoppedAtTimeBudget: completed < pending.length,
+  };
+}
+
+export async function runAds(): Promise<Record<string, unknown>> {
+  const db = createServiceClient();
+  const stageStart = Date.now();
+  const deadline = stageStart + STAGE_TIME_BUDGET_MS;
+
+  const detect = await detectAds(db, ADS_DETECT_LOOKBACK_DAYS, deadline);
+  const confirm = await confirmPendingAds(db, ADS_CONFIRM_LIMIT, ADS_CONFIRM_CONCURRENCY, deadline);
+
+  const estCost = estimateCostUsd(MODEL_SCORE, {
+    inputTokens: confirm.inputTokens,
+    outputTokens: confirm.outputTokens,
+  });
+  return {
+    detectScanned: detect.scanned,
+    detectCandidates: detect.candidates,
+    newSegments: detect.newSegments,
+    pendingFound: confirm.pendingFound,
+    processed: confirm.processed,
+    succeeded: confirm.ads + confirm.selfPromo + confirm.notAd,
+    ads: confirm.ads,
+    selfPromo: confirm.selfPromo,
+    notAd: confirm.notAd,
+    failed: confirm.failed,
+    stoppedAtTimeBudget: detect.stoppedAtTimeBudget || confirm.stoppedAtTimeBudget,
+    inputTokens: confirm.inputTokens,
+    outputTokens: confirm.outputTokens,
     approxCostUsd: Number(estCost.toFixed(4)),
   };
 }

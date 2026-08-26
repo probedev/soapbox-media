@@ -209,6 +209,22 @@ export default function MethodologyPage() {
           </li>
         </ul>
 
+        <h2 className="text-xl font-semibold mt-12">Advertisers</h2>
+        <p className="text-ink-body mt-3 leading-relaxed">
+          The <a href="/advertisers" className="underline hover:text-foreground">Advertisers</a>{" "}
+          board counts <strong>host-read sponsor messages</strong> detected in transcripts: a
+          pattern-matching pass flags candidate sponsor language (sponsor intros, promo codes,
+          spoken URLs), and a language model confirms each candidate against a short excerpt,
+          separating paid third-party reads from a show&apos;s own self-promotion and resolving
+          the brand name. Placement share is reach-weighted with the same reach factor as the
+          Soapbox Index, split by each carrying channel&apos;s editorial lean. Three honest
+          limits: detections are <em>estimates of on-air reads, not verified commercial
+          contracts</em>; produced ad spots and dynamically inserted ads carry no sponsor-read
+          language and are out of scope by design; and auto-transcription can mangle brand
+          names, so every advertiser page links each detection back to its source excerpt.
+          Ad segments never feed the Soapbox Index or any favorability score.
+        </p>
+
         <h2 className="text-xl font-semibold mt-12">Update cadence</h2>
         <p className="text-ink-body mt-3 leading-relaxed">
           The full pipeline (ingest → transcribe → classify → score) runs as a single scheduled

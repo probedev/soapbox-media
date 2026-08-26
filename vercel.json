@@ -8,6 +8,7 @@
     { "path": "/api/cron/snapshot", "schedule": "35 * * * *" },
     { "path": "/api/cron/discover", "schedule": "50 */3 * * *" },
     { "path": "/api/cron/score-emerging", "schedule": "55 */3 * * *" },
-    { "path": "/api/cron/figures", "schedule": "40 11 * * *" }
+    { "path": "/api/cron/figures", "schedule": "40 11 * * *" },
+    { "path": "/api/cron/ads", "schedule": "10 12 * * *" }
   ]
 }

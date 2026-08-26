@@ -7,7 +7,35 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
-## v0.37.1 · 2026-08-25
+## v0.38.0 · 2026-08-25
+
+### Added
+
+- **Advertisers: the advertiser × lean map.** New public `/advertisers` board
+  showing who underwrites online political media - each advertiser's detected
+  host-read sponsor messages over the last 30 days, the shows carrying them,
+  rough read airtime, and a reach-weighted placement-share bar across
+  left/middle/right channels (same reach factor as the Index). Per-advertiser
+  drill-down (`/advertisers/[slug]`) lists carrying shows and links every
+  detection to its receipt: the transcript excerpt, source link, and timestamp
+  where available. Honest scope, stated on the page and in a new /methodology
+  section: host-read sponsorships only (produced/dynamically-inserted spots
+  carry no sponsor-read language and are out of scope by design), estimates
+  rather than verified contracts, never full transcripts.
+- **Detection pipeline.** Two-phase, mirroring figures: a free regex anchor
+  pass (validated by `scripts/probe-ad-detection.ts` at 94% precision / ~12%
+  missed-ad rate on 300 transcripts) inserts candidate segments as
+  `verdict='pending'` into the new `ad_segments` table, idempotent on
+  `(episode_id, char_start)`; a Haiku confirm pass settles each candidate to
+  `ad` / `self_promo` / `not_ad` and resolves the brand + domain, fixing
+  transcription mangles from context ("hymns.com" → Hims & Hers). Settled
+  rows are tombstones - never re-judged, so detect re-runs cost nothing.
+  Brand identities funnel through `canonicalAdvertiser()` (spelled-out URLs,
+  "dot com" speech, known-brand seed map) onto one slug per advertiser in the
+  new `advertisers` table. Daily `/api/cron/ads` (12:10 UTC), bounded by
+  `ADS_CONFIRM_LIMIT` + the stage time budget (~$0.15/day at current volume),
+  logged to usage_log like every stage. `npm run backfill:ads -- <days>`
+  seeds history (hard-capped at 30K LLM calls per run).
 
 ### Fixed
 

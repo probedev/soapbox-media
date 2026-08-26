@@ -1974,3 +1974,246 @@ export async function getFigureDetail(
     topNegative,
   };
 }
+
+// ─── Advertisers (v0.38.0) ────────────────────────────────────────────────
+// The advertiser x lean map behind /advertisers: who underwrites which side
+// of online political media. Reads only settled verdict='ad' segments with a
+// resolved brand. Same discipline as every big-table read here: window bound
+// pushed into the query, keyset pagination, page-cap overflow THROWS.
+
+export const AD_WINDOW_DAYS = 30;
+
+interface AdRow {
+  advertiser_slug: string;
+  est_seconds: number;
+  start_ts: number | null;
+  excerpt: string;
+  published_at: string;
+  episode_title: string;
+  source_url: string;
+  channel_id: string;
+  channel_name: string;
+  channel_lean: "L" | "M" | "R";
+  channel_reach: number;
+}
+
+async function fetchAdRows(
+  windowDays: number,
+  cohorts: readonly Cohort[],
+  advertiserSlug?: string,
+): Promise<AdRow[]> {
+  const db = createServiceClient();
+  const all: AdRow[] = [];
+  const pageSize = 1000;
+  const maxPages = 30;
+  const sinceIso = new Date(Date.now() - windowDays * 86_400_000).toISOString();
+  let lastId: string | null = null;
+  for (let page = 0; ; page++) {
+    if (page >= maxPages) {
+      throw new Error(`fetchAdRows: exceeded ${maxPages} pages (${all.length} rows)`);
+    }
+    let q = db
+      .from("ad_segments")
+      .select(
+        `id, advertiser_slug, est_seconds, start_ts, excerpt,
+         episodes!inner ( title, published_at, source_url,
+           channels ( id, name, political_lean, reach, cohort, active ) )`,
+      )
+      .eq("verdict", "ad")
+      .not("advertiser_slug", "is", null)
+      .gte("episodes.published_at", sinceIso)
+      .order("id", { ascending: true })
+      .limit(pageSize);
+    if (advertiserSlug) q = q.eq("advertiser_slug", advertiserSlug);
+    if (lastId !== null) q = q.gt("id", lastId);
+    const { data, error } = await q;
+    if (error) throw new Error(`fetchAdRows: ${error.message}`);
+    if (!data || data.length === 0) break;
+    lastId = String((data[data.length - 1] as any).id);
+    for (const r of data as any[]) {
+      const e = Array.isArray(r.episodes) ? r.episodes[0] : r.episodes;
+      const ch = e && (Array.isArray(e.channels) ? e.channels[0] : e.channels);
+      if (!e || !ch || !ch.active || !cohorts.includes(ch.cohort as Cohort)) continue;
+      all.push({
+        advertiser_slug: r.advertiser_slug,
+        est_seconds: Number(r.est_seconds) || 0,
+        start_ts: r.start_ts ?? null,
+        excerpt: r.excerpt ?? "",
+        published_at: e.published_at,
+        episode_title: e.title ?? "",
+        source_url: e.source_url ?? "",
+        channel_id: ch.id,
+        channel_name: ch.name,
+        channel_lean: (ch.political_lean || "M") as AdRow["channel_lean"],
+        channel_reach: Number(ch.reach) || 0,
+      });
+    }
+  }
+  return all;
+}
+
+/** Reach-weighted placement share by channel lean. Fractions sum to 1. */
+export interface AdLeanShare {
+  left: number;
+  middle: number;
+  right: number;
+}
+
+function leanShareOf(rows: AdRow[]): AdLeanShare {
+  let l = 0;
+  let m = 0;
+  let r = 0;
+  for (const row of rows) {
+    const w = reachFactor(row.channel_reach);
+    if (row.channel_lean === "L") l += w;
+    else if (row.channel_lean === "R") r += w;
+    else m += w;
+  }
+  const total = l + m + r;
+  if (total <= 0) return { left: 0, middle: 1, right: 0 };
+  return { left: l / total, middle: m / total, right: r / total };
+}
+
+export interface AdvertiserOverviewRow {
+  slug: string;
+  name: string;
+  domain: string | null;
+  /** Detected host-read sponsor messages in window. */
+  adReads: number;
+  /** Distinct shows carrying them. */
+  shows: number;
+  /** Rough total read time (sum of per-segment estimates), seconds. */
+  estSeconds: number;
+  leanShare: AdLeanShare;
+  lastSeen: string;
+}
+
+export async function getAdvertisersOverview(
+  windowDays = AD_WINDOW_DAYS,
+  cohorts: readonly Cohort[] = PUBLIC_COHORTS,
+): Promise<AdvertiserOverviewRow[]> {
+  const db = createServiceClient();
+  const [{ data: advs }, rows] = await Promise.all([
+    db.from("advertisers").select("slug, name, domain").eq("active", true),
+    fetchAdRows(windowDays, cohorts),
+  ]);
+  const meta = new Map<string, { name: string; domain: string | null }>(
+    (advs || []).map((a: any) => [a.slug, { name: a.name, domain: a.domain ?? null }]),
+  );
+
+  const bySlug = new Map<string, AdRow[]>();
+  for (const r of rows) {
+    const arr = bySlug.get(r.advertiser_slug) || [];
+    arr.push(r);
+    bySlug.set(r.advertiser_slug, arr);
+  }
+
+  const out: AdvertiserOverviewRow[] = [];
+  for (const [slug, rs] of bySlug) {
+    const m = meta.get(slug);
+    if (!m) continue;
+    out.push({
+      slug,
+      name: m.name,
+      domain: m.domain,
+      adReads: rs.length,
+      shows: new Set(rs.map((r) => r.channel_id)).size,
+      estSeconds: rs.reduce((a, r) => a + r.est_seconds, 0),
+      leanShare: leanShareOf(rs),
+      lastSeen: rs.reduce((a, r) => (r.published_at > a ? r.published_at : a), ""),
+    });
+  }
+  return out.sort((a, b) => b.adReads - a.adReads || b.shows - a.shows);
+}
+
+export interface AdvertiserShowRow {
+  channelId: string;
+  channelName: string;
+  lean: "L" | "M" | "R";
+  adReads: number;
+  estSeconds: number;
+  lastSeen: string;
+}
+
+export interface AdReceipt {
+  channelName: string;
+  lean: "L" | "M" | "R";
+  excerpt: string;
+  episodeTitle: string;
+  sourceUrl: string;
+  timestampUrl: string;
+  startTs: number | null;
+  publishedAt: string;
+}
+
+export interface AdvertiserDetail {
+  slug: string;
+  name: string;
+  domain: string | null;
+  adReads: number;
+  showCount: number;
+  estSeconds: number;
+  leanShare: AdLeanShare;
+  shows: AdvertiserShowRow[];
+  receipts: AdReceipt[];
+}
+
+export async function getAdvertiserDetail(
+  slug: string,
+  windowDays = AD_WINDOW_DAYS,
+  cohorts: readonly Cohort[] = PUBLIC_COHORTS,
+): Promise<AdvertiserDetail | null> {
+  const db = createServiceClient();
+  const { data: adv } = await db
+    .from("advertisers")
+    .select("slug, name, domain")
+    .eq("slug", slug)
+    .eq("active", true)
+    .maybeSingle();
+  if (!adv) return null;
+
+  const rows = await fetchAdRows(windowDays, cohorts, slug);
+
+  const byChannel = new Map<string, AdRow[]>();
+  for (const r of rows) {
+    const arr = byChannel.get(r.channel_id) || [];
+    arr.push(r);
+    byChannel.set(r.channel_id, arr);
+  }
+  const shows: AdvertiserShowRow[] = [...byChannel.values()]
+    .map((rs) => ({
+      channelId: rs[0].channel_id,
+      channelName: rs[0].channel_name,
+      lean: rs[0].channel_lean,
+      adReads: rs.length,
+      estSeconds: rs.reduce((a, r) => a + r.est_seconds, 0),
+      lastSeen: rs.reduce((a, r) => (r.published_at > a ? r.published_at : a), ""),
+    }))
+    .sort((a, b) => b.adReads - a.adReads);
+
+  const receipts: AdReceipt[] = [...rows]
+    .sort((a, b) => (a.published_at < b.published_at ? 1 : -1))
+    .slice(0, 12)
+    .map((r) => ({
+      channelName: r.channel_name,
+      lean: r.channel_lean,
+      excerpt: r.excerpt,
+      episodeTitle: r.episode_title,
+      sourceUrl: r.source_url,
+      timestampUrl: figureTimestampUrl(r.source_url, r.start_ts),
+      startTs: r.start_ts,
+      publishedAt: r.published_at,
+    }));
+
+  return {
+    slug: adv.slug,
+    name: adv.name,
+    domain: adv.domain ?? null,
+    adReads: rows.length,
+    showCount: byChannel.size,
+    estSeconds: rows.reduce((a, r) => a + r.est_seconds, 0),
+    leanShare: leanShareOf(rows),
+    shows,
+    receipts,
+  };
+}
