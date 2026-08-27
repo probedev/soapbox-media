@@ -212,7 +212,11 @@ export default function MethodologyPage() {
         <h2 className="text-xl font-semibold mt-12">Advertisers</h2>
         <p className="text-ink-body mt-3 leading-relaxed">
           The <a href="/advertisers" className="underline hover:text-foreground">Advertisers</a>{" "}
-          board counts <strong>host-read sponsor messages</strong> detected in transcripts: a
+          board counts <strong>host-read sponsor messages</strong> detected in transcripts
+          over a selectable window (30 days by default; &ldquo;All&rdquo; reaches back to
+          May 2026, when dense panel coverage begins - detections exist in older
+          backfilled episodes but are not shown, so a coverage ramp never reads as
+          advertiser behavior): a
           pattern-matching pass flags candidate sponsor language (sponsor intros, promo codes,
           spoken URLs), and a language model confirms each candidate against a short excerpt,
           separating paid third-party reads from a show&apos;s own self-promotion and resolving

@@ -7,7 +7,27 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
-## v0.38.0 · 2026-08-25
+## v0.39.0 · 2026-08-26
+
+### Added
+
+- **Advertisers: full-history views, honestly bounded.** A second backfill
+  pass covered every remaining transcript ($1.28; zero failures under the v2
+  confirm prompt), so detections now exist back to 2022 in a few channels'
+  backfilled tails - but dense panel coverage only begins May 2026, and
+  showing the sparse remnant would misread our coverage ramp as advertiser
+  behavior. All ad views therefore clamp to `AD_COVERAGE_START_ISO`
+  (2026-05-01; pre-coverage detections stay in the DB, unshown). On that
+  foundation: the /advertisers board gains a window selector (30 days /
+  90 days / All since May 2026, `?w=`), and each advertiser page now shows
+  its full covered record - totals with a "since <month year>" line and a
+  monthly **placement-history chart** (reads stacked by carrying-channel
+  lean, house diverging palette: blue left / neutral gray middle / red right,
+  Recharts v3 via the shadcn ChartContainer with tooltip + legend). Drill-down
+  show lists and placement bars span the covered window; receipts stay the
+  most recent 12. Middle segment of the placement split bar darkened
+  (slate-300 → slate-400) after a contrast check flagged it as near-invisible
+  against the track.
 
 ### Added
 

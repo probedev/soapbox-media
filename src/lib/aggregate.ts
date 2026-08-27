@@ -1982,6 +1982,26 @@ export async function getFigureDetail(
 // pushed into the query, keyset pagination, page-cap overflow THROWS.
 
 export const AD_WINDOW_DAYS = 30;
+/**
+ * Dense panel coverage begins May 2026; earlier transcripts are a sparse
+ * backfilled remnant (a few hundred episodes/month at most, reaching to 2022
+ * for a handful of channels). "All" views clamp here so the coverage ramp-up
+ * never reads as advertiser behavior - detected ads before this date stay in
+ * the DB but are not represented until there's a coverage-normalized view.
+ */
+export const AD_COVERAGE_START_ISO = "2026-05-01";
+/** The board's selectable windows (?w= on /advertisers). */
+export const AD_WINDOW_CHOICES = [
+  { key: "30", label: "30 days" },
+  { key: "90", label: "90 days" },
+  { key: "all", label: "All (since May 2026)" },
+] as const;
+export type AdWindowKey = (typeof AD_WINDOW_CHOICES)[number]["key"];
+
+export function adWindowSinceIso(key: AdWindowKey): string {
+  if (key === "all") return AD_COVERAGE_START_ISO;
+  return new Date(Date.now() - Number(key) * 86_400_000).toISOString();
+}
 
 interface AdRow {
   advertiser_slug: string;
@@ -1998,15 +2018,14 @@ interface AdRow {
 }
 
 async function fetchAdRows(
-  windowDays: number,
+  sinceIso: string,
   cohorts: readonly Cohort[],
   advertiserSlug?: string,
 ): Promise<AdRow[]> {
   const db = createServiceClient();
   const all: AdRow[] = [];
   const pageSize = 1000;
-  const maxPages = 30;
-  const sinceIso = new Date(Date.now() - windowDays * 86_400_000).toISOString();
+  const maxPages = 60; // ~19 pages all-time today, growing ~5/yr; overflow THROWS
   let lastId: string | null = null;
   for (let page = 0; ; page++) {
     if (page >= maxPages) {
@@ -2089,13 +2108,13 @@ export interface AdvertiserOverviewRow {
 }
 
 export async function getAdvertisersOverview(
-  windowDays = AD_WINDOW_DAYS,
+  sinceIso: string = adWindowSinceIso("30"),
   cohorts: readonly Cohort[] = PUBLIC_COHORTS,
 ): Promise<AdvertiserOverviewRow[]> {
   const db = createServiceClient();
   const [{ data: advs }, rows] = await Promise.all([
     db.from("advertisers").select("slug, name, domain").eq("active", true),
-    fetchAdRows(windowDays, cohorts),
+    fetchAdRows(sinceIso, cohorts),
   ]);
   const meta = new Map<string, { name: string; domain: string | null }>(
     (advs || []).map((a: any) => [a.slug, { name: a.name, domain: a.domain ?? null }]),
@@ -2146,6 +2165,46 @@ export interface AdReceipt {
   publishedAt: string;
 }
 
+/** One month of an advertiser's placement history, reads by channel lean. */
+export interface AdTrendPoint {
+  /** YYYY-MM (UTC). */
+  month: string;
+  left: number;
+  middle: number;
+  right: number;
+}
+
+/** Bucket ad rows into a gap-free monthly series, oldest first. */
+function monthlyLeanTrend(rows: AdRow[]): AdTrendPoint[] {
+  if (rows.length === 0) return [];
+  const byMonth = new Map<string, AdTrendPoint>();
+  let min = "9999-99";
+  let max = "0000-00";
+  for (const r of rows) {
+    const month = r.published_at.slice(0, 7);
+    if (month < min) min = month;
+    if (month > max) max = month;
+    const p = byMonth.get(month) ?? { month, left: 0, middle: 0, right: 0 };
+    if (r.channel_lean === "L") p.left++;
+    else if (r.channel_lean === "R") p.right++;
+    else p.middle++;
+    byMonth.set(month, p);
+  }
+  const out: AdTrendPoint[] = [];
+  let [y, m] = min.split("-").map(Number);
+  const [maxY, maxM] = max.split("-").map(Number);
+  while (y < maxY || (y === maxY && m <= maxM)) {
+    const key = `${y}-${String(m).padStart(2, "0")}`;
+    out.push(byMonth.get(key) ?? { month: key, left: 0, middle: 0, right: 0 });
+    m++;
+    if (m > 12) {
+      m = 1;
+      y++;
+    }
+  }
+  return out;
+}
+
 export interface AdvertiserDetail {
   slug: string;
   name: string;
@@ -2154,13 +2213,17 @@ export interface AdvertiserDetail {
   showCount: number;
   estSeconds: number;
   leanShare: AdLeanShare;
+  /** Earliest detected read (ISO), null when the window is empty. */
+  firstSeen: string | null;
+  /** Monthly placement history, oldest first. */
+  trend: AdTrendPoint[];
   shows: AdvertiserShowRow[];
   receipts: AdReceipt[];
 }
 
 export async function getAdvertiserDetail(
   slug: string,
-  windowDays = AD_WINDOW_DAYS,
+  sinceIso: string = AD_COVERAGE_START_ISO,
   cohorts: readonly Cohort[] = PUBLIC_COHORTS,
 ): Promise<AdvertiserDetail | null> {
   const db = createServiceClient();
@@ -2172,7 +2235,7 @@ export async function getAdvertiserDetail(
     .maybeSingle();
   if (!adv) return null;
 
-  const rows = await fetchAdRows(windowDays, cohorts, slug);
+  const rows = await fetchAdRows(sinceIso, cohorts, slug);
 
   const byChannel = new Map<string, AdRow[]>();
   for (const r of rows) {
@@ -2213,6 +2276,11 @@ export async function getAdvertiserDetail(
     showCount: byChannel.size,
     estSeconds: rows.reduce((a, r) => a + r.est_seconds, 0),
     leanShare: leanShareOf(rows),
+    firstSeen: rows.reduce<string | null>(
+      (a, r) => (a === null || r.published_at < a ? r.published_at : a),
+      null,
+    ),
+    trend: monthlyLeanTrend(rows),
     shows,
     receipts,
   };

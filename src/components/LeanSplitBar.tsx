@@ -17,7 +17,7 @@ export function LeanSplitBar({ share, className = "" }: { share: AdLeanShare; cl
       title={label}
     >
       <div className="bg-blue-600 h-full" style={{ width: pct(share.left) }} />
-      <div className="bg-slate-300 h-full" style={{ width: pct(share.middle) }} />
+      <div className="bg-slate-400 h-full" style={{ width: pct(share.middle) }} />
       <div className="bg-red-600 h-full" style={{ width: pct(share.right) }} />
     </div>
   );

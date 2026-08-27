@@ -4,7 +4,8 @@ import { Footer } from "@/components/Footer";
 import { Card } from "@/components/ui/card";
 import { LeanSplitBar } from "@/components/LeanSplitBar";
 import { leanChipStyle } from "@/lib/lean";
-import { getAdvertiserDetail, AD_WINDOW_DAYS, type AdReceipt } from "@/lib/aggregate";
+import { AdvertiserTrendChart } from "@/components/AdvertiserTrendChart";
+import { getAdvertiserDetail, type AdReceipt } from "@/lib/aggregate";
 
 export const dynamic = "force-dynamic";
 
@@ -55,8 +56,15 @@ function Receipt({ r }: { r: AdReceipt }) {
 }
 
 export default async function AdvertiserPage({ params }: { params: { slug: string } }) {
-  const adv = await getAdvertiserDetail(params.slug, AD_WINDOW_DAYS);
+  const adv = await getAdvertiserDetail(params.slug);
   if (!adv) notFound();
+  const since = adv.firstSeen
+    ? new Date(adv.firstSeen).toLocaleDateString("en-US", {
+        month: "long",
+        year: "numeric",
+        timeZone: "UTC",
+      })
+    : null;
 
   return (
     <main className="min-h-screen">
@@ -67,10 +75,12 @@ export default async function AdvertiserPage({ params }: { params: { slug: strin
           {adv.domain ? <span className="text-sm text-ink-faint">{adv.domain}</span> : null}
         </div>
         <p className="text-ink-muted mt-2 text-sm leading-relaxed max-w-3xl">
-          {adv.adReads} detected host-read sponsor message{adv.adReads === 1 ? "" : "s"} across{" "}
-          {adv.showCount} show{adv.showCount === 1 ? "" : "s"} in the last {AD_WINDOW_DAYS} days,
-          roughly {airtime(adv.estSeconds)} of read time. Detections are model-confirmed
-          transcript excerpts - estimates, not verified contracts.
+          {adv.adReads.toLocaleString()} detected host-read sponsor message
+          {adv.adReads === 1 ? "" : "s"} across {adv.showCount} show
+          {adv.showCount === 1 ? "" : "s"}
+          {since ? ` since ${since}` : ""}, roughly {airtime(adv.estSeconds)} of read time.
+          Detections are model-confirmed transcript excerpts - estimates, not verified
+          contracts.
         </p>
         <div className="mt-3 flex items-center gap-3 text-xs text-ink-faint">
           <span>Reach-weighted placement:</span>
@@ -80,6 +90,17 @@ export default async function AdvertiserPage({ params }: { params: { slug: strin
             middle · {Math.round(adv.leanShare.right * 100)}% right
           </span>
         </div>
+
+        {adv.trend.length >= 2 ? (
+          <div className="mt-8">
+            <h3 className="text-sm font-semibold uppercase tracking-wider text-ink-muted mb-2">
+              Placement history
+            </h3>
+            <Card className="p-4">
+              <AdvertiserTrendChart trend={adv.trend} />
+            </Card>
+          </div>
+        ) : null}
 
         <div className="mt-8 grid gap-8 md:grid-cols-2">
           <div>
@@ -117,7 +138,7 @@ export default async function AdvertiserPage({ params }: { params: { slug: strin
           </div>
           <div>
             <h3 className="text-sm font-semibold uppercase tracking-wider text-ink-muted mb-2">
-              Receipts
+              Recent receipts
             </h3>
             <div className="space-y-3">
               {adv.receipts.map((r, i) => (
