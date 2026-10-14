@@ -13,7 +13,7 @@
  */
 import { type NextRequest, NextResponse } from "next/server";
 import { assertCronAuth } from "@/lib/pipeline";
-import { recordScriptRun } from "@/lib/usage";
+import { beginScriptRun, completeScriptRun } from "@/lib/usage";
 import { writeHomeSnapshot } from "@/lib/aggregate";
 import { createServiceClient } from "@/lib/db";
 
@@ -41,6 +41,10 @@ export async function GET(request: NextRequest) {
   if (denied) return denied;
 
   const t0 = Date.now();
+  // Row first, outcome later (v0.40.1): a run killed at the 300s limit leaves
+  // a red "started and never completed" row instead of vanishing - which is
+  // how this cron's death after the 2026-10-14 backlog drain went unnoticed.
+  const runId = await beginScriptRun({ label: "snapshot", source: "cron" });
   try {
     const snap = await writeHomeSnapshot(HOME_WINDOW_DAYS);
     const durationMs = Date.now() - t0;
@@ -60,7 +64,7 @@ export async function GET(request: NextRequest) {
         `snapshot: 0 scored mentions in the ${HOME_WINDOW_DAYS}-day window while ` +
         `${classifiedEpisodes} classified episodes exist there - the score stage is not keeping up`;
       console.error("cron/snapshot degraded:", message);
-      await recordScriptRun({
+      await completeScriptRun(runId, {
         label: "snapshot",
         source: "cron",
         durationMs,
@@ -73,7 +77,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    await recordScriptRun({
+    await completeScriptRun(runId, {
       label: "snapshot",
       source: "cron",
       durationMs,
@@ -92,7 +96,7 @@ export async function GET(request: NextRequest) {
     const durationMs = Date.now() - t0;
     const message = e instanceof Error ? e.message : String(e);
     console.error("cron/snapshot failed:", message);
-    await recordScriptRun({
+    await completeScriptRun(runId, {
       label: "snapshot",
       source: "cron",
       durationMs,

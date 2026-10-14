@@ -181,6 +181,81 @@ export async function recordScriptRun(opts: {
   }
 }
 
+/**
+ * Two-phase run logging for crons that can be KILLED at Vercel's function
+ * limit before they get to record anything: the score cron (Sept-Oct 2026)
+ * and the snapshot cron (2026-10-14, right after the backlog drain) both
+ * died that way for hours to weeks with no row at all. beginScriptRun inserts
+ * the row up front with an error_message that reads as "started and never
+ * completed"; completeScriptRun overwrites it with the real outcome. A run
+ * that is killed leaves the red "started" row behind on /admin/pipeline
+ * instead of nothing. Both are best-effort: logging never fails the cron.
+ */
+export async function beginScriptRun(opts: {
+  label: string;
+  source?: "cron" | "cli" | "manual";
+}): Promise<string | null> {
+  const db = createServiceClient();
+  const id = globalThis.crypto.randomUUID();
+  const { error } = await db.from("usage_log").insert({
+    id,
+    duration_ms: 0,
+    source: opts.source ?? "manual",
+    error_message:
+      `${opts.label}: started ${new Date().toISOString()} and never completed - ` +
+      `still running, or killed at the function limit`,
+    ingest_episodes_fetched: 0,
+    ingest_episodes_new: 0,
+    ingest_failures: 0,
+    transcribe_succeeded: 0,
+    transcribe_failed: 0,
+    classify_processed: 0,
+    classify_mentions: 0,
+    classify_failures: 0,
+    score_succeeded: 0,
+    score_failed: 0,
+    anthropic_input_tokens: 0,
+    anthropic_output_tokens: 0,
+    anthropic_cost_usd: 0,
+    raw_summary: { label: opts.label, phase: "started" },
+  });
+  if (error) {
+    console.error("beginScriptRun: failed to persist usage_log:", error.message);
+    return null;
+  }
+  return id;
+}
+
+/** Overwrite the row from beginScriptRun with the run's outcome. With a null
+ *  id (the insert failed) this degrades to a plain recordScriptRun. */
+export async function completeScriptRun(
+  id: string | null,
+  opts: Parameters<typeof recordScriptRun>[0],
+): Promise<void> {
+  if (!id) return recordScriptRun(opts);
+  const db = createServiceClient();
+  const { error } = await db
+    .from("usage_log")
+    .update({
+      duration_ms: Math.round(opts.durationMs ?? 0),
+      source: opts.source ?? "manual",
+      error_message: opts.errorMessage ?? null,
+      classify_processed: opts.classify?.processed ?? 0,
+      classify_mentions: opts.classify?.mentions ?? 0,
+      classify_failures: opts.classify?.failed ?? 0,
+      score_succeeded: opts.score?.succeeded ?? 0,
+      score_failed: opts.score?.failed ?? 0,
+      anthropic_input_tokens: opts.inputTokens ?? 0,
+      anthropic_output_tokens: opts.outputTokens ?? 0,
+      anthropic_cost_usd: opts.costUsd ?? 0,
+      raw_summary: { label: opts.label, ...(opts.raw ?? {}) },
+    })
+    .eq("id", id);
+  if (error) {
+    console.error("completeScriptRun: failed to update usage_log:", error.message);
+  }
+}
+
 /** Recent usage_log rows, most recent first. */
 export async function getRecentUsage(limit = 60): Promise<UsageLogRow[]> {
   const db = createServiceClient();

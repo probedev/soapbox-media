@@ -7,6 +7,35 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
+## v0.40.1 · 2026-10-14
+
+### Fixed
+
+- **Hourly snapshot cron killed at 300s after the backlog drain.** Refilling
+  the Index window (v0.39.1's drain scored 22K mentions) more than doubled
+  the rows behind `fetchScoreRows` to 51K over 37 days, and the deep
+  `sentiment_scores -> classifications -> episodes -> channels` join, keyset
+  on a random uuid, went from 70-160s to 80-145s per scan with intermittent
+  statement timeouts. `writeHomeSnapshot` ran that scan up to four times (the
+  60s memo expired between consumers once a scan outlived it), so every run
+  from 16:35 UTC on was killed at Vercel's limit with no usage_log row, and
+  the homepage stayed on the 14:36 snapshot (Index 0.0) for the rest of the
+  day. The scan is now the same index-driven traversal as the score stage:
+  episodes in the window via the published_at index, their classifications
+  via the episode_id index in chunks, their scores via the unique FK in
+  chunks, assembled in JS against small channel and issue lookup maps
+  (`src/lib/db-scan.ts`). Validated against the old join on a 7-day window:
+  identical rows (9,015) and Index (-0.948). Measured: the whole 37-day
+  dashboard in 22.7s, versus 57.6s for the old join on 7 days alone. The
+  memo now lasts 5 minutes so one scan serves the blended, independent, and
+  legacy dashboards plus the breakdown.
+- **Snapshot runs can no longer vanish.** The route inserts its usage_log row
+  up front (`beginScriptRun`, a red "started and never completed" message)
+  and overwrites it with the outcome at the end (`completeScriptRun`). A run
+  killed at the function limit now leaves that row behind instead of
+  nothing - the gap that hid the score cron's death for three weeks and this
+  one for three hours.
+
 ## v0.40.0 · 2026-10-14
 
 ### Added

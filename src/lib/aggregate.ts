@@ -27,6 +27,7 @@
  */
 import { cache as reactCache } from "react";
 import { createServiceClient } from "./db";
+import { episodesSince, selectByKeys } from "./db-scan";
 import { type Cohort, PUBLIC_COHORTS } from "./cohort";
 import { canonicalShowKey } from "./canonical-show";
 import {
@@ -247,13 +248,16 @@ const SPARKLINE_DAYS = 30;
  * legacy getDashboardData calls each re-ran the full scan. Cohort filtering
  * happens in JS (PUBLIC_COHORTS covers every cohort), so ONE unfiltered scan
  * per sinceDays serves all cohort variants. The memo stores the in-flight
- * promise (concurrent callers share one scan) and expires after 60s, which is
- * far fresher than the pipeline's write cadence.
+ * promise (concurrent callers share one scan) and expires after 5 minutes:
+ * long enough that writeHomeSnapshot's four consumers always share one scan
+ * (at 60s they stopped sharing once a scan itself took longer than that,
+ * 2026-10-14, and the cron died at the 300s limit), still far fresher than
+ * the pipeline's write cadence.
  */
 let scoreRowsMemo:
   | { sinceDays: number; at: number; promise: Promise<ScoreRow[]> }
   | null = null;
-const SCORE_ROWS_MEMO_TTL_MS = 60_000;
+const SCORE_ROWS_MEMO_TTL_MS = 5 * 60_000;
 
 function fetchAllScoreRows(sinceDays: number): Promise<ScoreRow[]> {
   const now = Date.now();
@@ -274,70 +278,78 @@ function fetchAllScoreRows(sinceDays: number): Promise<ScoreRow[]> {
 }
 
 async function fetchAllScoreRowsUncached(sinceDays: number): Promise<ScoreRow[]> {
+  // v0.40.1: index-driven traversal instead of the keyset-on-uuid deep join.
+  // The join (sentiment_scores -> classifications -> episodes -> channels,
+  // ordered by the random-uuid PK) cost 1-3s per 1000-row page and timed out
+  // intermittently; once the Index window was refilled after the Sept 2026
+  // score outage (51K rows / 37 days) one scan took 80-145s and the snapshot
+  // cron, which runs it up to four times, was killed at Vercel's 300s limit.
+  // Walking episodes by published_at, then classifications by episode_id,
+  // then scores by their unique FK touches only indexed id sets and finishes
+  // in a fraction of that (see src/lib/db-scan.ts).
   const db = createServiceClient();
-  const all: ScoreRow[] = [];
-  const pageSize = 1000;
+  const what = `fetchScoreRows(${sinceDays}d)`;
   const sinceIso = new Date(Date.now() - sinceDays * 86_400_000).toISOString();
-  // Runaway guard only. Hitting it THROWS - a visible failure - instead of
-  // silently returning a truncated (= wrong) Index. 200 pages × 1000 rows is
-  // far above any realistic in-window volume (~2K mentions/day today).
-  const maxPages = 200;
 
-  let lastId: string | null = null;
-  for (let page = 0; ; page++) {
-    if (page >= maxPages) {
-      throw new Error(
-        `fetchScoreRows: exceeded ${maxPages} pages (${all.length} rows) for sinceDays=${sinceDays} - raise maxPages or tighten the window`,
-      );
-    }
-    let query = db
-      .from("sentiment_scores")
-      .select(
-        `
-        id, sentiment, intensity,
-        classification:classifications!sentiment_scores_classification_id_fkey!inner (
-          issue_slug, episode_id,
-          issue:issues!classifications_issue_slug_fkey ( name, topic_slug ),
-          episode:episodes!classifications_episode_id_fkey!inner (
-            id, published_at,
-            channel:channels!episodes_channel_id_fkey (
-              id, name, political_lean, reach, cohort
-            )
-          )
-        )
-      `,
-      )
-      .gte("classification.episode.published_at", sinceIso)
-      .order("id", { ascending: true })
-      .limit(pageSize);
-    if (lastId !== null) query = query.gt("id", lastId);
-    const { data, error } = await query;
-    if (error) throw new Error(`fetchScoreRows: ${error.message}`);
-    if (!data || data.length === 0) break;
-    lastId = String((data[data.length - 1] as any).id);
+  // Lookup tables first: a few hundred channels, a few dozen issues.
+  const [channelsRes, issuesRes] = await Promise.all([
+    db.from("channels").select("id, name, political_lean, reach, cohort").limit(5000),
+    db.from("issues").select("slug, name, topic_slug").limit(5000),
+  ]);
+  if (channelsRes.error) throw new Error(`${what}: channels: ${channelsRes.error.message}`);
+  if (issuesRes.error) throw new Error(`${what}: issues: ${issuesRes.error.message}`);
+  const channels = new Map(
+    (channelsRes.data as any[]).map((c) => [String(c.id), c] as const),
+  );
+  const issues = new Map((issuesRes.data as any[]).map((i) => [String(i.slug), i] as const));
 
-    for (const r of data as any[]) {
-      const c = r.classification;
-      const e = c?.episode;
-      const ch = e?.channel;
-      if (!c || !e || !ch || !c.issue) continue;
-      all.push({
-        sentiment: Number(r.sentiment),
-        intensity: Number(r.intensity),
-        issue_slug: c.issue_slug,
-        issue_name: c.issue.name,
-        issue_topic_slug: c.issue.topic_slug ?? null,
-        episode_id: c.episode_id,
-        episode_published_at: e.published_at,
-        channel_id: ch.id,
-        channel_name: ch.name,
-        channel_lean: ch.political_lean,
-        channel_reach: Number(ch.reach),
-        channel_cohort: ch.cohort,
-      });
-    }
-    // Empty-page-only termination - see [[pagination-stable-order]] for
-    // why a short page (length < pageSize, > 0) is normal on this route.
+  interface EpisodeRow { id: string; published_at: string; channel_id: string }
+  interface ClassificationRow { id: string; episode_id: string; issue_slug: string }
+  interface ScoreRowRaw { classification_id: string; sentiment: number; intensity: number }
+
+  const episodes = await episodesSince<EpisodeRow>(db, sinceIso, "id, published_at, channel_id", what);
+  const episodeById = new Map(episodes.map((e) => [String(e.id), e] as const));
+  const classifications = await selectByKeys<ClassificationRow>(
+    db,
+    "classifications",
+    "id, episode_id, issue_slug",
+    "episode_id",
+    episodes.map((e) => String(e.id)),
+    { chunk: 60, what },
+  );
+  const classificationById = new Map(classifications.map((c) => [String(c.id), c] as const));
+  const scores = await selectByKeys<ScoreRowRaw>(
+    db,
+    "sentiment_scores",
+    "classification_id, sentiment, intensity",
+    "classification_id",
+    classifications.map((c) => String(c.id)),
+    { chunk: 300, what },
+  );
+
+  // Same row semantics as the old join: a score needs its classification,
+  // episode, channel, and issue to count.
+  const all: ScoreRow[] = [];
+  for (const s of scores) {
+    const c = classificationById.get(String(s.classification_id));
+    const e = c && episodeById.get(String(c.episode_id));
+    const ch = e && channels.get(String(e.channel_id));
+    const issue = c && issues.get(String(c.issue_slug));
+    if (!c || !e || !ch || !issue) continue;
+    all.push({
+      sentiment: Number(s.sentiment),
+      intensity: Number(s.intensity),
+      issue_slug: c.issue_slug,
+      issue_name: issue.name,
+      issue_topic_slug: issue.topic_slug ?? null,
+      episode_id: c.episode_id,
+      episode_published_at: e.published_at,
+      channel_id: ch.id,
+      channel_name: ch.name,
+      channel_lean: ch.political_lean,
+      channel_reach: Number(ch.reach),
+      channel_cohort: ch.cohort,
+    });
   }
   return all;
 }
