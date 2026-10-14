@@ -20,9 +20,12 @@ export async function GET(request: NextRequest) {
 
   const result = await runStage("figures", runFigures);
   await recordPipelineRun(
-    { totalDurationMs: result.durationMs, stages: { figures: { detail: result.detail } } },
+    {
+      totalDurationMs: result.durationMs,
+      stages: { figures: { ok: result.ok, detail: result.detail } },
+    },
     "cron",
   ).catch((e) => console.error("recordPipelineRun failed:", e));
 
-  return NextResponse.json(result);
+  return NextResponse.json(result, { status: result.ok ? 200 : 500 });
 }

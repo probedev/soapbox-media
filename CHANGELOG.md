@@ -7,6 +7,50 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
+## v0.39.1 · 2026-10-14
+
+### Fixed
+
+- **Score cron silently dead since 2026-09-25; homepage Index read 0.0 from
+  10-08.** `runScore` opened every run by paging the ENTIRE `classifications`
+  table (deep join, OFFSET `.range()`) plus the entire `sentiment_scores`
+  table just to diff the unscored set: 249K + 229K rows by October, a 7-10
+  minute preamble that Vercel killed at the 300s function limit before a
+  single score or usage_log row was written. Run durations crept from 190s
+  (Aug 20) to 270s+ (Sept 19); logged runs then thinned out and vanished,
+  scores trickled to zero on 10-02, and the hourly snapshot cron kept
+  publishing an Index of 0 with empty issue and mover lists. Same
+  all-time-scan + OFFSET anti-pattern as the June-August snapshot freeze
+  (v0.36.2), in the one scan that fix did not touch. The pending set now
+  comes from a bounded, index-driven lookup (`fetchPendingClassifications`):
+  episodes published or ingested in the last `SCORE_LOOKBACK_DAYS` (30) via
+  the published_at index, their classifications via the episode_id index in
+  chunks, and the already-scored ids via the unique FK index in chunks -
+  every call bounded, full pages split (the PostgREST 1000-row cap), page
+  overflow throws. Measured: 13s for the lookup plus 720 fully hydrated rows
+  against a 22K backlog, versus a function kill. Newest episodes first, so a
+  backlog refills the Index's 7-day window before older history. Anything
+  unscored older than the window is abandoned on purpose;
+  `npm run score -- <limit> [lookbackDays]` sweeps wider.
+- **Score stage now has a wall-clock deadline and fails loud.** `runScore`
+  passes the stage budget to the lookup and to the scoring pool, so it always
+  returns in time to record its run. A thrown stage now lands in
+  `usage_log.error_message` for every per-stage cron (`recordPipelineRun`
+  derives it from the stage detail), and the score + figures routes answer
+  500 so Vercel's cron log shows the failure too. Before this a stage error
+  only lived inside `raw_summary`, where nothing surfaced it: the figures
+  cron failed one day in three for weeks with no visible failure.
+- **Figures cron timed out about one day in three** (Sept 29, Oct 2, 4, 10,
+  11): its unbounded `!left` + `.is(null)` anti-join over all of
+  `figure_mentions` hit the statement timeout, and its `.limit(1200)` was
+  silently capped at PostgREST's 1000 rows. It now uses the same bounded
+  lookup over the last `FIGURES_PENDING_LOOKBACK_DAYS` (14); 3.9s measured.
+- **Snapshot cron fails loud on an empty Index window.** When the 7-day
+  window holds zero scored mentions while classified episodes exist in it,
+  the run is recorded with an `error_message` (red on /admin/pipeline) and
+  answers 500, instead of quietly publishing 0.0 every hour for a week. The
+  snapshot is still written, so the page shows the truth.
+
 ## v0.39.0 · 2026-08-26
 
 ### Added

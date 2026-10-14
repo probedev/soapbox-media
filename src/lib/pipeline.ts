@@ -101,6 +101,18 @@ export const EMERGING_SCORE_CONCURRENCY = 15;
 export const FIGURES_DETECT_LOOKBACK_DAYS = 3;
 export const FIGURES_SCORE_LIMIT = 1200;
 export const FIGURES_SCORE_CONCURRENCY = 10;
+// Pending-lookup windows (v0.39.1). runScore used to page the ENTIRE
+// classifications table (deep join, OFFSET) plus the entire sentiment_scores
+// table on every run just to diff the unscored set: 249K + 229K rows by
+// 2026-10, a 7-10 minute preamble that Vercel killed at 300s before a single
+// score or usage_log row was written. Scores silently stopped on 2026-09-25
+// and the homepage Index read 0.0 from 10-08. The lookup now rides existing
+// indexes only (episodes.published_at -> <table>.episode_id -> the unique
+// score FK), so its cost scales with the window, never the table. Anything
+// unscored older than the window is abandoned on purpose; a CLI run can pass
+// a wider window to sweep it up.
+export const SCORE_LOOKBACK_DAYS = 30;
+export const FIGURES_PENDING_LOOKBACK_DAYS = 14;
 // Ads stage (v0.38.0): detect is regex-only (free); the Haiku confirm pass is
 // bounded like figures. Daily cadence: ~180 new episodes/day x ~0.8 candidate
 // segments/ep is ~150 confirms/day, well under $0.5/day at Haiku short-excerpt
@@ -828,17 +840,200 @@ export async function runClassify(): Promise<Record<string, unknown>> {
 
 // ─── Score ──────────────────────────────────────────────────────────────
 
-export async function runScore(): Promise<Record<string, unknown>> {
-  const db = createServiceClient();
+// ─── Pending lookups (score + figures) ───────────────────────────────────
+//
+// "Which rows still need a score?" is answered WITHOUT scanning either side:
+//   1. episodes published or ingested in the window (keyset on the PK, date
+//      window pushed into SQL; a few thousand rows),
+//   2. <table> rows for those episodes via the episode_id index, in chunks,
+//   3. which of those ids already have a <scoreTable> row, via the unique FK
+//      index, in chunks.
+// Every call is a bounded, index-driven lookup that finishes in well under the
+// statement timeout even on a cold cache; the previous shapes (full-table
+// OFFSET pages, a `!left`+`is.null` anti-join, a created_at keyset with no
+// index) all hit the 8s statement timeout or the 300s function limit as the
+// tables grew. Newest episodes come first so a backlog refills the Index's
+// 7-day window before older history.
 
-  // Paginated classifications + existing scores
-  const classifications: any[] = [];
-  const pageSize = 1000;
-  for (let from = 0; ; from += pageSize) {
-    const { data } = await db
+/** PostgREST caps any single response at this many rows (Supabase "Max
+ *  Rows"); `.limit()` above it silently truncates. Every chunked read below
+ *  treats a full page as "possibly truncated" and splits the chunk. */
+const POSTGREST_MAX_ROWS = 1000;
+const PENDING_EPISODE_CHUNK = 60;
+const PENDING_ID_CHUNK = 300;
+const PENDING_DETAIL_CHUNK = 100;
+const PENDING_CONCURRENCY = 4;
+
+type Db = ReturnType<typeof createServiceClient>;
+
+function chunked<T>(items: readonly T[], size: number): T[][] {
+  const out: T[][] = [];
+  for (let i = 0; i < items.length; i += size) out.push(items.slice(i, i + size));
+  return out;
+}
+
+const pickOne = (x: any) => (Array.isArray(x) ? x[0] : x);
+
+function assertDeadline(deadline: number, what: string): void {
+  if (Date.now() > deadline) {
+    throw new Error(`${what}: exceeded the stage time budget before scoring started`);
+  }
+}
+
+/** Ids of episodes published OR ingested in the last `sinceDays`, newest
+ *  published first. Both predicates so a late-transcribed old episode (or a
+ *  backfill) is still swept. */
+async function fetchRecentEpisodeIds(
+  db: Db,
+  sinceDays: number,
+  deadline: number,
+  what: string,
+): Promise<string[]> {
+  const cutoff = new Date(Date.now() - sinceDays * 86_400_000).toISOString();
+  const rows: { id: string; published_at: string }[] = [];
+  const maxPages = 100; // 100K episodes in-window; today's window is ~6K
+  let lastId: string | null = null;
+  for (let page = 0; ; page++) {
+    assertDeadline(deadline, what);
+    if (page >= maxPages) {
+      throw new Error(
+        `${what}: exceeded ${maxPages} episode pages (${rows.length} rows) for sinceDays=${sinceDays}`,
+      );
+    }
+    let q = db
+      .from("episodes")
+      .select("id, published_at")
+      .or(`published_at.gte.${cutoff},created_at.gte.${cutoff}`)
+      .order("id", { ascending: true })
+      .limit(POSTGREST_MAX_ROWS);
+    if (lastId !== null) q = q.gt("id", lastId);
+    const { data, error } = await q;
+    if (error) throw new Error(`${what}: episodes: ${error.message}`);
+    if (!data || data.length === 0) break;
+    lastId = String(data[data.length - 1].id);
+    for (const r of data as any[]) rows.push({ id: String(r.id), published_at: String(r.published_at) });
+  }
+  rows.sort((a, b) => (a.published_at < b.published_at ? 1 : a.published_at > b.published_at ? -1 : 0));
+  return rows.map((r) => r.id);
+}
+
+/** Ids in `table` attached to these episodes. A full page may have been
+ *  truncated at POSTGREST_MAX_ROWS, so the chunk is split and re-read. */
+async function fetchIdsByEpisode(
+  db: Db,
+  table: string,
+  episodeIds: string[],
+  what: string,
+): Promise<string[]> {
+  const { data, error } = await db
+    .from(table)
+    .select("id")
+    .in("episode_id", episodeIds)
+    .limit(POSTGREST_MAX_ROWS);
+  if (error) throw new Error(`${what}: ${table} by episode: ${error.message}`);
+  const rows = (data || []) as { id: string }[];
+  if (rows.length < POSTGREST_MAX_ROWS) return rows.map((r) => String(r.id));
+  if (episodeIds.length === 1) {
+    throw new Error(`${what}: episode ${episodeIds[0]} has >= ${POSTGREST_MAX_ROWS} ${table} rows`);
+  }
+  const mid = Math.ceil(episodeIds.length / 2);
+  const [a, b] = await Promise.all([
+    fetchIdsByEpisode(db, table, episodeIds.slice(0, mid), what),
+    fetchIdsByEpisode(db, table, episodeIds.slice(mid), what),
+  ]);
+  return [...a, ...b];
+}
+
+export interface UnscoredLookup {
+  /** Episodes in the lookback window. */
+  episodes: number;
+  /** Rows (mentions) attached to those episodes. */
+  candidates: number;
+  /** Of those, rows with no score yet - the true backlog in the window. */
+  pendingTotal: number;
+}
+
+async function findUnscoredIds(
+  db: Db,
+  opts: {
+    table: string;
+    scoreTable: string;
+    fkColumn: string;
+    sinceDays: number;
+    deadline: number;
+    what: string;
+  },
+): Promise<{ ids: string[] } & UnscoredLookup> {
+  const { deadline, what } = opts;
+  const episodeIds = await fetchRecentEpisodeIds(db, opts.sinceDays, deadline, what);
+
+  const episodeChunks = chunked(episodeIds, PENDING_EPISODE_CHUNK);
+  const perChunk: string[][] = new Array(episodeChunks.length).fill([]);
+  await mapPool(episodeChunks, PENDING_CONCURRENCY, async (chunk, i) => {
+    assertDeadline(deadline, what);
+    perChunk[i] = await fetchIdsByEpisode(db, opts.table, chunk, what);
+  });
+  const candidates = perChunk.flat();
+
+  const scored = new Set<string>();
+  await mapPool(chunked(candidates, PENDING_ID_CHUNK), PENDING_CONCURRENCY, async (chunk) => {
+    assertDeadline(deadline, what);
+    const { data, error } = await db
+      .from(opts.scoreTable)
+      .select(opts.fkColumn)
+      .in(opts.fkColumn, chunk)
+      .limit(POSTGREST_MAX_ROWS);
+    if (error) throw new Error(`${what}: ${opts.scoreTable}: ${error.message}`);
+    for (const r of (data || []) as any[]) scored.add(String(r[opts.fkColumn]));
+  });
+
+  const ids = candidates.filter((id) => !scored.has(id));
+  return { ids, episodes: episodeIds.length, candidates: candidates.length, pendingTotal: ids.length };
+}
+
+export interface PendingClassification {
+  id: string;
+  episode_id: string;
+  issue_slug: string;
+  supporting_quote: string;
+  issue: {
+    name: string;
+    definition: string;
+    left_position: string;
+    right_position: string;
+  } | null;
+  episode: {
+    channel: { name: string; political_lean: "L" | "M" | "R" } | null;
+  } | null;
+}
+
+/**
+ * Unscored classifications for episodes in the last `sinceDays`, newest
+ * episodes first, with the issue + channel context the score prompt needs.
+ * Shared by the score cron and scripts/score.ts. `pendingTotal` is the whole
+ * in-window backlog; `rows` is the first `limit` of it.
+ */
+export async function fetchPendingClassifications(
+  db: Db,
+  opts: { sinceDays: number; limit: number; deadline: number },
+): Promise<{ rows: PendingClassification[] } & UnscoredLookup> {
+  const what = "score pending";
+  const found = await findUnscoredIds(db, {
+    table: "classifications",
+    scoreTable: "sentiment_scores",
+    fkColumn: "classification_id",
+    sinceDays: opts.sinceDays,
+    deadline: opts.deadline,
+    what,
+  });
+  const wanted = found.ids.slice(0, opts.limit);
+  const byId = new Map<string, PendingClassification>();
+  await mapPool(chunked(wanted, PENDING_DETAIL_CHUNK), PENDING_CONCURRENCY, async (chunk) => {
+    assertDeadline(opts.deadline, what);
+    const { data, error } = await db
       .from("classifications")
       .select(
-        `id, supporting_quote,
+        `id, episode_id, issue_slug, supporting_quote,
          issue:issues!classifications_issue_slug_fkey (
            name, definition, left_position, right_position
          ),
@@ -848,87 +1043,162 @@ export async function runScore(): Promise<Record<string, unknown>> {
            )
          )`,
       )
-      // Stable PK order - same gotcha as runClassify above (v0.6.47).
-      .order("id", { ascending: true })
-      .range(from, from + pageSize - 1);
-    if (!data || data.length === 0) break;
-    classifications.push(...data);
-    // Empty-page-only termination - short pages on deep joins are routine
-    // on Vercel's edge→Supabase route. See runClassify above (v0.6.51).
-  }
-  const scored: { classification_id: string }[] = [];
-  for (let from = 0; ; from += pageSize) {
-    const { data } = await db
-      .from("sentiment_scores")
-      .select("classification_id")
-      // UNIQUE(classification_id) so it's a stable pagination key.
-      .order("classification_id", { ascending: true })
-      .range(from, from + pageSize - 1);
-    if (!data || data.length === 0) break;
-    scored.push(...(data as any));
-    // Empty-page-only termination - see runClassify above (v0.6.51). This
-    // query is narrow (just classification_id) so a short page is less
-    // likely, but the response-size threshold isn't worth gambling on.
-  }
-  const scoredSet = new Set(scored.map((s) => s.classification_id));
-  const pending = classifications.filter((c) => !scoredSet.has(c.id));
+      .in("id", chunk);
+    if (error) throw new Error(`${what}: classifications detail: ${error.message}`);
+    for (const r of (data || []) as any[]) {
+      const episode = pickOne(r.episode);
+      byId.set(String(r.id), {
+        id: String(r.id),
+        episode_id: String(r.episode_id),
+        issue_slug: String(r.issue_slug),
+        supporting_quote: String(r.supporting_quote ?? ""),
+        issue: pickOne(r.issue) ?? null,
+        episode: episode ? { channel: pickOne(episode.channel) ?? null } : null,
+      });
+    }
+  });
+  const rows = wanted.map((id) => byId.get(id)).filter((r): r is PendingClassification => !!r);
+  return { rows, episodes: found.episodes, candidates: found.candidates, pendingTotal: found.pendingTotal };
+}
+
+export interface PendingFigureMention {
+  id: string;
+  quote: string;
+  figure_name: string;
+  channel_name: string;
+  political_lean: "L" | "M" | "R";
+}
+
+/** Unscored figure mentions for episodes in the last `sinceDays`, newest
+ *  episodes first, with the figure + channel context the favorability prompt
+ *  needs. Same lookup as fetchPendingClassifications. */
+export async function fetchPendingFigureMentions(
+  db: Db,
+  opts: { sinceDays: number; limit: number; deadline: number },
+): Promise<{ rows: PendingFigureMention[] } & UnscoredLookup> {
+  const what = "figures pending";
+  const found = await findUnscoredIds(db, {
+    table: "figure_mentions",
+    scoreTable: "figure_scores",
+    fkColumn: "figure_mention_id",
+    sinceDays: opts.sinceDays,
+    deadline: opts.deadline,
+    what,
+  });
+  const wanted = found.ids.slice(0, opts.limit);
+  const byId = new Map<string, PendingFigureMention>();
+  await mapPool(chunked(wanted, PENDING_DETAIL_CHUNK), PENDING_CONCURRENCY, async (chunk) => {
+    assertDeadline(opts.deadline, what);
+    const { data, error } = await db
+      .from("figure_mentions")
+      .select(
+        `id, quote,
+         figures ( name ),
+         episodes!inner ( channels ( name, political_lean ) )`,
+      )
+      .in("id", chunk);
+    if (error) throw new Error(`${what}: figure_mentions detail: ${error.message}`);
+    for (const r of (data || []) as any[]) {
+      const fig = pickOne(r.figures);
+      const ch = pickOne(pickOne(r.episodes)?.channels);
+      if (!r.quote || !fig?.name || !ch?.name) continue;
+      byId.set(String(r.id), {
+        id: String(r.id),
+        quote: String(r.quote),
+        figure_name: String(fig.name),
+        channel_name: String(ch.name),
+        political_lean: (ch.political_lean || "M") as PendingFigureMention["political_lean"],
+      });
+    }
+  });
+  const rows = wanted.map((id) => byId.get(id)).filter((r): r is PendingFigureMention => !!r);
+  return { rows, episodes: found.episodes, candidates: found.candidates, pendingTotal: found.pendingTotal };
+}
+
+// ─── Score ──────────────────────────────────────────────────────────────
+
+export async function runScore(): Promise<Record<string, unknown>> {
+  const db = createServiceClient();
+  const stageStart = Date.now();
+  const deadline = stageStart + STAGE_TIME_BUDGET_MS;
+
+  // Pending set via the bounded, index-driven lookup above (v0.39.1). The old
+  // full-table preamble is the reason scoring silently died in Sept 2026.
+  const found = await fetchPendingClassifications(db, {
+    sinceDays: SCORE_LOOKBACK_DAYS,
+    limit: SCORE_LIMIT,
+    deadline,
+  });
+  const pending = found.rows;
+  const lookupMs = Date.now() - stageStart;
 
   let ok = 0;
   let failed = 0;
   let inputTokens = 0;
   let outputTokens = 0;
 
-  // Score up to SCORE_LIMIT mentions through a bounded-concurrency pool (was
-  // one-at-a-time). Haiku is fast, so even a large batch finishes well under
-  // the 300s limit; counters are safe to mutate (single-threaded).
-  await mapPool(pending.slice(0, SCORE_LIMIT), SCORE_CONCURRENCY, async (c) => {
-    try {
-      const result = await scoreClassification({
-        quote: c.supporting_quote,
-        channelName: c.episode?.channel?.name || "(unknown)",
-        politicalLean: c.episode?.channel?.political_lean || "M",
-        issueName: c.issue?.name || "",
-        issueDefinition: c.issue?.definition || "",
-        leftPosition: c.issue?.left_position || "",
-        rightPosition: c.issue?.right_position || "",
-      });
-      inputTokens += result.inputTokens || 0;
-      outputTokens += result.outputTokens || 0;
-      const { error: insErr } = await db.from("sentiment_scores").upsert(
-        {
-          classification_id: c.id,
-          sentiment: result.sentiment,
-          intensity: result.intensity,
-          supporting_quote: c.supporting_quote,
-          model: MODEL_SCORE,
-          model_version: "v0",
-        },
-        // Idempotent under UNIQUE(classification_id): overlapping score runs
-        // (cron + CLI) no-op instead of creating duplicate scores.
-        { onConflict: "classification_id", ignoreDuplicates: true },
-      );
-      if (insErr) {
-        console.error(
-          `[score] insert failed for classification ${c.id}: ${insErr.message}`,
+  // Score through a bounded-concurrency pool. Haiku is fast, so a full batch
+  // finishes well under the budget; the deadline is the backstop so the stage
+  // ALWAYS returns in time to write its usage_log row. Counters are safe to
+  // mutate (single-threaded).
+  const { completed } = await mapPool(
+    pending,
+    SCORE_CONCURRENCY,
+    async (c) => {
+      try {
+        const result = await scoreClassification({
+          quote: c.supporting_quote,
+          channelName: c.episode?.channel?.name || "(unknown)",
+          politicalLean: c.episode?.channel?.political_lean || "M",
+          issueName: c.issue?.name || "",
+          issueDefinition: c.issue?.definition || "",
+          leftPosition: c.issue?.left_position || "",
+          rightPosition: c.issue?.right_position || "",
+        });
+        inputTokens += result.inputTokens || 0;
+        outputTokens += result.outputTokens || 0;
+        const { error: insErr } = await db.from("sentiment_scores").upsert(
+          {
+            classification_id: c.id,
+            sentiment: result.sentiment,
+            intensity: result.intensity,
+            supporting_quote: c.supporting_quote,
+            model: MODEL_SCORE,
+            model_version: "v0",
+          },
+          // Idempotent under UNIQUE(classification_id): overlapping score runs
+          // (cron + CLI) no-op instead of creating duplicate scores.
+          { onConflict: "classification_id", ignoreDuplicates: true },
         );
+        if (insErr) {
+          console.error(
+            `[score] insert failed for classification ${c.id}: ${insErr.message}`,
+          );
+          failed++;
+        } else {
+          ok++;
+        }
+      } catch (e: any) {
+        const errClass = e?.constructor?.name || "Error";
+        const errMsg = e?.message || String(e);
+        console.error(`[score] ${errClass} for classification ${c.id}: ${errMsg}`);
         failed++;
-      } else {
-        ok++;
       }
-    } catch (e: any) {
-      const errClass = e?.constructor?.name || "Error";
-      const errMsg = e?.message || String(e);
-      console.error(`[score] ${errClass} for classification ${c.id}: ${errMsg}`);
-      failed++;
-    }
-  });
+    },
+    deadline,
+  );
 
   const estCost = estimateCostUsd(MODEL_SCORE, { inputTokens, outputTokens });
   return {
-    pendingFound: pending.length,
+    lookbackDays: SCORE_LOOKBACK_DAYS,
+    lookupMs,
+    episodesInWindow: found.episodes,
+    candidates: found.candidates,
+    pendingFound: found.pendingTotal,
     processed: ok + failed,
     succeeded: ok,
     failed,
+    stoppedAtTimeBudget: completed < pending.length,
     inputTokens,
     outputTokens,
     approxCostUsd: Number(estCost.toFixed(4)),
@@ -1174,43 +1444,17 @@ export async function runFigures(): Promise<Record<string, unknown>> {
   //    deadline so a pathological run still finishes cleanly.
   const detect = await detectFigureMentions(db, FIGURES_DETECT_LOOKBACK_DAYS, deadline);
 
-  // 2) Score. Unscored mentions via a server-side anti-join (!left embed +
-  //    .is(null)) so we never page the full scored set into memory.
-  interface PendingRow {
-    id: string;
-    quote: string;
-    figure_name: string;
-    channel_name: string;
-    political_lean: "L" | "M" | "R";
-  }
-  const pick = (x: any) => (Array.isArray(x) ? x[0] : x);
-  const pending: PendingRow[] = [];
-  {
-    const { data, error } = await db
-      .from("figure_mentions")
-      .select(
-        `id, quote,
-         figures ( name ),
-         episodes!inner ( channels ( name, political_lean ) ),
-         figure_scores!left ( figure_mention_id )`,
-      )
-      .is("figure_scores", null)
-      .order("id", { ascending: true })
-      .limit(FIGURES_SCORE_LIMIT);
-    if (error) throw new Error(`figures pending: ${error.message}`);
-    for (const r of (data || []) as any[]) {
-      const fig = pick(r.figures);
-      const ch = pick(pick(r.episodes)?.channels);
-      if (!r.quote || !fig?.name || !ch?.name) continue;
-      pending.push({
-        id: r.id,
-        quote: r.quote,
-        figure_name: fig.name,
-        channel_name: ch.name,
-        political_lean: (ch.political_lean || "M") as PendingRow["political_lean"],
-      });
-    }
-  }
+  // 2) Score. Unscored mentions via the bounded, index-driven lookup shared
+  //    with runScore (v0.39.1). The previous unbounded `!left` + `.is(null)`
+  //    anti-join over all of figure_mentions hit the statement timeout about
+  //    one day in three from late Sept 2026, and its `.limit(1200)` was
+  //    silently capped at PostgREST's 1000 rows anyway.
+  const found = await fetchPendingFigureMentions(db, {
+    sinceDays: FIGURES_PENDING_LOOKBACK_DAYS,
+    limit: FIGURES_SCORE_LIMIT,
+    deadline,
+  });
+  const pending = found.rows;
 
   let ok = 0;
   let failed = 0;
@@ -1260,7 +1504,7 @@ export async function runFigures(): Promise<Record<string, unknown>> {
     detectScanned: detect.scanned,
     detectWindows: detect.windows,
     newMentions: detect.newMentions,
-    pendingFound: pending.length,
+    pendingFound: found.pendingTotal,
     processed: ok + failed,
     succeeded: ok,
     failed,

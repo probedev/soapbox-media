@@ -16,7 +16,10 @@ export async function GET(request: NextRequest) {
 
   const result = await runStage("score", runScore);
   await recordPipelineRun(
-    { totalDurationMs: result.durationMs, stages: { score: { detail: result.detail } } },
+    {
+      totalDurationMs: result.durationMs,
+      stages: { score: { ok: result.ok, detail: result.detail } },
+    },
     "cron",
   ).catch((e) => console.error("recordPipelineRun failed:", e));
 
@@ -25,5 +28,9 @@ export async function GET(request: NextRequest) {
   // refresh here got killed at the 300s function limit - silently, because
   // its failure path was a swallowed console.error. Don't re-add it.
 
-  return NextResponse.json(result);
+  // A thrown stage is a 500 so Vercel's cron log shows the failure too (the
+  // usage_log row above carries the message for /admin/pipeline). From
+  // 2026-09-25 to 10-14 this route was killed at the 300s limit on every run
+  // and left no trace anywhere - see runScore (v0.39.1).
+  return NextResponse.json(result, { status: result.ok ? 200 : 500 });
 }
