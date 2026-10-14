@@ -3,7 +3,7 @@ import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { Card } from "@/components/ui/card";
 import { FavorabilityGauge } from "@/components/FavorabilityGauge";
-import { getFiguresOverview, FIGURE_WINDOW_DAYS } from "@/lib/aggregate";
+import { getFiguresOverview, readFiguresBoard, FIGURE_WINDOW_DAYS } from "@/lib/aggregate";
 
 export const dynamic = "force-dynamic";
 
@@ -12,7 +12,11 @@ const AFFIL_LABEL: Record<string, string> = {
 };
 
 export default async function FiguresPage() {
-  const figures = await getFiguresOverview(FIGURE_WINDOW_DAYS);
+  // Precomputed daily by /api/cron/boards (v0.40.0). The live path is the
+  // fallback for a missing or stale (>48h) snapshot only - it is the slow one.
+  const figures =
+    (await readFiguresBoard().catch(() => null)) ??
+    (await getFiguresOverview(FIGURE_WINDOW_DAYS));
 
   return (
     <main className="min-h-screen">

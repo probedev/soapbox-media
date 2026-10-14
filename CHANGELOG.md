@@ -7,6 +7,25 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
+## v0.40.0 · 2026-10-14
+
+### Added
+
+- **Precomputed /figures and /advertisers boards.** Both pages are
+  force-dynamic and recomputed their overview on every request: a month of
+  `figure_scores` (up to 60 pages) for /figures and every confirmed
+  `ad_segment` in the window for /advertisers. Measured 2026-10-12: 28s time
+  to first byte cold for /figures (3s warm) and 10 to 11s for /advertisers on
+  every load. Their inputs only change when the daily figures and ads crons
+  run, so a new daily cron, `/api/cron/boards` (12:20 UTC, after both), now
+  writes the figures board and all three advertiser windows into
+  `dashboard_snapshot` rows - the home-snapshot pattern. The pages read one
+  row and fall back to the live computation only when the row is missing or
+  older than 48 hours, so a missed cron day degrades to slow, never to stale.
+  The cron records a usage_log row either way, with `error_message` on
+  failure. `npm run refresh:boards` forces a refresh. Per-figure and
+  per-advertiser drill-downs stay live (narrow queries).
+
 ## v0.39.1 · 2026-10-14
 
 ### Fixed

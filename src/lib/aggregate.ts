@@ -2285,3 +2285,76 @@ export async function getAdvertiserDetail(
     receipts,
   };
 }
+
+/* ------------------------------------------------------------------------- *
+ * Board snapshots (v0.40.0)
+ *
+ * /figures and /advertisers are force-dynamic pages whose overview queries
+ * scan a month of data on every request (figures: up to 60 pages of
+ * figure_scores; advertisers: every confirmed ad_segment in the window):
+ * 28s TTFB cold for /figures and 10s for /advertisers, measured 2026-10-12.
+ * Their inputs only change when the daily figures / ads crons run, so the
+ * boards are precomputed once a day (/api/cron/boards, after both) into
+ * dashboard_snapshot rows - the home-snapshot pattern. Pages read the row and
+ * fall back to the live computation when it is missing or older than
+ * BOARD_MAX_AGE_MS, so a missed cron day degrades to slow, never to stale.
+ * ------------------------------------------------------------------------- */
+
+/** Two missed daily runs before a board falls back to the live path. */
+export const BOARD_MAX_AGE_MS = 48 * 60 * 60 * 1000;
+
+const FIGURES_BOARD_KEY = `figures:${FIGURE_WINDOW_DAYS}`;
+const advertisersBoardKey = (window: AdWindowKey): string => `advertisers:${window}`;
+
+async function upsertSnapshotRow(key: string, payload: unknown): Promise<void> {
+  const db = createServiceClient();
+  const { error } = await db
+    .from("dashboard_snapshot")
+    .upsert({ key, payload, computed_at: new Date().toISOString() }, { onConflict: "key" });
+  if (error) throw new Error(`upsertSnapshotRow(${key}): ${error.message}`);
+}
+
+/** The row's payload, or null when absent or older than `maxAgeMs`. */
+async function readSnapshotRow<T>(key: string, maxAgeMs: number): Promise<T | null> {
+  const db = createServiceClient();
+  const { data, error } = await db
+    .from("dashboard_snapshot")
+    .select("payload, computed_at")
+    .eq("key", key)
+    .maybeSingle();
+  if (error) throw new Error(`readSnapshotRow(${key}): ${error.message}`);
+  if (!data) return null;
+  const age = Date.now() - new Date(data.computed_at as string).getTime();
+  if (!Number.isFinite(age) || age > maxAgeMs) return null;
+  return data.payload as T;
+}
+
+export interface BoardSnapshotSummary {
+  figures: number;
+  advertisers: Record<AdWindowKey, number>;
+}
+
+/** Recompute the /figures board and every /advertisers window and persist
+ *  them. Sequential on purpose: these are the heaviest reads on the site and
+ *  the cron has the whole 300s to itself. */
+export async function writeBoardSnapshots(): Promise<BoardSnapshotSummary> {
+  const figures = await getFiguresOverview(FIGURE_WINDOW_DAYS);
+  await upsertSnapshotRow(FIGURES_BOARD_KEY, figures);
+  const advertisers = {} as Record<AdWindowKey, number>;
+  for (const choice of AD_WINDOW_CHOICES) {
+    const rows = await getAdvertisersOverview(adWindowSinceIso(choice.key));
+    await upsertSnapshotRow(advertisersBoardKey(choice.key), rows);
+    advertisers[choice.key] = rows.length;
+  }
+  return { figures: figures.length, advertisers };
+}
+
+export async function readFiguresBoard(): Promise<FigureOverviewRow[] | null> {
+  return readSnapshotRow<FigureOverviewRow[]>(FIGURES_BOARD_KEY, BOARD_MAX_AGE_MS);
+}
+
+export async function readAdvertisersBoard(
+  window: AdWindowKey,
+): Promise<AdvertiserOverviewRow[] | null> {
+  return readSnapshotRow<AdvertiserOverviewRow[]>(advertisersBoardKey(window), BOARD_MAX_AGE_MS);
+}

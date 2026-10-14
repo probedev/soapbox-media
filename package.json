@@ -1,6 +1,6 @@
 {
   "name": "soapbox",
-  "version": "0.39.1",
+  "version": "0.40.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -20,6 +20,7 @@
     "score": "tsx scripts/score.ts",
     "score:emerging": "tsx scripts/score-emerging.ts",
     "refresh:snapshot": "tsx scripts/refresh-snapshot.ts",
+    "refresh:boards": "tsx scripts/refresh-boards.ts",
     "drain": "tsx scripts/drain.ts",
     "discover": "tsx scripts/discover.ts",
     "discover:backfill": "tsx scripts/backfill-discovery.ts",

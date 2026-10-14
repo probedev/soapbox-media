@@ -5,6 +5,7 @@ import { Card } from "@/components/ui/card";
 import { LeanSplitBar } from "@/components/LeanSplitBar";
 import {
   getAdvertisersOverview,
+  readAdvertisersBoard,
   adWindowSinceIso,
   AD_WINDOW_CHOICES,
   type AdWindowKey,
@@ -26,7 +27,11 @@ export default async function AdvertisersPage({
   const choice =
     AD_WINDOW_CHOICES.find((c) => c.key === (searchParams?.w as AdWindowKey)) ??
     AD_WINDOW_CHOICES[0];
-  const advertisers = await getAdvertisersOverview(adWindowSinceIso(choice.key));
+  // Precomputed daily by /api/cron/boards (v0.40.0). The live path is the
+  // fallback for a missing or stale (>48h) snapshot only - it is the slow one.
+  const advertisers =
+    (await readAdvertisersBoard(choice.key).catch(() => null)) ??
+    (await getAdvertisersOverview(adWindowSinceIso(choice.key)));
   const windowLabel =
     choice.key === "all"
       ? "since dense panel coverage began (May 2026)"
