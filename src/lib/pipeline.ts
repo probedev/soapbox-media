@@ -99,7 +99,11 @@ export const EMERGING_SCORE_CONCURRENCY = 15;
 // idempotent on (episode_id, figure_slug, char_offset), so re-scans no-op and
 // a missed day self-heals.
 export const FIGURES_DETECT_LOOKBACK_DAYS = 3;
-export const FIGURES_SCORE_LIMIT = 1200;
+// 1200 -> 3000 (v0.40.2) with the midterm roster refresh: the old cap was
+// really 1000 until v0.39.1 (PostgREST's row cap on the anti-join) and took
+// about 70s of the 240s budget, so 3000 fits with the pool's deadline as the
+// backstop, and a roster backfill clears in a day or two instead of a week.
+export const FIGURES_SCORE_LIMIT = 3000;
 export const FIGURES_SCORE_CONCURRENCY = 10;
 // Pending-lookup windows (v0.39.1). runScore used to page the ENTIRE
 // classifications table (deep join, OFFSET) plus the entire sentiment_scores

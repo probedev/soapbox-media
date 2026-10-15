@@ -7,6 +7,29 @@ versioning follows [SemVer](https://semver.org/spec/v2.0.0.html).
 Pre-1.0 minor versions correspond roughly to development phases of the
 pre-launch build leading into the November 2026 US midterms.
 
+## v0.40.2 · 2026-10-15
+
+### Changed
+
+- **Public Figures roster refresh for the midterms.** The roster had not
+  changed since it was seeded on 2026-06-23, so /figures read like a June cast
+  list. A scan of the 2,646 transcripts from the last 14 days ranked people
+  by episodes mentioning them; the adopted default adds the Senate-map and
+  administration names above the 60-episode line: Ken Paxton, James
+  Talarico, Mike Rogers, Susan Collins, Troy Jackson, Sherrod Brown, Jon
+  Ossoff, Marco Rubio, Pete Hegseth, Mike Johnson. Two ASR alias fixes on
+  existing rows: "mom donnie" and "zohran" for Mamdani, "kla harris" for
+  Kamala Harris. Trump stays held (he appears in roughly a third of all
+  episodes). The roster is data in the `figures` table;
+  `npm run seed:figures-midterms` applies this change idempotently, followed
+  by `npm run detect:figures -- 30`, `npm run score:figures -- 12000 15`, and
+  `npm run refresh:boards`.
+- **Figures scoring cap 1,200 -> 3,000 per daily run** (`FIGURES_SCORE_LIMIT`).
+  The old cap was really 1,000 until v0.39.1 (PostgREST's row cap on the
+  anti-join) and took about 70s; 3,000 fits the 240s budget with the pool's
+  deadline as the backstop, and lets the roster backfill clear in a day or
+  two instead of a week.
+
 ## v0.40.1 · 2026-10-14
 
 ### Fixed
